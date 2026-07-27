@@ -43,6 +43,7 @@ __pycache__/
 /.godot/
 /godot/.godot/
 /godot/.import/
+/godot/reports/
 /godot/export.cfg
 /godot/export_presets.cfg
 

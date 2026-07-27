@@ -58,6 +58,7 @@ godot-4.7.1-headless-test:
     - cmake --build --preset linux-debug
     - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot --editor --quit
     - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase08.gd
+    - cd godot && XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -a res://tests/DrossBoundaryTest.gd
 
 asan-ubsan-test:
   stage: sanitize
