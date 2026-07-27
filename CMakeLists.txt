@@ -81,6 +81,7 @@ add_executable(dross_tests
   tests/unit/runtime/command_event_kernel_test.cpp
   tests/unit/runtime/fixed_tick_runtime_test.cpp
   tests/unit/runtime/replay_test.cpp
+  tests/unit/runtime/world_lifecycle_test.cpp
   tests/unit/world/world_storage_test.cpp
 )
 target_link_libraries(dross_tests PRIVATE dross::core Catch2::Catch2WithMain)
