@@ -1,0 +1,72 @@
+#include <dross/random/random_hub.hpp>
+#include <dross/runtime/replay.hpp>
+#include <dross/world/world_storage.hpp>
+
+#include <catch2/catch_test_macros.hpp>
+
+namespace {
+
+dross::ContentId content_id(const char* value) { return dross::ContentId::parse(value).value(); }
+
+dross::CanonicalCheckpoint checkpoint_for(const std::vector<std::uint64_t>& spawn_order,
+                                          const std::uint64_t seed) {
+  dross::WorldStorage world{
+      dross::WorldConfig{.lineage = 7, .instance_id = dross::WorldInstanceId{9}}};
+  for (const auto sequence : spawn_order) {
+    REQUIRE(world.write().spawn(dross::SpawnPlan::authored(sequence)));
+  }
+  dross::OccupancyIndex occupancy;
+  dross::RandomHub random{dross::MasterSeed{seed}};
+  static_cast<void>(
+      random.stream(dross::RandomStreamId{content_id("dross:combat")}).next_u64());
+  return dross::canonical_checkpoint(dross::Tick{3}, world, occupancy, random.snapshot(), {});
+}
+
+} // namespace
+
+TEST_CASE("canonical checkpoint is independent from storage insertion order") {
+  CHECK(checkpoint_for({2, 1}, 12345) == checkpoint_for({1, 2}, 12345));
+}
+
+TEST_CASE("changed master seed changes the random checkpoint section") {
+  const auto first = checkpoint_for({1, 2}, 12345);
+  const auto second = checkpoint_for({1, 2}, 54321);
+
+  CHECK(first.overall != second.overall);
+  CHECK(first.sections.at(dross::CheckpointSection::random) !=
+        second.sections.at(dross::CheckpointSection::random));
+}
+
+TEST_CASE("replay DTO has a deterministic round trip") {
+  dross::ReplayLog log{
+      .header =
+          dross::ReplayHeader{
+              .engine_version = 5,
+              .schema_version = 1,
+              .scenario = content_id("dross:command_event_kernel"),
+              .base_package = content_id("dross:base"),
+              .master_seed = dross::MasterSeed{12345},
+              .random_algorithm_version = dross::random_algorithm_version,
+          },
+      .external_commands = {},
+      .checkpoints = {checkpoint_for({1, 2}, 12345)},
+  };
+
+  const auto encoded = dross::encode_replay(log);
+  const auto decoded = dross::decode_replay(encoded);
+  REQUIRE(decoded);
+  CHECK(*decoded == log);
+  CHECK(dross::encode_replay(*decoded) == encoded);
+}
+
+TEST_CASE("first replay divergence reports its tick and canonical section") {
+  auto expected = checkpoint_for({1, 2}, 12345);
+  auto actual = expected;
+  actual.sections[dross::CheckpointSection::occupancy][0] ^= std::byte{1};
+  actual.overall[0] ^= std::byte{1};
+
+  const auto divergence = dross::first_divergence({expected}, {actual});
+  REQUIRE(divergence);
+  CHECK(divergence->tick == dross::Tick{3});
+  CHECK(divergence->section == dross::CheckpointSection::occupancy);
+}
