@@ -222,8 +222,8 @@ int main(const int argument_count, const char* const arguments[]) {
       std::string_view{arguments[2]} == "command-event-kernel") {
     return run_command_scenario({arguments, static_cast<std::size_t>(argument_count)});
   }
-  const auto persistence = dispatch_persistence_command(
-      {arguments, static_cast<std::size_t>(argument_count)});
+  const auto persistence =
+      dispatch_persistence_command({arguments, static_cast<std::size_t>(argument_count)});
   if (persistence) {
     return *persistence;
   }

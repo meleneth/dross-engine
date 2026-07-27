@@ -95,6 +95,8 @@ add_executable(dross_tests
 )
 target_link_libraries(dross_tests PRIVATE dross::core Catch2::Catch2WithMain)
 target_compile_features(dross_tests PRIVATE cxx_std_20)
+target_compile_definitions(
+  dross_tests PRIVATE DROSS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 dross_target_warnings(dross_tests)
 dross_enable_sanitizers(dross_tests)
 
@@ -104,7 +106,7 @@ catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME headless.version COMMAND dross_headless version)
 set_tests_properties(
   headless.version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-06")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-07")
 add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
 set_tests_properties(
   headless.validate_id

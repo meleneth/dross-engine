@@ -1,0 +1,5 @@
+type dross:persistent_identity
+version 0
+lineage 9
+sequence 1
+payload empty

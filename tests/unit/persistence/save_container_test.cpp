@@ -6,6 +6,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <fstream>
+#include <string>
 
 namespace {
 
@@ -57,6 +59,30 @@ std::vector<std::byte> pose_payload(const dross::HexPose& pose) {
   dross::ByteWriter writer;
   dross::generated::encode_hex_pose(writer, pose);
   return {writer.bytes().begin(), writer.bytes().end()};
+}
+
+dross::ComponentRecord legacy_identity_fixture() {
+  std::ifstream input{std::string{DROSS_SOURCE_DIR} +
+                      "/tests/fixtures/persistent-identity-v0.dross-component"};
+  std::string label;
+  std::string type;
+  std::string payload;
+  std::uint32_t version = 0;
+  std::uint64_t lineage = 0;
+  std::uint64_t sequence = 0;
+  input >> label >> type;
+  input >> label >> version;
+  input >> label >> lineage;
+  input >> label >> sequence;
+  input >> label >> payload;
+  REQUIRE(input);
+  REQUIRE(payload == "empty");
+  return dross::ComponentRecord{
+      .type_id = content_id(type.c_str()),
+      .version = version,
+      .entity = dross::EntityId{lineage, sequence},
+      .payload = {},
+  };
 }
 
 } // namespace
@@ -134,12 +160,7 @@ TEST_CASE("save decoder rejects truncated and malformed container bytes") {
 TEST_CASE("persistent identity V0 migrates purely to the current V1 payload") {
   dross::ComponentCodecRegistry registry;
   REQUIRE(dross::register_current_component_codecs(registry));
-  const auto legacy = dross::ComponentRecord{
-      .type_id = content_id("dross:persistent_identity"),
-      .version = 0,
-      .entity = dross::EntityId{9, 1},
-      .payload = {},
-  };
+  const auto legacy = legacy_identity_fixture();
 
   const auto migrated = registry.migrate_to_current(legacy);
 
@@ -325,4 +346,76 @@ TEST_CASE("save bytes restore random streams and machine snapshots through produ
   CHECK(restored_mode.snapshot() == expected.runtime.mode);
   CHECK(restored_random.stream(dross::RandomStreamId{content_id("test:persistence")}).next_u64() ==
         source.stream(dross::RandomStreamId{content_id("test:persistence")}).next_u64());
+}
+
+TEST_CASE("failed load validation leaves the current world canonical hash unchanged") {
+  dross::WorldStorage current{dross::WorldConfig{
+      .lineage = 9,
+      .instance_id = dross::WorldInstanceId{1},
+  }};
+  REQUIRE(current.write().spawn(dross::SpawnPlan::runtime()));
+  dross::OccupancyIndex occupancy;
+  dross::RandomHub random{dross::MasterSeed{12345}};
+  dross::NullMachineTrace trace;
+  dross::WorldLifecycle lifecycle{trace};
+  dross::SimulationMode mode{trace};
+  REQUIRE(lifecycle.restore(
+      dross::WorldLifecycleSnapshot{.state = dross::WorldLifecycleState::running}));
+  const auto before =
+      dross::canonical_checkpoint(dross::Tick{7}, current, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {});
+  auto invalid = container_with(dross::snapshot_world_components(current));
+  invalid.header.map_hash.front() ^= 0xFFU;
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+
+  const auto rejected = dross::build_world_load_plan(invalid, registry, content_id("dross:arena"),
+                                                     container_with({}).header.map_hash);
+  const auto after =
+      dross::canonical_checkpoint(dross::Tick{7}, current, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {});
+
+  REQUIRE_FALSE(rejected);
+  CHECK(rejected.error() == dross::WorldLoadError::map_mismatch);
+  CHECK(after == before);
+}
+
+TEST_CASE("replay checkpoints can begin from a freshly loaded save snapshot") {
+  dross::WorldStorage original{dross::WorldConfig{
+      .lineage = 9,
+      .instance_id = dross::WorldInstanceId{1},
+  }};
+  REQUIRE(original.write().spawn(dross::SpawnPlan::runtime()));
+  auto save = container_with(dross::snapshot_world_components(original));
+  save.header.allocator = original.allocator_snapshot();
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+  const auto plan =
+      dross::build_world_load_plan(save, registry, save.header.map_id, save.header.map_hash);
+  REQUIRE(plan);
+  const auto loaded = plan->construct(dross::WorldInstanceId{2});
+  REQUIRE(loaded);
+  dross::OccupancyIndex occupancy;
+  const auto loaded_checkpoint = dross::canonical_checkpoint(
+      save.header.current_tick, **loaded, occupancy, save.runtime.random, save.runtime.lifecycle,
+      save.runtime.mode, {});
+  const auto replay = dross::ReplayLog{
+      .header =
+          dross::ReplayHeader{
+              .engine_version = dross::engine_version(),
+              .schema_version = 1,
+              .scenario = content_id("dross:loaded_snapshot"),
+              .base_package = content_id("dross:base"),
+              .master_seed = save.runtime.random.master_seed,
+              .random_algorithm_version = save.runtime.random.algorithm_version,
+          },
+      .external_commands = {},
+      .machine_trace = {},
+      .checkpoints = {loaded_checkpoint},
+  };
+
+  const auto decoded = dross::decode_replay(dross::encode_replay(replay));
+
+  REQUIRE(decoded);
+  CHECK_FALSE(dross::first_divergence(decoded->checkpoints, {&loaded_checkpoint, 1}));
 }
