@@ -69,13 +69,19 @@ catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME headless.version COMMAND dross_headless version)
 set_tests_properties(
   headless.version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-01")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-02")
 add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
 set_tests_properties(
   headless.validate_id
   PROPERTIES PASS_REGULAR_EXPRESSION "^dross:thump")
 add_test(NAME headless.reject_invalid_id COMMAND dross_headless validate-id Dross:thump)
 set_tests_properties(headless.reject_invalid_id PROPERTIES WILL_FAIL TRUE)
+add_test(NAME headless.identity_lifecycle
+         COMMAND dross_headless scenario identity-lifecycle)
+set_tests_properties(
+  headless.identity_lifecycle
+  PROPERTIES PASS_REGULAR_EXPRESSION
+             "^identity-lifecycle world=42 alive=\\[entity:17:2,entity:17:40\\] named=entity:17:40 next=3")
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(

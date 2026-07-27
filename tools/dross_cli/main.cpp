@@ -2,20 +2,25 @@
 #include <dross/foundation/quantities.hpp>
 #include <dross/foundation/version.hpp>
 #include <dross/identity/content_id.hpp>
+#include <dross/world/world_storage.hpp>
 
+#include <cstdint>
 #include <iostream>
 #include <string_view>
+#include <utility>
 
 namespace {
 
 constexpr int usage_error = 2;
 constexpr int validation_error = 3;
 constexpr int self_check_error = 4;
+constexpr int scenario_error = 5;
 
 void print_usage(std::ostream& output) {
   output << "usage:\n"
             "  dross_headless version\n"
-            "  dross_headless validate-id <namespace:name>\n";
+            "  dross_headless validate-id <namespace:name>\n"
+            "  dross_headless scenario identity-lifecycle\n";
 }
 
 [[nodiscard]] bool foundation_self_check() {
@@ -49,6 +54,41 @@ void print_usage(std::ostream& output) {
   return "unknown error";
 }
 
+[[nodiscard]] int run_identity_lifecycle() {
+  constexpr std::uint64_t lineage = 17;
+  constexpr std::uint64_t instance = 42;
+  auto alias_id = dross::ContentId::parse("demo:named");
+  if (!alias_id) {
+    return scenario_error;
+  }
+
+  dross::WorldStorage world{
+      dross::WorldConfig{.lineage = lineage, .instance_id = dross::WorldInstanceId{instance}}};
+  auto write = world.write();
+  const auto named =
+      write.spawn(dross::SpawnPlan::authored(40, dross::EntityAlias{std::move(*alias_id)}));
+  const auto removed = write.spawn(dross::SpawnPlan::runtime());
+  const auto survivor = write.spawn(dross::SpawnPlan::runtime());
+  if (!named || !removed || !survivor ||
+      !world.read().find(dross::EntityAlias{dross::ContentId::parse("demo:named").value()}) ||
+      !write.destroy(*removed)) {
+    std::cerr << "identity lifecycle scenario failed\n";
+    return scenario_error;
+  }
+
+  const auto alive = world.read().stable_entity_ids();
+  const auto found_named = world.read().find(named->id());
+  if (alive.size() != 2 || !found_named) {
+    std::cerr << "identity lifecycle summary failed\n";
+    return scenario_error;
+  }
+
+  std::cout << "identity-lifecycle world=" << instance << " alive=[" << alive[0] << ',' << alive[1]
+            << "] named=" << found_named->id()
+            << " next=" << world.allocator_snapshot().next_runtime_sequence << '\n';
+  return 0;
+}
+
 } // namespace
 
 int main(const int argument_count, const char* const arguments[]) {
@@ -71,6 +111,11 @@ int main(const int argument_count, const char* const arguments[]) {
     }
     std::cout << parsed->canonical() << '\n';
     return 0;
+  }
+
+  if (argument_count == 3 && std::string_view{arguments[1]} == "scenario" &&
+      std::string_view{arguments[2]} == "identity-lifecycle") {
+    return run_identity_lifecycle();
   }
 
   print_usage(std::cerr);
