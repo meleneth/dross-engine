@@ -211,6 +211,9 @@ public:
 
   void enqueue(PlaceEntityEnvelope command);
   [[nodiscard]] std::vector<CommandResult> run_cycle();
+  [[nodiscard]] std::size_t pending_command_count() const noexcept {
+    return pending_commands_.size();
+  }
   [[nodiscard]] bool command_active() const noexcept { return command_active_; }
   [[nodiscard]] const OccupancyIndex& occupancy() const noexcept { return occupancy_; }
   [[nodiscard]] PlacementEventQueue& events() noexcept { return events_; }

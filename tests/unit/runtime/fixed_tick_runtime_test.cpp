@@ -8,9 +8,7 @@
 
 namespace {
 
-dross::ContentId fixed_tick_id(const char* value) {
-  return dross::ContentId::parse(value).value();
-}
+dross::ContentId fixed_tick_id(const char* value) { return dross::ContentId::parse(value).value(); }
 
 dross::HexCellId fixed_tick_cell(const int column) {
   return dross::HexCellId{
@@ -38,10 +36,8 @@ dross::CompiledHexMap fixed_tick_map(const int cell_count) {
   return std::move(builder).build().value();
 }
 
-dross::PlaceEntityEnvelope scheduled_command(const std::uint64_t command_id,
-                                             const dross::Tick tick,
-                                             const dross::EntityRef entity,
-                                             const int column) {
+dross::PlaceEntityEnvelope scheduled_command(const std::uint64_t command_id, const dross::Tick tick,
+                                             const dross::EntityRef entity, const int column) {
   return dross::PlaceEntityEnvelope{
       .metadata =
           dross::CommandMetadata{
@@ -71,9 +67,7 @@ struct RuntimeFixture {
         }},
         map{fixed_tick_map(cell_count)} {}
 
-  dross::EntityRef spawn() {
-    return world.write().spawn(dross::SpawnPlan::runtime()).value();
-  }
+  dross::EntityRef spawn() { return world.write().spawn(dross::SpawnPlan::runtime()).value(); }
 
   dross::WorldStorage world;
   dross::CompiledHexMap map;
@@ -96,13 +90,11 @@ TEST_CASE("external commands are ingested by target tick in submission order") {
   RuntimeFixture fixture{2};
   const auto first = fixture.spawn();
   const auto second = fixture.spawn();
-  dross::CommandEventKernel kernel{
-      fixture.world, std::move(fixture.map), fixture.scripts, fixture.trace};
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
+                                   fixture.trace};
   dross::EngineRuntime runtime{kernel, dross::RuntimeConfig{}};
-  REQUIRE(runtime.schedule_external(
-      scheduled_command(2, dross::Tick{1}, second, 1)));
-  REQUIRE(runtime.schedule_external(
-      scheduled_command(1, dross::Tick{1}, first, 0)));
+  REQUIRE(runtime.schedule_external(scheduled_command(2, dross::Tick{1}, second, 1)));
+  REQUIRE(runtime.schedule_external(scheduled_command(1, dross::Tick{1}, first, 0)));
 
   const auto tick_zero = runtime.advance_tick();
   const auto tick_one = runtime.advance_tick();
@@ -110,8 +102,7 @@ TEST_CASE("external commands are ingested by target tick in submission order") {
   CHECK(tick_zero.command_results.empty());
   REQUIRE(tick_one.command_results.size() == 2);
   CHECK(tick_one.command_ids ==
-        std::vector<dross::CommandId>{dross::CommandId{2},
-                                      dross::CommandId{1}});
+        std::vector<dross::CommandId>{dross::CommandId{2}, dross::CommandId{1}});
   CHECK(fixture.world.read().pose(first).has_value());
   CHECK(fixture.world.read().pose(second).has_value());
 }
@@ -120,22 +111,19 @@ TEST_CASE("follow-up commands finish in bounded cycles within the same tick") {
   RuntimeFixture fixture{2};
   const auto first = fixture.spawn();
   const auto second = fixture.spawn();
-  dross::CommandEventKernel kernel{
-      fixture.world, std::move(fixture.map), fixture.scripts, fixture.trace};
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
+                                   fixture.trace};
   auto subscription = kernel.events().subscribe_capability(
       [&first, &second](const dross::placement::EntityPlaced& event,
                         dross::EventReactionContext& context) {
         if (event.entity == first) {
-          context.enqueue_follow_up(
-              scheduled_command(2, dross::Tick{0}, second, 1));
+          context.enqueue_follow_up(scheduled_command(2, dross::Tick{0}, second, 1));
         }
       });
   REQUIRE(subscription);
   dross::EngineRuntime runtime{
-      kernel, dross::RuntimeConfig{.ticks_per_second = 30,
-                                   .max_command_cycles_per_tick = 4}};
-  REQUIRE(runtime.schedule_external(
-      scheduled_command(1, dross::Tick{0}, first, 0)));
+      kernel, dross::RuntimeConfig{.ticks_per_second = 30, .max_command_cycles_per_tick = 4}};
+  REQUIRE(runtime.schedule_external(scheduled_command(1, dross::Tick{0}, first, 0)));
 
   const auto report = runtime.advance_tick();
 
@@ -143,15 +131,14 @@ TEST_CASE("follow-up commands finish in bounded cycles within the same tick") {
   CHECK(report.command_results.size() == 2);
   CHECK(runtime.state() == dross::RuntimeState::running);
   CHECK(fixture.world.read().pose(second).has_value());
-  CHECK(report.phases ==
-        std::vector<dross::TickPhase>{
-            dross::TickPhase::ingest_external,
-            dross::TickPhase::process_commands,
-            dross::TickPhase::advance_time_systems,
-            dross::TickPhase::produce_inspection,
-            dross::TickPhase::checkpoint,
-            dross::TickPhase::increment_clock,
-        });
+  CHECK(report.phases == std::vector<dross::TickPhase>{
+                             dross::TickPhase::ingest_external,
+                             dross::TickPhase::process_commands,
+                             dross::TickPhase::advance_time_systems,
+                             dross::TickPhase::produce_inspection,
+                             dross::TickPhase::checkpoint,
+                             dross::TickPhase::increment_clock,
+                         });
 }
 
 TEST_CASE("command cycle budget exhaustion faults the runtime") {
@@ -159,25 +146,21 @@ TEST_CASE("command cycle budget exhaustion faults the runtime") {
   const auto first = fixture.spawn();
   const auto second = fixture.spawn();
   const auto third = fixture.spawn();
-  dross::CommandEventKernel kernel{
-      fixture.world, std::move(fixture.map), fixture.scripts, fixture.trace};
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
+                                   fixture.trace};
   auto subscription = kernel.events().subscribe_capability(
       [&first, &second, &third](const dross::placement::EntityPlaced& event,
                                 dross::EventReactionContext& context) {
         if (event.entity == first) {
-          context.enqueue_follow_up(
-              scheduled_command(2, dross::Tick{0}, second, 1));
+          context.enqueue_follow_up(scheduled_command(2, dross::Tick{0}, second, 1));
         } else if (event.entity == second) {
-          context.enqueue_follow_up(
-              scheduled_command(3, dross::Tick{0}, third, 2));
+          context.enqueue_follow_up(scheduled_command(3, dross::Tick{0}, third, 2));
         }
       });
   REQUIRE(subscription);
   dross::EngineRuntime runtime{
-      kernel, dross::RuntimeConfig{.ticks_per_second = 30,
-                                   .max_command_cycles_per_tick = 2}};
-  REQUIRE(runtime.schedule_external(
-      scheduled_command(1, dross::Tick{0}, first, 0)));
+      kernel, dross::RuntimeConfig{.ticks_per_second = 30, .max_command_cycles_per_tick = 2}};
+  REQUIRE(runtime.schedule_external(scheduled_command(1, dross::Tick{0}, first, 0)));
 
   const auto report = runtime.advance_tick();
 
@@ -191,13 +174,12 @@ TEST_CASE("command cycle budget exhaustion faults the runtime") {
 TEST_CASE("commands cannot be scheduled into an elapsed tick") {
   RuntimeFixture fixture{1};
   const auto entity = fixture.spawn();
-  dross::CommandEventKernel kernel{
-      fixture.world, std::move(fixture.map), fixture.scripts, fixture.trace};
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
+                                   fixture.trace};
   dross::EngineRuntime runtime{kernel, dross::RuntimeConfig{}};
   static_cast<void>(runtime.advance_tick());
 
-  const auto scheduled = runtime.schedule_external(
-      scheduled_command(1, dross::Tick{0}, entity, 0));
+  const auto scheduled = runtime.schedule_external(scheduled_command(1, dross::Tick{0}, entity, 0));
 
   REQUIRE_FALSE(scheduled);
   CHECK(scheduled.error() == dross::ScheduleError::elapsed_tick);

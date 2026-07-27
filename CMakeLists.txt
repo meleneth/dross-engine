@@ -34,6 +34,7 @@ add_library(dross_core STATIC
   src/core/identity/entity_id_allocator.cpp
   src/core/identity/ids.cpp
   src/core/runtime/command_event_kernel.cpp
+  src/core/runtime/fixed_tick_runtime.cpp
   src/core/world/world_storage.cpp
 )
 add_library(dross::core ALIAS dross_core)
