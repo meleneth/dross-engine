@@ -36,7 +36,7 @@ Result<void, ScheduleError> EngineRuntime::schedule_external(PlaceEntityEnvelope
   if (state_ == RuntimeState::faulted) {
     return tl::unexpected{ScheduleError::runtime_faulted};
   }
-  if (lifecycle_->state() != WorldLifecycleState::running) {
+  if (!lifecycle_->request_runtime_work()) {
     return tl::unexpected{ScheduleError::world_not_running};
   }
   if (command.metadata.tick < clock_.current()) {
@@ -51,7 +51,26 @@ Result<void, ScheduleError> EngineRuntime::schedule_external(PlaceEntityEnvelope
 }
 
 bool EngineRuntime::request_combat() {
-  return lifecycle_->state() == WorldLifecycleState::running && mode_->request_combat();
+  return lifecycle_->request_runtime_work() && mode_->request_combat();
+}
+
+Result<void, SaveBoundaryError> EngineRuntime::save_boundary() {
+  if (state_ == RuntimeState::faulted) {
+    return tl::unexpected{SaveBoundaryError::runtime_faulted};
+  }
+  if (!lifecycle_->request_save_boundary()) {
+    return tl::unexpected{SaveBoundaryError::world_not_running};
+  }
+  if (kernel_->command_active()) {
+    return tl::unexpected{SaveBoundaryError::command_active};
+  }
+  if (kernel_->event_queue_draining()) {
+    return tl::unexpected{SaveBoundaryError::event_queue_draining};
+  }
+  if (kernel_->pending_command_count() != 0) {
+    return tl::unexpected{SaveBoundaryError::commands_pending};
+  }
+  return {};
 }
 
 TickReport EngineRuntime::advance_tick() {
@@ -66,10 +85,7 @@ TickReport EngineRuntime::advance_tick() {
   if (state_ == RuntimeState::faulted) {
     return report;
   }
-  if (lifecycle_->state() != WorldLifecycleState::running) {
-    if (lifecycle_->state() == WorldLifecycleState::faulted) {
-      state_ = RuntimeState::faulted;
-    }
+  if (!lifecycle_->request_runtime_work()) {
     return report;
   }
 
@@ -108,9 +124,7 @@ TickReport EngineRuntime::advance_tick() {
   }
 
   report.phases.push_back(TickPhase::advance_time_systems);
-  if (mode_->state() == SimulationModeState::combat_pending) {
-    static_cast<void>(mode_->reach_safe_boundary());
-  }
+  static_cast<void>(mode_->reach_safe_boundary());
   report.phases.push_back(TickPhase::produce_inspection);
   report.phases.push_back(TickPhase::checkpoint);
   if (checkpoint_callback_) {

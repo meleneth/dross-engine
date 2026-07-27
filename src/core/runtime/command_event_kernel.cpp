@@ -201,6 +201,8 @@ void CommandEventKernel::enqueue(PlaceEntityEnvelope command) {
   pending_commands_.push_back(std::move(command));
 }
 
+bool CommandEventKernel::event_queue_draining() const noexcept { return events_.impl_->draining; }
+
 std::vector<CommandResult> CommandEventKernel::run_cycle() {
   auto active = std::move(pending_commands_);
   pending_commands_.clear();

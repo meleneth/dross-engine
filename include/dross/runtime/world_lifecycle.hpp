@@ -42,6 +42,8 @@ public:
   [[nodiscard]] bool begin_unload();
   [[nodiscard]] bool unload_succeeded();
   [[nodiscard]] bool fatal_fault();
+  [[nodiscard]] bool request_runtime_work();
+  [[nodiscard]] bool request_save_boundary();
 
   [[nodiscard]] WorldLifecycleState state() const;
   [[nodiscard]] WorldLifecycleSnapshot snapshot() const;

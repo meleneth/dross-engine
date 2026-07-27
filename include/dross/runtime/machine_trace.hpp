@@ -38,6 +38,8 @@ enum class MachineEventId : std::uint8_t {
   combat_requested,
   safe_boundary_reached,
   combat_ended,
+  runtime_work_requested,
+  save_boundary_requested,
 };
 
 enum class MachineEventOutcome : std::uint8_t {

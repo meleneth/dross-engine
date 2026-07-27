@@ -53,6 +53,14 @@ enum class ScheduleError : std::uint8_t {
   world_not_running,
 };
 
+enum class SaveBoundaryError : std::uint8_t {
+  runtime_faulted,
+  world_not_running,
+  command_active,
+  event_queue_draining,
+  commands_pending,
+};
+
 enum class TickPhase : std::uint8_t {
   ingest_external,
   process_commands,
@@ -78,6 +86,7 @@ public:
 
   [[nodiscard]] Result<void, ScheduleError> schedule_external(PlaceEntityEnvelope command);
   [[nodiscard]] bool request_combat();
+  [[nodiscard]] Result<void, SaveBoundaryError> save_boundary();
   [[nodiscard]] TickReport advance_tick();
   void set_checkpoint_callback(std::function<void(Tick)> callback);
   [[nodiscard]] std::vector<PlaceEntityEnvelope> pending_external_commands() const;

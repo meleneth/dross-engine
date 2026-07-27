@@ -229,6 +229,7 @@ public:
     return pending_commands_.size();
   }
   [[nodiscard]] bool command_active() const noexcept { return command_active_; }
+  [[nodiscard]] bool event_queue_draining() const noexcept;
   [[nodiscard]] const OccupancyIndex& occupancy() const noexcept { return occupancy_; }
   [[nodiscard]] PlacementEventQueue& events() noexcept { return events_; }
   [[nodiscard]] std::optional<LastPlacementInspection> last_placement() const;

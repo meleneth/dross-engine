@@ -27,6 +27,8 @@ struct SaveIoFailed {};
 struct BeginUnload {};
 struct UnloadSucceeded {};
 struct FatalFault {};
+struct RuntimeWorkRequested {};
+struct SaveBoundaryRequested {};
 template <WorldLifecycleState State> struct Restore {};
 
 struct DrossSmlLogger {
@@ -63,6 +65,8 @@ struct WorldLifecycleDefinition {
         state<Saving> + event<SaveSucceeded> = state<Running>,
         state<Saving> + event<SaveIoFailed> = state<Running>,
         state<Running> + event<BeginUnload> = state<Unloading>,
+        state<Running> + event<RuntimeWorkRequested> / [] {},
+        state<Running> + event<SaveBoundaryRequested> / [] {},
         state<Unloading> + event<UnloadSucceeded> = state<Empty>,
         state<Empty> + event<FatalFault> = state<Faulted>,
         state<Loading> + event<FatalFault> = state<Faulted>,
@@ -170,6 +174,12 @@ bool WorldLifecycle::unload_succeeded() {
   return process(UnloadSucceeded{}, MachineEventId::unload_succeeded);
 }
 bool WorldLifecycle::fatal_fault() { return process(FatalFault{}, MachineEventId::fatal_fault); }
+bool WorldLifecycle::request_runtime_work() {
+  return process(RuntimeWorkRequested{}, MachineEventId::runtime_work_requested);
+}
+bool WorldLifecycle::request_save_boundary() {
+  return process(SaveBoundaryRequested{}, MachineEventId::save_boundary_requested);
+}
 
 WorldLifecycleSnapshot WorldLifecycle::snapshot() const { return {.state = state()}; }
 

@@ -292,7 +292,7 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
         *machine > static_cast<std::uint16_t>(MachineFamily::simulation_mode) ||
         *source > static_cast<std::uint16_t>(MachineStateId::combat) ||
         *destination > static_cast<std::uint16_t>(MachineStateId::combat) ||
-        *event > static_cast<std::uint16_t>(MachineEventId::combat_ended) ||
+        *event > static_cast<std::uint16_t>(MachineEventId::save_boundary_requested) ||
         *outcome > static_cast<std::uint16_t>(MachineEventOutcome::rejected)) {
       return tl::unexpected{ReplayDecodeError::invalid_format};
     }
