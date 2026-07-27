@@ -11,7 +11,9 @@ TEST_CASE("axial and cube coordinates round trip exhaustively") {
       const dross::HexCoord axial{q, r};
       const auto cube = dross::to_cube(axial);
       CHECK(cube.x + cube.y + cube.z == 0);
-      CHECK(dross::to_axial(cube) == axial);
+      const auto round_trip = dross::to_axial(cube);
+      REQUIRE(round_trip);
+      CHECK(*round_trip == axial);
     }
   }
 }
@@ -23,23 +25,21 @@ TEST_CASE("hex distance is symmetric and satisfies the triangle inequality") {
       const dross::HexCoord b{-ar, aq};
       const dross::HexCoord c{ar, -aq};
       CHECK(dross::hex_distance(a, b) == dross::hex_distance(b, a));
-      CHECK(dross::hex_distance(a, c) <=
-            dross::hex_distance(a, b) + dross::hex_distance(b, c));
+      CHECK(dross::hex_distance(a, c) <= dross::hex_distance(a, b) + dross::hex_distance(b, c));
     }
   }
 }
 
 TEST_CASE("direction values and vectors are stable clockwise") {
-  constexpr std::array expected{
-      dross::HexCoord{1, 0},  dross::HexCoord{0, 1},  dross::HexCoord{-1, 1},
-      dross::HexCoord{-1, 0}, dross::HexCoord{0, -1}, dross::HexCoord{1, -1}};
+  constexpr std::array expected{dross::HexCoord{1, 0},  dross::HexCoord{0, 1},
+                                dross::HexCoord{-1, 1}, dross::HexCoord{-1, 0},
+                                dross::HexCoord{0, -1}, dross::HexCoord{1, -1}};
 
   for (std::uint8_t value = 0; value < expected.size(); ++value) {
     const auto direction = static_cast<dross::HexDirection>(value);
     CHECK(dross::direction_offset(direction) == expected[value]);
     CHECK(dross::neighbor(dross::HexCoord{0, 0}, direction) == expected[value]);
-    CHECK(dross::neighbor(expected[value], dross::opposite(direction)) ==
-          dross::HexCoord{0, 0});
+    CHECK(dross::neighbor(expected[value], dross::opposite(direction)) == dross::HexCoord{0, 0});
   }
 }
 
@@ -52,6 +52,5 @@ TEST_CASE("six clockwise rotations return coordinates and facing to origin") {
   }
   CHECK(coordinate == dross::HexCoord{2, -1});
   CHECK(facing == dross::HexFacing::east);
-  CHECK(dross::rotate_counterclockwise(dross::rotate_clockwise(coordinate)) ==
-        coordinate);
+  CHECK(dross::rotate_counterclockwise(dross::rotate_clockwise(coordinate)) == coordinate);
 }

@@ -23,6 +23,11 @@ include(DrossStaticAnalysis)
 add_library(dross_core STATIC
   src/core/foundation/byte_codec.cpp
   src/core/foundation/version.cpp
+  src/core/hex/footprint.cpp
+  src/core/hex/compiled_hex_map.cpp
+  src/core/hex/hex_coord.cpp
+  src/core/hex/hex_topology.cpp
+  src/core/hex/occupancy.cpp
   src/core/identity/content_id.cpp
   src/core/identity/entity_id_allocator.cpp
   src/core/identity/ids.cpp
@@ -55,6 +60,7 @@ add_executable(dross_tests
   tests/unit/foundation/byte_codec_test.cpp
   tests/unit/foundation/quantity_test.cpp
   tests/unit/hex/hex_coord_test.cpp
+  tests/unit/hex/hex_map_test.cpp
   tests/unit/hex/hex_topology_test.cpp
   tests/unit/identity/content_id_test.cpp
   tests/unit/identity/identity_test.cpp

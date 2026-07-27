@@ -12,8 +12,7 @@ dross::RegionId region(const std::string_view text) {
   return dross::RegionId{dross::ContentId::parse(text).value()};
 }
 
-dross::HexCellId cell(const std::int32_t q, const std::int32_t r,
-                      const std::int32_t layer = 0) {
+dross::HexCellId cell(const std::int32_t q, const std::int32_t r, const std::int32_t layer = 0) {
   return dross::HexCellId{region("demo:room"), dross::HexCoord{q, r}, layer};
 }
 
@@ -36,8 +35,7 @@ TEST_CASE("edge keys canonicalize either endpoint order") {
 }
 
 TEST_CASE("footprints require an origin and reject duplicate offsets") {
-  const auto footprint_id =
-      dross::FootprintId{dross::ContentId::parse("demo:shape").value()};
+  const auto footprint_id = dross::FootprintId{dross::ContentId::parse("demo:shape").value()};
   const auto missing_origin =
       dross::FootprintDefinition::create(footprint_id, {dross::HexCoord{1, 0}});
   REQUIRE_FALSE(missing_origin);
@@ -51,10 +49,8 @@ TEST_CASE("footprints require an origin and reject duplicate offsets") {
 
 TEST_CASE("asymmetric footprint rotations are canonical and cycle after six turns") {
   const auto footprint = dross::FootprintDefinition::create(
-                             dross::FootprintId{
-                                 dross::ContentId::parse("demo:asymmetric").value()},
-                             {dross::HexCoord{1, 0}, dross::HexCoord{0, 0},
-                              dross::HexCoord{1, -1}})
+                             dross::FootprintId{dross::ContentId::parse("demo:asymmetric").value()},
+                             {dross::HexCoord{1, 0}, dross::HexCoord{0, 0}, dross::HexCoord{1, -1}})
                              .value();
   CHECK(std::ranges::is_sorted(footprint.offsets()));
 
@@ -65,11 +61,10 @@ TEST_CASE("asymmetric footprint rotations are canonical and cycle after six turn
 }
 
 TEST_CASE("footprint expansion preserves region and layer") {
-  const auto footprint =
-      dross::FootprintDefinition::create(
-          dross::FootprintId{dross::ContentId::parse("demo:two_cell").value()},
-          {dross::HexCoord{0, 0}, dross::HexCoord{1, 0}})
-          .value();
+  const auto footprint = dross::FootprintDefinition::create(
+                             dross::FootprintId{dross::ContentId::parse("demo:two_cell").value()},
+                             {dross::HexCoord{0, 0}, dross::HexCoord{1, 0}})
+                             .value();
   const dross::HexPose pose{cell(4, -2, 7), dross::HexFacing::west};
   const auto expanded = footprint.expand(pose);
 
