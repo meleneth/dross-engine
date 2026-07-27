@@ -1,0 +1,76 @@
+// {{ notice }}
+#pragma once
+
+#include <dross/foundation/byte_codec.hpp>
+#include <dross/hex/hex_topology.hpp>
+#include <dross/identity/entity_ref.hpp>
+
+#include <cstdint>
+#include <utility>
+
+namespace dross::generated {
+
+inline void encode_entity_ref(ByteWriter& writer, const EntityRef& value) {
+  writer.write_u64(value.world_instance().value());
+  writer.write(value.id());
+}
+
+[[nodiscard]] inline Result<EntityRef, DecodeError>
+decode_entity_ref(ByteReader& reader) {
+  auto world = reader.read_u64();
+  if (!world) {
+    return tl::unexpected{world.error()};
+  }
+  auto entity = reader.read_entity_id();
+  if (!entity) {
+    return tl::unexpected{entity.error()};
+  }
+  return EntityRef{WorldInstanceId{*world}, *entity};
+}
+
+inline void encode_hex_pose(ByteWriter& writer, const HexPose& value) {
+  writer.write(value.anchor.region.content_id());
+  writer.write_u32(static_cast<std::uint32_t>(value.anchor.coord.q));
+  writer.write_u32(static_cast<std::uint32_t>(value.anchor.coord.r));
+  writer.write_u32(static_cast<std::uint32_t>(value.anchor.layer));
+  writer.write_u16(static_cast<std::uint16_t>(value.facing));
+}
+
+[[nodiscard]] inline Result<HexPose, DecodeError>
+decode_hex_pose(ByteReader& reader) {
+  auto region = reader.read_content_id();
+  if (!region) {
+    return tl::unexpected{region.error()};
+  }
+  auto q = reader.read_u32();
+  if (!q) {
+    return tl::unexpected{q.error()};
+  }
+  auto r = reader.read_u32();
+  if (!r) {
+    return tl::unexpected{r.error()};
+  }
+  auto layer = reader.read_u32();
+  if (!layer) {
+    return tl::unexpected{layer.error()};
+  }
+  auto facing = reader.read_u16();
+  if (!facing) {
+    return tl::unexpected{facing.error()};
+  }
+  if (*facing > static_cast<std::uint16_t>(HexFacing::northeast)) {
+    return tl::unexpected{
+        DecodeError{.position = 0, .reason = DecodeErrorReason::invalid_length}};
+  }
+  return HexPose{
+      .anchor = HexCellId{
+          .region = RegionId{*std::move(region)},
+          .coord = HexCoord{.q = static_cast<std::int32_t>(*q),
+                            .r = static_cast<std::int32_t>(*r)},
+          .layer = static_cast<std::int32_t>(*layer),
+      },
+      .facing = static_cast<HexFacing>(*facing),
+  };
+}
+
+} // namespace dross::generated

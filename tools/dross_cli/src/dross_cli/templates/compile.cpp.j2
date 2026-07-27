@@ -1,0 +1,14 @@
+// {{ notice }}
+{% for schema in catalog %}
+#include <dross/generated/{{ schema.name | snake_case }}.hpp>
+{% endfor %}
+#include <dross/generated/domain_events.hpp>
+#include <dross/generated/schema_registry.hpp>
+
+#include <type_traits>
+
+{% for schema in catalog %}
+static_assert(std::is_standard_layout_v<
+    {{ schema.namespace | cpp_namespace }}::{{ schema.name }}>);
+{% endfor %}
+static_assert(dross::generated::schema_registry.size() == {{ catalog | length }});

@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+set -eu
+
+project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if [ -x "$project_root/.venv/bin/python" ]; then
+  python="$project_root/.venv/bin/python"
+else
+  python=python3
+fi
+
+PYTHONPATH="$project_root/tools/dross_cli/src${PYTHONPATH:+:$PYTHONPATH}" \
+  exec "$python" -m dross_cli.app "$@"

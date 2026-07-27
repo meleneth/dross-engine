@@ -1,0 +1,15 @@
+<!-- {{ notice }} -->
+# Generated Command and Event API
+
+{% for schema in catalog %}
+## `{{ schema.stable_id }}`
+
+- Kind: `{{ schema.kind }}`
+- C++ type: `{{ schema.namespace | cpp_namespace }}::{{ schema.name }}`
+- Version: {{ schema.version }}
+- Fields:
+{% for field in schema.fields %}
+  - `{{ field.name }}`: `{{ field.type }}`
+{% endfor %}
+
+{% endfor %}

@@ -1,0 +1,42 @@
+// {{ notice }}
+#pragma once
+
+#include <dross/generated/schema_codec.hpp>
+
+#include <string_view>
+
+namespace {{ schema.namespace | cpp_namespace }} {
+
+struct {{ schema.name }} {
+{% for field in schema.fields %}
+  {{ field.type | cpp_type }} {{ field.name }};
+{% endfor %}
+
+  [[nodiscard]] auto operator<=>(const {{ schema.name }}&) const = default;
+};
+
+inline constexpr std::string_view {{ schema.name | snake_case }}_type_id{
+    "{{ schema.stable_id }}"};
+
+inline void encode(dross::ByteWriter& writer, const {{ schema.name }}& value) {
+{% for field in schema.fields %}
+  dross::generated::encode_{{ field.type }}(writer, value.{{ field.name }});
+{% endfor %}
+}
+
+[[nodiscard]] inline dross::Result<{{ schema.name }}, dross::DecodeError>
+decode_{{ schema.name | snake_case }}(dross::ByteReader& reader) {
+{% for field in schema.fields %}
+  auto {{ field.name }} = dross::generated::decode_{{ field.type }}(reader);
+  if (!{{ field.name }}) {
+    return tl::unexpected{ {{ field.name }}.error() };
+  }
+{% endfor %}
+  return {{ schema.name }}{
+{% for field in schema.fields %}
+      .{{ field.name }} = *std::move({{ field.name }}),
+{% endfor %}
+  };
+}
+
+} // namespace {{ schema.namespace | cpp_namespace }}

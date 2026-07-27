@@ -1,0 +1,10 @@
+kind: command
+namespace: dross.placement
+name: PlaceEntity
+version: 1
+id: dross:place_entity
+fields:
+  - name: entity
+    type: entity_ref
+  - name: target
+    type: hex_pose

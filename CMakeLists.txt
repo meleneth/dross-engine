@@ -40,6 +40,7 @@ add_library(dross::core ALIAS dross_core)
 target_include_directories(dross_core
   PUBLIC
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/generated/include>"
     "$<INSTALL_INTERFACE:include>"
 )
 target_compile_features(dross_core PUBLIC cxx_std_20)
@@ -59,6 +60,7 @@ dross_target_warnings(dross_headless)
 dross_enable_sanitizers(dross_headless)
 
 add_executable(dross_tests
+  generated/tests/generated_schema_compile.cpp
   tests/unit/foundation/version_test.cpp
   tests/unit/foundation/byte_codec_test.cpp
   tests/unit/foundation/quantity_test.cpp
