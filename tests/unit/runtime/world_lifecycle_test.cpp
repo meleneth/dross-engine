@@ -66,9 +66,9 @@ TEST_CASE("unexpected lifecycle events are rejected and traced") {
 
 TEST_CASE("world lifecycle restores every persistent state through production events") {
   constexpr std::array states{
-      dross::WorldLifecycleState::empty,     dross::WorldLifecycleState::loading,
-      dross::WorldLifecycleState::ready,     dross::WorldLifecycleState::running,
-      dross::WorldLifecycleState::saving,    dross::WorldLifecycleState::unloading,
+      dross::WorldLifecycleState::empty,   dross::WorldLifecycleState::loading,
+      dross::WorldLifecycleState::ready,   dross::WorldLifecycleState::running,
+      dross::WorldLifecycleState::saving,  dross::WorldLifecycleState::unloading,
       dross::WorldLifecycleState::faulted,
   };
 

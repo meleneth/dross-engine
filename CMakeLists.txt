@@ -37,6 +37,7 @@ add_library(dross_core STATIC
   src/core/runtime/command_event_kernel.cpp
   src/core/runtime/fixed_tick_runtime.cpp
   src/core/runtime/replay.cpp
+  src/core/runtime/world_lifecycle.cpp
   src/core/world/world_storage.cpp
 )
 add_library(dross::core ALIAS dross_core)
@@ -48,7 +49,8 @@ target_include_directories(dross_core
     "$<INSTALL_INTERFACE:include>"
 )
 target_include_directories(dross_core SYSTEM PRIVATE
-  "${pcg_cpp_SOURCE_DIR}/include")
+  "${pcg_cpp_SOURCE_DIR}/include"
+  "${sml_SOURCE_DIR}/include")
 target_compile_features(dross_core PUBLIC cxx_std_20)
 target_link_libraries(dross_core
   PUBLIC tl::expected

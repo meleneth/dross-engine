@@ -11,7 +11,9 @@ file(GLOB_RECURSE DROSS_TIDY_FILES
   "${DROSS_SOURCE_DIR}/tools/*.cpp")
 
 execute_process(
-  COMMAND "${CLANG_TIDY_EXE}" -p "${DROSS_BINARY_DIR}" ${DROSS_TIDY_FILES}
+  COMMAND "${CLANG_TIDY_EXE}"
+          "--config-file=${DROSS_SOURCE_DIR}/.clang-tidy"
+          -p "${DROSS_BINARY_DIR}" ${DROSS_TIDY_FILES}
   RESULT_VARIABLE result)
 
 if(NOT result EQUAL 0)
