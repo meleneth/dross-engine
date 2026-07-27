@@ -8,9 +8,10 @@ namespace {
 
 template <class Integer>
 void append_little_endian(std::vector<std::byte>& bytes, const Integer value) {
+  constexpr Integer octet_mask{0xFF};
   for (std::size_t index = 0; index < sizeof(Integer); ++index) {
     const auto shift = static_cast<unsigned int>(index * 8U);
-    bytes.push_back(static_cast<std::byte>((value >> shift) & static_cast<Integer>(0xFF)));
+    bytes.push_back(static_cast<std::byte>((value >> shift) & octet_mask));
   }
 }
 
@@ -18,7 +19,8 @@ template <class Integer>
 Result<Integer, DecodeError> read_little_endian(std::span<const std::byte> bytes,
                                                 std::size_t& position) {
   if (bytes.size() - position < sizeof(Integer)) {
-    return tl::unexpected{DecodeError{position, DecodeErrorReason::truncated}};
+    return tl::unexpected{
+        DecodeError{.position = position, .reason = DecodeErrorReason::truncated}};
   }
   Integer value{0};
   for (std::size_t index = 0; index < sizeof(Integer); ++index) {
@@ -70,7 +72,8 @@ Result<std::string, DecodeError> ByteReader::read_string() {
     return tl::unexpected{length.error()};
   }
   if (static_cast<std::uint64_t>(*length) > static_cast<std::uint64_t>(remaining())) {
-    return tl::unexpected{DecodeError{position_, DecodeErrorReason::invalid_length}};
+    return tl::unexpected{
+        DecodeError{.position = position_, .reason = DecodeErrorReason::invalid_length}};
   }
   const auto count = static_cast<std::size_t>(*length);
   const auto* data = reinterpret_cast<const char*>(bytes_.data() + position_);
@@ -86,8 +89,9 @@ Result<ContentId, DecodeError> ByteReader::read_content_id() {
   }
   auto parsed = ContentId::parse(*encoded);
   if (!parsed) {
-    return tl::unexpected{DecodeError{position_ - encoded->size() + parsed.error().position,
-                                      DecodeErrorReason::invalid_content_id}};
+    return tl::unexpected{
+        DecodeError{.position = position_ - encoded->size() + parsed.error().position,
+                    .reason = DecodeErrorReason::invalid_content_id}};
   }
   return *std::move(parsed);
 }

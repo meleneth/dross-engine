@@ -38,6 +38,14 @@ target_link_libraries(dross_core PUBLIC tl::expected PRIVATE blake3::blake3)
 dross_target_warnings(dross_core)
 dross_enable_sanitizers(dross_core)
 
+add_executable(dross_headless
+  tools/dross_cli/main.cpp
+)
+target_link_libraries(dross_headless PRIVATE dross::core)
+target_compile_features(dross_headless PRIVATE cxx_std_20)
+dross_target_warnings(dross_headless)
+dross_enable_sanitizers(dross_headless)
+
 add_executable(dross_tests
   tests/unit/foundation/version_test.cpp
   tests/unit/foundation/byte_codec_test.cpp
@@ -51,7 +59,18 @@ dross_target_warnings(dross_tests)
 dross_enable_sanitizers(dross_tests)
 
 include(Catch)
-catch_discover_tests(dross_tests)
+catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
+
+add_test(NAME headless.version COMMAND dross_headless version)
+set_tests_properties(
+  headless.version
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-01")
+add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
+set_tests_properties(
+  headless.validate_id
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross:thump")
+add_test(NAME headless.reject_invalid_id COMMAND dross_headless validate-id Dross:thump)
+set_tests_properties(headless.reject_invalid_id PROPERTIES WILL_FAIL TRUE)
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(

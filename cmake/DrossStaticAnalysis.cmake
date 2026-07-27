@@ -1,7 +1,8 @@
 file(GLOB_RECURSE DROSS_FORMAT_FILES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tools/*.cpp")
 
 find_program(CLANG_FORMAT_EXE NAMES clang-format)
 find_program(CLANG_TIDY_EXE NAMES clang-tidy)

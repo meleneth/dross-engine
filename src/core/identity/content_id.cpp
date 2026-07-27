@@ -23,13 +23,16 @@ namespace {
 Result<ContentId, ContentIdError> ContentId::parse(const std::string_view text) {
   const auto separator = text.find(':');
   if (separator == std::string_view::npos) {
-    return tl::unexpected{ContentIdError{text.size(), ContentIdErrorReason::missing_separator}};
+    return tl::unexpected{
+        ContentIdError{.position = text.size(), .reason = ContentIdErrorReason::missing_separator}};
   }
   if (separator == 0) {
-    return tl::unexpected{ContentIdError{0, ContentIdErrorReason::empty_namespace}};
+    return tl::unexpected{
+        ContentIdError{.position = 0, .reason = ContentIdErrorReason::empty_namespace}};
   }
   if (separator + 1 == text.size()) {
-    return tl::unexpected{ContentIdError{text.size(), ContentIdErrorReason::empty_name}};
+    return tl::unexpected{
+        ContentIdError{.position = text.size(), .reason = ContentIdErrorReason::empty_name}};
   }
 
   for (std::size_t index = 0; index < text.size(); ++index) {
@@ -37,10 +40,12 @@ Result<ContentId, ContentIdError> ContentId::parse(const std::string_view text) 
       continue;
     }
     if (text[index] == ':') {
-      return tl::unexpected{ContentIdError{index, ContentIdErrorReason::extra_separator}};
+      return tl::unexpected{
+          ContentIdError{.position = index, .reason = ContentIdErrorReason::extra_separator}};
     }
     if (!is_allowed(static_cast<unsigned char>(text[index]))) {
-      return tl::unexpected{ContentIdError{index, ContentIdErrorReason::invalid_character}};
+      return tl::unexpected{
+          ContentIdError{.position = index, .reason = ContentIdErrorReason::invalid_character}};
     }
   }
   return ContentId{std::string{text}};
