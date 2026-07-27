@@ -1,5 +1,8 @@
 #include <dross/persistence/save_container.hpp>
 
+#include <dross/foundation/byte_codec.hpp>
+#include <dross/generated/schema_codec.hpp>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
@@ -19,11 +22,28 @@ dross::SaveContainer container_with(std::vector<dross::ComponentRecord> records)
               .engine_version = dross::engine_version(),
               .ticks_per_second = 30,
               .current_tick = dross::Tick{7},
+              .world_lineage = 9,
+              .allocator = dross::EntityIdAllocatorSnapshot{4},
               .map_id = content_id("dross:arena"),
               .map_hash = map_hash,
           },
       .components = std::move(records),
   };
+}
+
+std::vector<std::byte> identity_payload(const std::optional<dross::ContentId>& alias) {
+  dross::ByteWriter writer;
+  writer.write_u16(alias ? 1U : 0U);
+  if (alias) {
+    writer.write(*alias);
+  }
+  return {writer.bytes().begin(), writer.bytes().end()};
+}
+
+std::vector<std::byte> pose_payload(const dross::HexPose& pose) {
+  dross::ByteWriter writer;
+  dross::generated::encode_hex_pose(writer, pose);
+  return {writer.bytes().begin(), writer.bytes().end()};
 }
 
 } // namespace
@@ -155,4 +175,114 @@ TEST_CASE("current component validation rejects malformed payloads") {
 
   REQUIRE_FALSE(validation);
   CHECK(validation.error() == dross::ComponentCodecError::invalid_payload);
+}
+
+TEST_CASE("world load plan validates completely before constructing a fresh world") {
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+  const auto entity = dross::EntityId{9, 3};
+  const auto alias = content_id("test:loaded_actor");
+  const auto pose = dross::HexPose{
+      .anchor =
+          dross::HexCellId{
+              .region = dross::RegionId{content_id("test:region")},
+              .coord = dross::HexCoord{.q = 2, .r = -1},
+              .layer = 0,
+          },
+      .facing = dross::HexFacing::southeast,
+  };
+  auto container = container_with({
+      dross::ComponentRecord{
+          .type_id = content_id("dross:persistent_identity"),
+          .version = 1,
+          .entity = entity,
+          .payload = identity_payload(alias),
+      },
+      dross::ComponentRecord{
+          .type_id = content_id("dross:hex_pose"),
+          .version = 1,
+          .entity = entity,
+          .payload = pose_payload(pose),
+      },
+  });
+
+  const auto plan = dross::build_world_load_plan(container, registry, container.header.map_id,
+                                                 container.header.map_hash);
+
+  REQUIRE(plan);
+  const auto loaded = plan->construct(dross::WorldInstanceId{77});
+  REQUIRE(loaded);
+  const auto loaded_ref = (*loaded)->read().find(entity);
+  REQUIRE(loaded_ref);
+  CHECK((*loaded)->read().identity(*loaded_ref)->alias->content_id() == alias);
+  CHECK((*loaded)->read().pose(*loaded_ref) == pose);
+  CHECK((*loaded)->allocator_snapshot().next_runtime_sequence == 4);
+}
+
+TEST_CASE("world load plan rejects map mismatch and orphan components") {
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+  auto container = container_with({
+      dross::ComponentRecord{
+          .type_id = content_id("dross:hex_pose"),
+          .version = 1,
+          .entity = dross::EntityId{9, 3},
+          .payload = pose_payload(dross::HexPose{
+              .anchor =
+                  dross::HexCellId{
+                      .region = dross::RegionId{content_id("test:region")},
+                      .coord = dross::HexCoord{.q = 0, .r = 0},
+                      .layer = 0,
+                  },
+              .facing = dross::HexFacing::east,
+          }),
+      },
+  });
+  auto wrong_hash = container.header.map_hash;
+  wrong_hash.front() ^= 0xFFU;
+
+  const auto map_mismatch =
+      dross::build_world_load_plan(container, registry, container.header.map_id, wrong_hash);
+  const auto orphan = dross::build_world_load_plan(container, registry, container.header.map_id,
+                                                   container.header.map_hash);
+
+  REQUIRE_FALSE(map_mismatch);
+  CHECK(map_mismatch.error() == dross::WorldLoadError::map_mismatch);
+  REQUIRE_FALSE(orphan);
+  CHECK(orphan.error() == dross::WorldLoadError::missing_identity);
+}
+
+TEST_CASE("world component snapshot round trips through a fresh world") {
+  dross::WorldStorage original{dross::WorldConfig{
+      .lineage = 9,
+      .instance_id = dross::WorldInstanceId{1},
+  }};
+  const auto alias = dross::EntityAlias{content_id("test:snapshot_actor")};
+  const auto entity = original.write().spawn(dross::SpawnPlan::runtime(alias)).value();
+  const auto pose = dross::HexPose{
+      .anchor =
+          dross::HexCellId{
+              .region = dross::RegionId{content_id("test:region")},
+              .coord = dross::HexCoord{.q = -3, .r = 4},
+              .layer = 1,
+          },
+      .facing = dross::HexFacing::northwest,
+  };
+  original.write().commit_pose(entity, pose);
+  auto container = container_with(dross::snapshot_world_components(original));
+  container.header.allocator = original.allocator_snapshot();
+
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+  const auto plan = dross::build_world_load_plan(container, registry, container.header.map_id,
+                                                 container.header.map_hash);
+  REQUIRE(plan);
+  const auto loaded = plan->construct(dross::WorldInstanceId{2});
+
+  REQUIRE(loaded);
+  const auto loaded_ref = (*loaded)->read().find(entity.id());
+  REQUIRE(loaded_ref);
+  CHECK((*loaded)->read().identity(*loaded_ref)->alias == alias);
+  CHECK((*loaded)->read().pose(*loaded_ref) == pose);
+  CHECK(loaded_ref->world_instance() != entity.world_instance());
 }

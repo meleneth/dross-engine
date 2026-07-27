@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -127,6 +128,54 @@ std::optional<std::vector<std::byte>> decode_bytes(const std::string_view text) 
   return result;
 }
 
+struct EntityRecords {
+  std::optional<EntityAlias> alias;
+  std::optional<HexPose> pose;
+  bool has_identity{false};
+  bool has_pose{false};
+};
+
+Result<void, WorldLoadError> decode_identity_record(const ComponentRecord& record,
+                                                    EntityRecords& entity,
+                                                    std::set<ContentId>& aliases) {
+  if (entity.has_identity) {
+    return tl::unexpected{WorldLoadError::duplicate_component};
+  }
+  entity.has_identity = true;
+  ByteReader reader{record.payload};
+  const auto has_alias = reader.read_u16();
+  if (!has_alias) {
+    return tl::unexpected{WorldLoadError::component_invalid};
+  }
+  if (*has_alias == 0U) {
+    return {};
+  }
+  const auto alias = reader.read_content_id();
+  if (!alias) {
+    return tl::unexpected{WorldLoadError::component_invalid};
+  }
+  if (!aliases.insert(*alias).second) {
+    return tl::unexpected{WorldLoadError::duplicate_alias};
+  }
+  entity.alias = EntityAlias{*alias};
+  return {};
+}
+
+Result<void, WorldLoadError> decode_pose_record(const ComponentRecord& record,
+                                                EntityRecords& entity) {
+  if (entity.has_pose) {
+    return tl::unexpected{WorldLoadError::duplicate_component};
+  }
+  entity.has_pose = true;
+  ByteReader reader{record.payload};
+  const auto pose = generated::decode_hex_pose(reader);
+  if (!pose) {
+    return tl::unexpected{WorldLoadError::component_invalid};
+  }
+  entity.pose = *pose;
+  return {};
+}
+
 } // namespace
 
 Result<void, CodecRegistrationError>
@@ -209,6 +258,8 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
   writer.write_u16(container.header.engine_version.patch);
   writer.write_u32(container.header.ticks_per_second);
   writer.write_u64(container.header.current_tick.value());
+  writer.write_u64(container.header.world_lineage);
+  writer.write_u64(container.header.allocator.next_runtime_sequence);
   writer.write(container.header.map_id);
   writer.write_string(encode_bytes(std::as_bytes(std::span{container.header.map_hash})));
 
@@ -237,11 +288,13 @@ decode_save_container(const std::span<const std::byte> bytes) {
   const auto engine_patch = reader.read_u16();
   const auto ticks_per_second = reader.read_u32();
   const auto current_tick = reader.read_u64();
+  const auto world_lineage = reader.read_u64();
+  const auto next_runtime_sequence = reader.read_u64();
   const auto map_id = reader.read_content_id();
   const auto map_hash_text = reader.read_string();
   if (!magic || *magic != save_magic || !container_version || !schema_version || !engine_major ||
-      !engine_minor || !engine_patch || !ticks_per_second || !current_tick || !map_id ||
-      !map_hash_text) {
+      !engine_minor || !engine_patch || !ticks_per_second || !current_tick || !world_lineage ||
+      !next_runtime_sequence || !map_id || !map_hash_text) {
     return tl::unexpected{SaveDecodeError::invalid_format};
   }
   const auto map_hash_bytes = decode_bytes(*map_hash_text);
@@ -267,6 +320,9 @@ decode_save_container(const std::span<const std::byte> bytes) {
                                                 .patch = *engine_patch},
               .ticks_per_second = *ticks_per_second,
               .current_tick = Tick{*current_tick},
+              .world_lineage = *world_lineage,
+              .allocator =
+                  EntityIdAllocatorSnapshot{.next_runtime_sequence = *next_runtime_sequence},
               .map_id = *map_id,
               .map_hash = map_hash,
           },
@@ -299,6 +355,114 @@ decode_save_container(const std::span<const std::byte> bytes) {
         return std::tie(left.type_id, left.entity) < std::tie(right.type_id, right.entity);
       });
   return result;
+}
+
+Result<WorldLoadPlan, WorldLoadError>
+build_world_load_plan(const SaveContainer& container, const ComponentCodecRegistry& registry,
+                      const ContentId& expected_map_id, const CheckpointHash& expected_map_hash) {
+  if (container.header.map_id != expected_map_id ||
+      container.header.map_hash != expected_map_hash) {
+    return tl::unexpected{WorldLoadError::map_mismatch};
+  }
+
+  std::map<EntityId, EntityRecords> entities;
+  std::set<ContentId> aliases;
+  const auto identity_type = ContentId::parse("dross:persistent_identity").value();
+  const auto pose_type = ContentId::parse("dross:hex_pose").value();
+
+  for (const auto& source : container.components) {
+    const auto migrated = registry.migrate_to_current(source);
+    if (!migrated || !registry.validate(*migrated)) {
+      return tl::unexpected{WorldLoadError::component_invalid};
+    }
+    if (migrated->entity.lineage() != container.header.world_lineage) {
+      return tl::unexpected{WorldLoadError::wrong_lineage};
+    }
+
+    auto& entity = entities[migrated->entity];
+    Result<void, WorldLoadError> decoded;
+    if (migrated->type_id == identity_type) {
+      decoded = decode_identity_record(*migrated, entity, aliases);
+    } else if (migrated->type_id == pose_type) {
+      decoded = decode_pose_record(*migrated, entity);
+    }
+    if (!decoded) {
+      return tl::unexpected{decoded.error()};
+    }
+  }
+
+  WorldLoadPlan plan;
+  plan.lineage_ = container.header.world_lineage;
+  plan.allocator_ = container.header.allocator;
+  plan.entities_.reserve(entities.size());
+  for (auto& [id, entity] : entities) {
+    if (!entity.has_identity) {
+      return tl::unexpected{WorldLoadError::missing_identity};
+    }
+    plan.entities_.push_back(PlannedEntity{
+        .id = id,
+        .alias = std::move(entity.alias),
+        .pose = std::move(entity.pose),
+    });
+  }
+  return plan;
+}
+
+Result<std::unique_ptr<WorldStorage>, WorldLoadError>
+WorldLoadPlan::construct(const WorldInstanceId instance_id) const {
+  auto world = std::make_unique<WorldStorage>(WorldConfig{
+      .lineage = lineage_,
+      .instance_id = instance_id,
+      .next_runtime_sequence = allocator_.next_runtime_sequence,
+  });
+  for (const auto& entity : entities_) {
+    auto spawned = world->write().spawn(SpawnPlan::authored(entity.id.sequence(), entity.alias));
+    if (!spawned) {
+      return tl::unexpected{WorldLoadError::construction_failed};
+    }
+    if (entity.pose) {
+      world->write().commit_pose(*spawned, *entity.pose);
+    }
+  }
+  return world;
+}
+
+std::vector<ComponentRecord> snapshot_world_components(const WorldStorage& world) {
+  std::vector<ComponentRecord> records;
+  const auto identity_type = ContentId::parse("dross:persistent_identity").value();
+  const auto pose_type = ContentId::parse("dross:hex_pose").value();
+  const auto read = world.read();
+  for (const auto entity_id : read.stable_entity_ids()) {
+    const auto entity = read.find(entity_id);
+    if (!entity) {
+      continue;
+    }
+    const auto identity = *read.identity(*entity);
+    ByteWriter identity_writer;
+    identity_writer.write_u16(identity.alias ? 1U : 0U);
+    if (identity.alias) {
+      identity_writer.write(identity.alias->content_id());
+    }
+    records.push_back(ComponentRecord{
+        .type_id = identity_type,
+        .version = 1,
+        .entity = entity_id,
+        .payload = {identity_writer.bytes().begin(), identity_writer.bytes().end()},
+    });
+
+    const auto pose = read.pose(*entity);
+    if (pose) {
+      ByteWriter pose_writer;
+      generated::encode_hex_pose(pose_writer, *pose);
+      records.push_back(ComponentRecord{
+          .type_id = pose_type,
+          .version = 1,
+          .entity = entity_id,
+          .payload = {pose_writer.bytes().begin(), pose_writer.bytes().end()},
+      });
+    }
+  }
+  return records;
 }
 
 } // namespace dross
