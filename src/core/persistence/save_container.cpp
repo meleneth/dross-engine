@@ -1,6 +1,7 @@
 #include <dross/persistence/save_container.hpp>
 
 #include <dross/foundation/byte_codec.hpp>
+#include <dross/generated/schema_codec.hpp>
 
 #include <algorithm>
 #include <optional>
@@ -16,6 +17,78 @@ constexpr std::string_view hexadecimal{"0123456789abcdef"};
 constexpr std::size_t hexadecimal_characters_per_byte = 2U;
 constexpr std::uint8_t low_nibble_mask = 0x0FU;
 constexpr std::uint8_t hexadecimal_alpha_offset = 10U;
+
+Result<void, ComponentCodecError> validate_identity(const ComponentRecord& record) {
+  if (record.version != 1) {
+    return tl::unexpected{ComponentCodecError::unsupported_version};
+  }
+  ByteReader reader{record.payload};
+  const auto has_alias = reader.read_u16();
+  if (!has_alias || *has_alias > 1U) {
+    return tl::unexpected{ComponentCodecError::invalid_payload};
+  }
+  if (*has_alias == 1U && !reader.read_content_id()) {
+    return tl::unexpected{ComponentCodecError::invalid_payload};
+  }
+  if (reader.remaining() != 0) {
+    return tl::unexpected{ComponentCodecError::invalid_payload};
+  }
+  return {};
+}
+
+Result<ComponentRecord, ComponentCodecError> migrate_identity(const ComponentRecord& record) {
+  if (record.version > 1U) {
+    return tl::unexpected{ComponentCodecError::unsupported_version};
+  }
+  if (record.version == 1U) {
+    if (!validate_identity(record)) {
+      return tl::unexpected{ComponentCodecError::invalid_payload};
+    }
+    return record;
+  }
+  if (!record.payload.empty()) {
+    return tl::unexpected{ComponentCodecError::invalid_payload};
+  }
+  ByteWriter writer;
+  writer.write_u16(0);
+  return ComponentRecord{
+      .type_id = record.type_id,
+      .version = 1,
+      .entity = record.entity,
+      .payload = {writer.bytes().begin(), writer.bytes().end()},
+  };
+}
+
+Result<void, ComponentCodecError> validate_pose(const ComponentRecord& record) {
+  if (record.version != 1U) {
+    return tl::unexpected{ComponentCodecError::unsupported_version};
+  }
+  ByteReader reader{record.payload};
+  const auto pose = generated::decode_hex_pose(reader);
+  if (!pose || reader.remaining() != 0) {
+    return tl::unexpected{ComponentCodecError::invalid_payload};
+  }
+  return {};
+}
+
+Result<ComponentRecord, ComponentCodecError> migrate_pose(const ComponentRecord& record) {
+  if (record.version != 1U) {
+    return tl::unexpected{ComponentCodecError::unsupported_version};
+  }
+  if (!validate_pose(record)) {
+    return tl::unexpected{ComponentCodecError::invalid_payload};
+  }
+  return record;
+}
+
+Result<void, ComponentCodecError> validate_generic(const ComponentRecord& record) {
+  static_cast<void>(record);
+  return {};
+}
+
+Result<ComponentRecord, ComponentCodecError> migrate_generic(const ComponentRecord& record) {
+  return record;
+}
 
 std::string encode_bytes(const std::span<const std::byte> bytes) {
   std::string result;
@@ -58,7 +131,17 @@ std::optional<std::vector<std::byte>> decode_bytes(const std::string_view text) 
 
 Result<void, CodecRegistrationError>
 ComponentCodecRegistry::register_codec(ComponentCodecDescriptor descriptor) {
-  const auto [position, inserted] = codecs_.emplace(descriptor.type_id, std::move(descriptor));
+  return register_codec(std::move(descriptor), &validate_generic, &migrate_generic);
+}
+
+Result<void, CodecRegistrationError>
+ComponentCodecRegistry::register_codec(ComponentCodecDescriptor descriptor,
+                                       const ValidateFunction validator,
+                                       const MigrateFunction migrator) {
+  const auto type_id = descriptor.type_id;
+  const auto [position, inserted] = codecs_.emplace(
+      type_id,
+      CodecEntry{.descriptor = std::move(descriptor), .validate = validator, .migrate = migrator});
   static_cast<void>(position);
   if (!inserted) {
     return tl::unexpected{CodecRegistrationError::duplicate_type_id};
@@ -69,26 +152,51 @@ ComponentCodecRegistry::register_codec(ComponentCodecDescriptor descriptor) {
 std::vector<ComponentCodecDescriptor> ComponentCodecRegistry::descriptors() const {
   std::vector<ComponentCodecDescriptor> result;
   result.reserve(codecs_.size());
-  for (const auto& [type_id, descriptor] : codecs_) {
+  for (const auto& [type_id, codec] : codecs_) {
     static_cast<void>(type_id);
-    result.push_back(descriptor);
+    result.push_back(codec.descriptor);
   }
   return result;
 }
 
+Result<ComponentRecord, ComponentCodecError>
+ComponentCodecRegistry::migrate_to_current(const ComponentRecord& record) const {
+  const auto found = codecs_.find(record.type_id);
+  if (found == codecs_.end()) {
+    return tl::unexpected{ComponentCodecError::unknown_type_id};
+  }
+  if (record.version > found->second.descriptor.current_version) {
+    return tl::unexpected{ComponentCodecError::unsupported_version};
+  }
+  return found->second.migrate(record);
+}
+
+Result<void, ComponentCodecError>
+ComponentCodecRegistry::validate(const ComponentRecord& record) const {
+  const auto found = codecs_.find(record.type_id);
+  if (found == codecs_.end()) {
+    return tl::unexpected{ComponentCodecError::unknown_type_id};
+  }
+  return found->second.validate(record);
+}
+
 Result<void, CodecRegistrationError>
 register_current_component_codecs(ComponentCodecRegistry& registry) {
-  auto pose = registry.register_codec(ComponentCodecDescriptor{
-      .type_id = ContentId::parse("dross:hex_pose").value(),
-      .current_version = 1,
-  });
+  auto pose = registry.register_codec(
+      ComponentCodecDescriptor{
+          .type_id = ContentId::parse("dross:hex_pose").value(),
+          .current_version = 1,
+      },
+      &validate_pose, &migrate_pose);
   if (!pose) {
     return pose;
   }
-  return registry.register_codec(ComponentCodecDescriptor{
-      .type_id = ContentId::parse("dross:persistent_identity").value(),
-      .current_version = 1,
-  });
+  return registry.register_codec(
+      ComponentCodecDescriptor{
+          .type_id = ContentId::parse("dross:persistent_identity").value(),
+          .current_version = 1,
+      },
+      &validate_identity, &migrate_identity);
 }
 
 std::vector<std::byte> encode_save_container(const SaveContainer& container) {

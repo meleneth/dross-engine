@@ -19,8 +19,23 @@ struct ComponentCodecDescriptor {
   [[nodiscard]] bool operator==(const ComponentCodecDescriptor&) const = default;
 };
 
+struct ComponentRecord {
+  ContentId type_id;
+  std::uint32_t version;
+  EntityId entity;
+  std::vector<std::byte> payload;
+
+  [[nodiscard]] bool operator==(const ComponentRecord&) const = default;
+};
+
 enum class CodecRegistrationError : std::uint8_t {
   duplicate_type_id,
+};
+
+enum class ComponentCodecError : std::uint8_t {
+  unknown_type_id,
+  unsupported_version,
+  invalid_payload,
 };
 
 class ComponentCodecRegistry {
@@ -28,9 +43,26 @@ public:
   [[nodiscard]] Result<void, CodecRegistrationError>
   register_codec(ComponentCodecDescriptor descriptor);
   [[nodiscard]] std::vector<ComponentCodecDescriptor> descriptors() const;
+  [[nodiscard]] Result<ComponentRecord, ComponentCodecError>
+  migrate_to_current(const ComponentRecord& record) const;
+  [[nodiscard]] Result<void, ComponentCodecError> validate(const ComponentRecord& record) const;
 
 private:
-  std::map<ContentId, ComponentCodecDescriptor> codecs_;
+  using ValidateFunction = Result<void, ComponentCodecError> (*)(const ComponentRecord&);
+  using MigrateFunction = Result<ComponentRecord, ComponentCodecError> (*)(const ComponentRecord&);
+  struct CodecEntry {
+    ComponentCodecDescriptor descriptor;
+    ValidateFunction validate;
+    MigrateFunction migrate;
+  };
+
+  friend Result<void, CodecRegistrationError>
+  register_current_component_codecs(ComponentCodecRegistry& registry);
+  [[nodiscard]] Result<void, CodecRegistrationError>
+  register_codec(ComponentCodecDescriptor descriptor, ValidateFunction validator,
+                 MigrateFunction migrator);
+
+  std::map<ContentId, CodecEntry> codecs_;
 };
 
 [[nodiscard]] Result<void, CodecRegistrationError>
@@ -46,15 +78,6 @@ struct SaveHeader {
   CheckpointHash map_hash;
 
   [[nodiscard]] bool operator==(const SaveHeader&) const = default;
-};
-
-struct ComponentRecord {
-  ContentId type_id;
-  std::uint32_t version;
-  EntityId entity;
-  std::vector<std::byte> payload;
-
-  [[nodiscard]] bool operator==(const ComponentRecord&) const = default;
 };
 
 struct SaveContainer {
