@@ -82,6 +82,7 @@ add_executable(dross_tests
   tests/unit/hex/hex_topology_test.cpp
   tests/unit/identity/content_id_test.cpp
   tests/unit/identity/identity_test.cpp
+  tests/unit/persistence/save_container_test.cpp
   tests/unit/random/random_hub_test.cpp
   tests/unit/runtime/command_event_kernel_test.cpp
   tests/unit/runtime/fixed_tick_runtime_test.cpp
