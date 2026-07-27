@@ -78,6 +78,7 @@ TEST_CASE("replay DTO has a deterministic round trip") {
               .random_algorithm_version = dross::random_algorithm_version,
           },
       .external_commands = {},
+      .machine_trace = {},
       .checkpoints = {checkpoint_for({1, 2}, 12345)},
   };
 

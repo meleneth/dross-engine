@@ -6,6 +6,7 @@
 
 #include "command_event_kernel_scenario.hpp"
 #include "hex_pathing_scenario.hpp"
+#include "lifecycle_machine_scenario.hpp"
 
 #include <charconv>
 #include <cstdint>
@@ -21,6 +22,7 @@ constexpr int validation_error = 3;
 constexpr int self_check_error = 4;
 constexpr int scenario_error = 5;
 constexpr std::uint64_t default_scenario_seed = 12345;
+constexpr int lifecycle_record_argument_count = 5;
 
 void print_usage(std::ostream& output) {
   output << "usage:\n"
@@ -29,6 +31,7 @@ void print_usage(std::ostream& output) {
             "  dross_headless scenario identity-lifecycle\n"
             "  dross_headless scenario hex-pathing\n"
             "  dross_headless scenario command-event-kernel [--seed N] [--record PATH]\n"
+            "  dross_headless scenario lifecycle-machines [--record PATH]\n"
             "  dross_headless replay --verify-checkpoints PATH\n";
 }
 
@@ -160,6 +163,16 @@ int main(const int argument_count, const char* const arguments[]) {
   if (argument_count >= 3 && std::string_view{arguments[1]} == "scenario" &&
       std::string_view{arguments[2]} == "command-event-kernel") {
     return run_command_scenario({arguments, static_cast<std::size_t>(argument_count)});
+  }
+  if ((argument_count == 3 || argument_count == lifecycle_record_argument_count) &&
+      std::string_view{arguments[1]} == "scenario" &&
+      std::string_view{arguments[2]} == "lifecycle-machines") {
+    if (argument_count == 3) {
+      return run_lifecycle_machine_scenario({});
+    }
+    if (std::string_view{arguments[3]} == "--record") {
+      return run_lifecycle_machine_scenario(arguments[4]);
+    }
   }
   if (argument_count == 4 && std::string_view{arguments[1]} == "replay" &&
       std::string_view{arguments[2]} == "--verify-checkpoints") {

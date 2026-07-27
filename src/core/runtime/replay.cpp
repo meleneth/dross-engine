@@ -110,7 +110,8 @@ Result<PlaceEntityEnvelope, ReplayDecodeError> read_command(ByteReader& reader) 
 
 CanonicalCheckpoint
 canonical_checkpoint(const Tick tick, const WorldStorage& world, const OccupancyIndex& occupancy,
-                     const RandomHubSnapshot& random,
+                     const RandomHubSnapshot& random, const WorldLifecycleSnapshot lifecycle,
+                     const SimulationModeSnapshot mode,
                      const std::span<const PlaceEntityEnvelope> pending_commands) {
   std::map<CheckpointSection, CheckpointHash> sections;
 
@@ -177,6 +178,11 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
   }
   sections.emplace(CheckpointSection::random, hash_bytes(random_state.bytes()));
 
+  ByteWriter machines;
+  machines.write_u16(static_cast<std::uint16_t>(lifecycle.state));
+  machines.write_u16(static_cast<std::uint16_t>(mode.state));
+  sections.emplace(CheckpointSection::machines, hash_bytes(machines.bytes()));
+
   auto commands =
       std::vector<PlaceEntityEnvelope>{pending_commands.begin(), pending_commands.end()};
   std::ranges::sort(commands, [](const auto& left, const auto& right) {
@@ -213,6 +219,14 @@ std::vector<std::byte> encode_replay(const ReplayLog& replay) {
   writer.write_u64(replay.external_commands.size());
   for (const auto& command : replay.external_commands) {
     write_command(writer, command);
+  }
+  writer.write_u64(replay.machine_trace.size());
+  for (const auto& entry : replay.machine_trace) {
+    writer.write_u16(static_cast<std::uint16_t>(entry.machine));
+    writer.write_u16(static_cast<std::uint16_t>(entry.source));
+    writer.write_u16(static_cast<std::uint16_t>(entry.destination));
+    writer.write_u16(static_cast<std::uint16_t>(entry.event));
+    writer.write_u16(static_cast<std::uint16_t>(entry.outcome));
   }
   writer.write_u64(replay.checkpoints.size());
   for (const auto& checkpoint : replay.checkpoints) {
@@ -254,6 +268,7 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
                              .master_seed = MasterSeed{*master_seed},
                              .random_algorithm_version = *algorithm_version},
       .external_commands = {},
+      .machine_trace = {},
       .checkpoints = {},
   };
   for (std::uint64_t index = 0; index < *command_count; ++index) {
@@ -262,6 +277,32 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
       return tl::unexpected{command.error()};
     }
     result.external_commands.push_back(*std::move(command));
+  }
+  const auto trace_count = reader.read_u64();
+  if (!trace_count) {
+    return tl::unexpected{ReplayDecodeError::invalid_format};
+  }
+  for (std::uint64_t index = 0; index < *trace_count; ++index) {
+    const auto machine = reader.read_u16();
+    const auto source = reader.read_u16();
+    const auto destination = reader.read_u16();
+    const auto event = reader.read_u16();
+    const auto outcome = reader.read_u16();
+    if (!machine || !source || !destination || !event || !outcome ||
+        *machine > static_cast<std::uint16_t>(MachineFamily::simulation_mode) ||
+        *source > static_cast<std::uint16_t>(MachineStateId::combat) ||
+        *destination > static_cast<std::uint16_t>(MachineStateId::combat) ||
+        *event > static_cast<std::uint16_t>(MachineEventId::combat_ended) ||
+        *outcome > static_cast<std::uint16_t>(MachineEventOutcome::rejected)) {
+      return tl::unexpected{ReplayDecodeError::invalid_format};
+    }
+    result.machine_trace.push_back(MachineTraceEntry{
+        .machine = static_cast<MachineFamily>(*machine),
+        .source = static_cast<MachineStateId>(*source),
+        .destination = static_cast<MachineStateId>(*destination),
+        .event = static_cast<MachineEventId>(*event),
+        .outcome = static_cast<MachineEventOutcome>(*outcome),
+    });
   }
   const auto checkpoint_count = reader.read_u64();
   if (!checkpoint_count) {

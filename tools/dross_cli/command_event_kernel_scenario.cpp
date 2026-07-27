@@ -1,4 +1,5 @@
 #include "command_event_kernel_scenario.hpp"
+#include "lifecycle_machine_scenario.hpp"
 
 #include <dross/foundation/version.hpp>
 #include <dross/random/random_hub.hpp>
@@ -134,8 +135,9 @@ ScenarioResult execute_scenario(const std::uint64_t seed,
   std::vector<dross::CanonicalCheckpoint> checkpoints;
   runtime.set_checkpoint_callback([&](const dross::Tick tick) {
     const auto pending = runtime.pending_external_commands();
-    checkpoints.push_back(
-        dross::canonical_checkpoint(tick, world, kernel.occupancy(), random.snapshot(), pending));
+    checkpoints.push_back(dross::canonical_checkpoint(tick, world, kernel.occupancy(),
+                                                      random.snapshot(), lifecycle.snapshot(),
+                                                      mode.snapshot(), pending));
   });
   static_cast<void>(runtime.advance_tick());
   static_cast<void>(runtime.advance_tick());
@@ -155,6 +157,7 @@ ScenarioResult execute_scenario(const std::uint64_t seed,
                       .random_algorithm_version = dross::random_algorithm_version,
                   },
               .external_commands = replay_commands == nullptr ? external : *replay_commands,
+              .machine_trace = {},
               .checkpoints = std::move(checkpoints),
           },
       .random_rejected = random_rejected,
@@ -203,6 +206,9 @@ int run_replay_verification(const std::string& path) {
   if (!recorded) {
     std::cerr << "invalid replay\n";
     return scenario_error;
+  }
+  if (recorded->header.scenario == content_id("dross:lifecycle_machines")) {
+    return verify_lifecycle_replay(*recorded);
   }
   try {
     const auto replayed =

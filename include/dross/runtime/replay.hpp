@@ -4,6 +4,8 @@
 #include <dross/hex/occupancy.hpp>
 #include <dross/random/random_hub.hpp>
 #include <dross/runtime/command_event_kernel.hpp>
+#include <dross/runtime/simulation_mode.hpp>
+#include <dross/runtime/world_lifecycle.hpp>
 #include <dross/world/world_storage.hpp>
 
 #include <array>
@@ -24,6 +26,7 @@ enum class CheckpointSection : std::uint8_t {
   components,
   occupancy,
   random,
+  machines,
   pending_commands,
 };
 
@@ -37,7 +40,8 @@ struct CanonicalCheckpoint {
 
 [[nodiscard]] CanonicalCheckpoint
 canonical_checkpoint(Tick tick, const WorldStorage& world, const OccupancyIndex& occupancy,
-                     const RandomHubSnapshot& random,
+                     const RandomHubSnapshot& random, WorldLifecycleSnapshot lifecycle,
+                     SimulationModeSnapshot mode,
                      std::span<const PlaceEntityEnvelope> pending_commands);
 
 struct ReplayHeader {
@@ -54,6 +58,7 @@ struct ReplayHeader {
 struct ReplayLog {
   ReplayHeader header;
   std::vector<PlaceEntityEnvelope> external_commands;
+  std::vector<MachineTraceEntry> machine_trace;
   std::vector<CanonicalCheckpoint> checkpoints;
 
   [[nodiscard]] bool operator==(const ReplayLog&) const = default;

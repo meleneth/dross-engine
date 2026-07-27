@@ -63,6 +63,7 @@ dross_enable_sanitizers(dross_core)
 add_executable(dross_headless
   tools/dross_cli/command_event_kernel_scenario.cpp
   tools/dross_cli/hex_pathing_scenario.cpp
+  tools/dross_cli/lifecycle_machine_scenario.cpp
   tools/dross_cli/main.cpp
 )
 target_link_libraries(dross_headless PRIVATE dross::core)
@@ -100,7 +101,7 @@ catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME headless.version COMMAND dross_headless version)
 set_tests_properties(
   headless.version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-05")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-06")
 add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
 set_tests_properties(
   headless.validate_id
@@ -124,6 +125,12 @@ set_tests_properties(
   headless.command_event_kernel
   PROPERTIES PASS_REGULAR_EXPRESSION
              "^command-event-kernel seed=12345 randomized=rejected occupancy=2 checkpoints=2")
+add_test(NAME headless.lifecycle_machines
+         COMMAND dross_headless scenario lifecycle-machines)
+set_tests_properties(
+  headless.lifecycle_machines
+  PROPERTIES PASS_REGULAR_EXPRESSION
+             "^lifecycle-machines checkpoints=8 trace=8 final=faulted")
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(
