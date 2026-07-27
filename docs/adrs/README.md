@@ -33,3 +33,4 @@ Each ADR contains:
 - `ADR-0019-trusted-mods.md`
 - `ADR-0020-animation-is-not-authority.md`
 - `ADR-0023-godot-4-7-api-baseline.md`
+- `ADR-0024-gdunit4-godot-4-7-baseline.md`
