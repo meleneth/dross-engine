@@ -66,6 +66,7 @@ add_executable(dross_headless
   tools/dross_cli/hex_pathing_scenario.cpp
   tools/dross_cli/lifecycle_machine_scenario.cpp
   tools/dross_cli/main.cpp
+  tools/dross_cli/persistence_scenario.cpp
 )
 target_link_libraries(dross_headless PRIVATE dross::core)
 target_compile_features(dross_headless PRIVATE cxx_std_20)
@@ -133,6 +134,35 @@ set_tests_properties(
   headless.lifecycle_machines
   PROPERTIES PASS_REGULAR_EXPRESSION
              "^lifecycle-machines checkpoints=8 trace=8 final=faulted")
+add_test(
+  NAME headless.persistence_foundation
+  COMMAND dross_headless scenario persistence-foundation --seed 12345
+          --save "${CMAKE_CURRENT_BINARY_DIR}/foundation.dross-save")
+set_tests_properties(
+  headless.persistence_foundation
+  PROPERTIES
+    FIXTURES_SETUP persistence_save
+    PASS_REGULAR_EXPRESSION "^persistence-foundation seed=12345 .* match=yes")
+add_test(
+  NAME headless.inspect_save
+  COMMAND dross_headless inspect-save
+          "${CMAKE_CURRENT_BINARY_DIR}/foundation.dross-save")
+set_tests_properties(
+  headless.inspect_save
+  PROPERTIES
+    FIXTURES_REQUIRED persistence_save
+    PASS_REGULAR_EXPRESSION "^save version=1 tick=1 components=3 streams=1")
+add_test(
+  NAME headless.resume_save
+  COMMAND dross_headless resume
+          "${CMAKE_CURRENT_BINARY_DIR}/foundation.dross-save"
+          --commands
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/foundation-tail.dross-commands")
+set_tests_properties(
+  headless.resume_save
+  PROPERTIES
+    FIXTURES_REQUIRED persistence_save
+    PASS_REGULAR_EXPRESSION "^resume final=[0-9a-f]+ events=1")
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(

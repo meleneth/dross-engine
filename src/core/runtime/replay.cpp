@@ -108,6 +108,50 @@ Result<PlaceEntityEnvelope, ReplayDecodeError> read_command(ByteReader& reader) 
 
 } // namespace
 
+CheckpointHash canonical_map_hash(const CompiledHexMap& map) {
+  ByteWriter writer;
+  const auto cell_ids = map.cell_ids();
+  writer.write_u64(cell_ids.size());
+  for (const auto& cell_id : cell_ids) {
+    write_cell(writer, cell_id);
+    const auto facts = map.cell(cell_id);
+    if (!facts) {
+      throw std::logic_error{"compiled map omitted a listed cell"};
+    }
+    writer.write_u64(static_cast<std::uint64_t>(facts->surface_height.value()));
+    writer.write(facts->terrain);
+    writer.write_u64(facts->base_cost.value());
+    writer.write_u16(static_cast<std::uint16_t>(facts->clearance));
+    writer.write_u16(facts->traversable ? 1U : 0U);
+    auto tags = facts->semantic_tags;
+    std::ranges::sort(tags);
+    writer.write_u64(tags.size());
+    for (const auto& tag : tags) {
+      writer.write(tag);
+    }
+  }
+  for (const auto& first : cell_ids) {
+    for (const auto& second : map.neighbors(first)) {
+      if (second < first) {
+        continue;
+      }
+      const auto edge = map.edge(first, second);
+      if (!edge) {
+        throw std::logic_error{"compiled map omitted a neighboring edge"};
+      }
+      write_cell(writer, first);
+      write_cell(writer, second);
+      const auto forward = edge->from_to(first);
+      const auto reverse = edge->from_to(second);
+      writer.write_u16(forward.traversable ? 1U : 0U);
+      writer.write_u64(forward.cost.value());
+      writer.write_u16(reverse.traversable ? 1U : 0U);
+      writer.write_u64(reverse.cost.value());
+    }
+  }
+  return hash_bytes(writer.bytes());
+}
+
 CanonicalCheckpoint
 canonical_checkpoint(const Tick tick, const WorldStorage& world, const OccupancyIndex& occupancy,
                      const RandomHubSnapshot& random, const WorldLifecycleSnapshot lifecycle,

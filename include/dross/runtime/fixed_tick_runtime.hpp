@@ -35,6 +35,7 @@ private:
 struct RuntimeConfig {
   std::uint32_t ticks_per_second{30};
   std::size_t max_command_cycles_per_tick{64};
+  Tick initial_tick{0};
 };
 
 enum class RuntimeState : std::uint8_t {

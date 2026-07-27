@@ -180,6 +180,20 @@ void EventReactionContext::enqueue_follow_up(PlaceEntityEnvelope command) {
 CommandEventKernel::CommandEventKernel(WorldStorage& world, CompiledHexMap map,
                                        PlacementScriptPort& scripts, TraceSink& trace)
     : world_{&world}, map_{std::move(map)}, scripts_{&scripts}, trace_{&trace} {
+  std::vector<OccupancyPlacement> placements;
+  for (const auto entity_id : world_->read().stable_entity_ids()) {
+    const auto entity = world_->read().find(entity_id);
+    if (!entity) {
+      throw std::logic_error{"stable entity missing while rebuilding occupancy"};
+    }
+    const auto pose = world_->read().pose(*entity);
+    if (pose) {
+      placements.push_back(OccupancyPlacement{.entity = entity_id, .cells = {pose->anchor}});
+    }
+  }
+  if (!occupancy_.rebuild(placements)) {
+    throw std::logic_error{"saved placements violate occupancy invariants"};
+  }
   const auto registered = router_.register_place_entity(
       [this](const PlaceEntityEnvelope& command) { return handle(command); });
   if (!registered) {

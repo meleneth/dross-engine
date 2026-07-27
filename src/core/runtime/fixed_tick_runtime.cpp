@@ -17,7 +17,7 @@ Result<void, ClockError> SimulationClock::advance() {
 EngineRuntime::EngineRuntime(CommandEventKernel& kernel, WorldLifecycle& lifecycle,
                              SimulationMode& mode, const RuntimeConfig config)
     : kernel_{&kernel}, lifecycle_{&lifecycle}, mode_{&mode}, config_{config},
-      clock_{Tick{0}, config.ticks_per_second} {}
+      clock_{config.initial_tick, config.ticks_per_second} {}
 
 void EngineRuntime::set_checkpoint_callback(std::function<void(Tick)> callback) {
   checkpoint_callback_ = std::move(callback);
@@ -67,7 +67,7 @@ Result<void, SaveBoundaryError> EngineRuntime::save_boundary() {
   if (kernel_->event_queue_draining()) {
     return tl::unexpected{SaveBoundaryError::event_queue_draining};
   }
-  if (kernel_->pending_command_count() != 0) {
+  if (kernel_->pending_command_count() != 0 || !external_commands_.empty()) {
     return tl::unexpected{SaveBoundaryError::commands_pending};
   }
   return {};

@@ -20,6 +20,8 @@ namespace dross {
 
 using CheckpointHash = std::array<std::uint8_t, 32>;
 
+[[nodiscard]] CheckpointHash canonical_map_hash(const CompiledHexMap& map);
+
 enum class CheckpointSection : std::uint8_t {
   clock,
   identity,

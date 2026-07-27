@@ -281,6 +281,20 @@ TEST_CASE("save boundary refuses pending and active command work") {
   CHECK(*scripts.observed == dross::SaveBoundaryError::command_active);
 }
 
+TEST_CASE("save boundary refuses scheduled external commands not represented by save policy") {
+  RuntimeFixture fixture{1};
+  const auto entity = fixture.spawn();
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
+                                   fixture.trace};
+  dross::EngineRuntime runtime{kernel, fixture.lifecycle, fixture.mode, dross::RuntimeConfig{}};
+  REQUIRE(runtime.schedule_external(scheduled_command(1, dross::Tick{2}, entity, 0)));
+
+  const auto boundary = runtime.save_boundary();
+
+  REQUIRE_FALSE(boundary);
+  CHECK(boundary.error() == dross::SaveBoundaryError::commands_pending);
+}
+
 TEST_CASE("save boundary refuses an event queue drain") {
   RuntimeFixture fixture{1};
   const auto entity = fixture.spawn();

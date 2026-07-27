@@ -7,10 +7,12 @@
 #include "command_event_kernel_scenario.hpp"
 #include "hex_pathing_scenario.hpp"
 #include "lifecycle_machine_scenario.hpp"
+#include "persistence_scenario.hpp"
 
 #include <charconv>
 #include <cstdint>
 #include <iostream>
+#include <optional>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -23,6 +25,8 @@ constexpr int self_check_error = 4;
 constexpr int scenario_error = 5;
 constexpr std::uint64_t default_scenario_seed = 12345;
 constexpr int lifecycle_record_argument_count = 5;
+constexpr int persistence_minimum_argument_count = 5;
+constexpr int resume_argument_count = 5;
 
 void print_usage(std::ostream& output) {
   output << "usage:\n"
@@ -32,6 +36,9 @@ void print_usage(std::ostream& output) {
             "  dross_headless scenario hex-pathing\n"
             "  dross_headless scenario command-event-kernel [--seed N] [--record PATH]\n"
             "  dross_headless scenario lifecycle-machines [--record PATH]\n"
+            "  dross_headless scenario persistence-foundation [--seed N] --save PATH\n"
+            "  dross_headless inspect-save PATH\n"
+            "  dross_headless resume PATH --commands PATH\n"
             "  dross_headless replay --verify-checkpoints PATH\n";
 }
 
@@ -128,6 +135,57 @@ void print_usage(std::ostream& output) {
   return run_command_event_kernel_scenario(seed, record_path);
 }
 
+[[nodiscard]] int run_persistence(const std::span<const char* const> arguments) {
+  std::uint64_t seed = default_scenario_seed;
+  std::string save_path;
+  for (std::size_t index = 3; index < arguments.size(); index += 2) {
+    if (index + 1 >= arguments.size()) {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+    const std::string_view option{arguments[index]};
+    if (option == "--save") {
+      save_path = arguments[index + 1];
+      continue;
+    }
+    if (option != "--seed") {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+    const std::string_view value{arguments[index + 1]};
+    const auto parsed = std::from_chars(value.data(), value.data() + value.size(), seed);
+    if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+  }
+  if (save_path.empty()) {
+    print_usage(std::cerr);
+    return usage_error;
+  }
+  return run_persistence_scenario(seed, save_path);
+}
+
+[[nodiscard]] std::optional<int>
+dispatch_persistence_command(const std::span<const char* const> arguments) {
+  if (arguments.size() >= persistence_minimum_argument_count &&
+      std::string_view{arguments[1]} == "scenario" &&
+      std::string_view{arguments[2]} == "persistence-foundation") {
+    return run_persistence(arguments);
+  }
+  if (arguments.size() == 3 && std::string_view{arguments[1]} == "inspect-save") {
+    return inspect_save(arguments[2]);
+  }
+  if (arguments.size() == resume_argument_count && std::string_view{arguments[1]} == "resume" &&
+      std::string_view{arguments[3]} == "--commands") {
+    return resume_save(ResumeSaveArguments{
+        .save_path = arguments[2],
+        .commands_path = arguments[4],
+    });
+  }
+  return std::nullopt;
+}
+
 } // namespace
 
 int main(const int argument_count, const char* const arguments[]) {
@@ -163,6 +221,11 @@ int main(const int argument_count, const char* const arguments[]) {
   if (argument_count >= 3 && std::string_view{arguments[1]} == "scenario" &&
       std::string_view{arguments[2]} == "command-event-kernel") {
     return run_command_scenario({arguments, static_cast<std::size_t>(argument_count)});
+  }
+  const auto persistence = dispatch_persistence_command(
+      {arguments, static_cast<std::size_t>(argument_count)});
+  if (persistence) {
+    return *persistence;
   }
   if ((argument_count == 3 || argument_count == lifecycle_record_argument_count) &&
       std::string_view{arguments[1]} == "scenario" &&
