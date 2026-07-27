@@ -115,3 +115,12 @@ TEST_CASE("script child stream IDs depend on module and stable scope identity") 
   CHECK(first == repeated);
   CHECK(first != other_scope);
 }
+
+TEST_CASE("changed master seed changes the known world script roll") {
+  dross::RandomHub recorded{dross::MasterSeed{12345}};
+  dross::RandomHub changed{dross::MasterSeed{1}};
+  const auto probability = dross::RationalChance{.numerator = 1, .denominator = 2};
+
+  CHECK(recorded.stream(stream_id("dross:world_scripts")).chance(probability).value());
+  CHECK_FALSE(changed.stream(stream_id("dross:world_scripts")).chance(probability).value());
+}

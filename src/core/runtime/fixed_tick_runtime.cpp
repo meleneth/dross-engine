@@ -17,6 +17,19 @@ Result<void, ClockError> SimulationClock::advance() {
 EngineRuntime::EngineRuntime(CommandEventKernel& kernel, const RuntimeConfig config)
     : kernel_{&kernel}, config_{config}, clock_{Tick{0}, config.ticks_per_second} {}
 
+void EngineRuntime::set_checkpoint_callback(std::function<void(Tick)> callback) {
+  checkpoint_callback_ = std::move(callback);
+}
+
+std::vector<PlaceEntityEnvelope> EngineRuntime::pending_external_commands() const {
+  std::vector<PlaceEntityEnvelope> result;
+  result.reserve(external_commands_.size());
+  for (const auto& scheduled : external_commands_) {
+    result.push_back(scheduled.command);
+  }
+  return result;
+}
+
 Result<void, ScheduleError> EngineRuntime::schedule_external(PlaceEntityEnvelope command) {
   if (state_ == RuntimeState::faulted) {
     return tl::unexpected{ScheduleError::runtime_faulted};
@@ -82,6 +95,9 @@ TickReport EngineRuntime::advance_tick() {
   report.phases.push_back(TickPhase::advance_time_systems);
   report.phases.push_back(TickPhase::produce_inspection);
   report.phases.push_back(TickPhase::checkpoint);
+  if (checkpoint_callback_) {
+    checkpoint_callback_(clock_.current());
+  }
   report.phases.push_back(TickPhase::increment_clock);
   if (!clock_.advance()) {
     state_ = RuntimeState::faulted;

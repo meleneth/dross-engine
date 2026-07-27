@@ -4,6 +4,8 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
+
 namespace {
 
 dross::ContentId content_id(const char* value) { return dross::ContentId::parse(value).value(); }
@@ -17,8 +19,7 @@ dross::CanonicalCheckpoint checkpoint_for(const std::vector<std::uint64_t>& spaw
   }
   dross::OccupancyIndex occupancy;
   dross::RandomHub random{dross::MasterSeed{seed}};
-  static_cast<void>(
-      random.stream(dross::RandomStreamId{content_id("dross:combat")}).next_u64());
+  static_cast<void>(random.stream(dross::RandomStreamId{content_id("dross:combat")}).next_u64());
   return dross::canonical_checkpoint(dross::Tick{3}, world, occupancy, random.snapshot(), {});
 }
 
@@ -41,7 +42,7 @@ TEST_CASE("replay DTO has a deterministic round trip") {
   dross::ReplayLog log{
       .header =
           dross::ReplayHeader{
-              .engine_version = 5,
+              .engine_version = dross::SemanticVersion{.major = 0, .minor = 1, .patch = 0},
               .schema_version = 1,
               .scenario = content_id("dross:command_event_kernel"),
               .base_package = content_id("dross:base"),
@@ -62,10 +63,12 @@ TEST_CASE("replay DTO has a deterministic round trip") {
 TEST_CASE("first replay divergence reports its tick and canonical section") {
   auto expected = checkpoint_for({1, 2}, 12345);
   auto actual = expected;
-  actual.sections[dross::CheckpointSection::occupancy][0] ^= std::byte{1};
-  actual.overall[0] ^= std::byte{1};
+  actual.sections[dross::CheckpointSection::occupancy][0] ^= std::uint8_t{1};
+  actual.overall[0] ^= std::uint8_t{1};
 
-  const auto divergence = dross::first_divergence({expected}, {actual});
+  const std::array expected_values{expected};
+  const std::array actual_values{actual};
+  const auto divergence = dross::first_divergence(expected_values, actual_values);
   REQUIRE(divergence);
   CHECK(divergence->tick == dross::Tick{3});
   CHECK(divergence->section == dross::CheckpointSection::occupancy);

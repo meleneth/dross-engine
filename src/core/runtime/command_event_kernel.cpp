@@ -60,6 +60,13 @@ void HeadlessPlacementScriptPort::reject_cell(HexCellId cell, ContentId reason) 
   std::ranges::sort(rejections_, {}, &std::pair<HexCellId, ContentId>::first);
 }
 
+void HeadlessPlacementScriptPort::random_reject_cell(HexCellId cell, const RationalChance chance,
+                                                     RandomStream& stream, ContentId reason) {
+  random_rejections_.push_back(RandomRejection{
+      .cell = std::move(cell), .chance = chance, .stream = &stream, .reason = std::move(reason)});
+  std::ranges::sort(random_rejections_, {}, &RandomRejection::cell);
+}
+
 PlacementRuleContribution
 HeadlessPlacementScriptPort::contribute(const placement::PlaceEntity& command) const {
   const auto found = std::ranges::find(rejections_, command.target.anchor,
@@ -69,6 +76,15 @@ HeadlessPlacementScriptPort::contribute(const placement::PlaceEntity& command) c
         .phase = PlacementRulePhase::script,
         .accepted = false,
         .reason = found->second,
+    };
+  }
+  const auto random =
+      std::ranges::find(random_rejections_, command.target.anchor, &RandomRejection::cell);
+  if (random != random_rejections_.end() && random->stream->chance(random->chance).value()) {
+    return PlacementRuleContribution{
+        .phase = PlacementRulePhase::script,
+        .accepted = false,
+        .reason = random->reason,
     };
   }
   return PlacementRuleContribution{

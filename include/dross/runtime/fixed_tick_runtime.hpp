@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <optional>
 #include <vector>
 
@@ -73,6 +74,8 @@ public:
 
   [[nodiscard]] Result<void, ScheduleError> schedule_external(PlaceEntityEnvelope command);
   [[nodiscard]] TickReport advance_tick();
+  void set_checkpoint_callback(std::function<void(Tick)> callback);
+  [[nodiscard]] std::vector<PlaceEntityEnvelope> pending_external_commands() const;
 
   [[nodiscard]] RuntimeState state() const noexcept { return state_; }
   [[nodiscard]] const SimulationClock& clock() const noexcept { return clock_; }
@@ -92,6 +95,7 @@ private:
   RuntimeState state_{RuntimeState::running};
   std::vector<ScheduledCommand> external_commands_;
   std::uint64_t next_submission_sequence_{0};
+  std::function<void(Tick)> checkpoint_callback_;
 };
 
 } // namespace dross

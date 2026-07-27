@@ -36,6 +36,7 @@ add_library(dross_core STATIC
   src/core/random/random_hub.cpp
   src/core/runtime/command_event_kernel.cpp
   src/core/runtime/fixed_tick_runtime.cpp
+  src/core/runtime/replay.cpp
   src/core/world/world_storage.cpp
 )
 add_library(dross::core ALIAS dross_core)
@@ -93,7 +94,7 @@ catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME headless.version COMMAND dross_headless version)
 set_tests_properties(
   headless.version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-04")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-05")
 add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
 set_tests_properties(
   headless.validate_id
@@ -116,7 +117,7 @@ add_test(NAME headless.command_event_kernel
 set_tests_properties(
   headless.command_event_kernel
   PROPERTIES PASS_REGULAR_EXPRESSION
-             "^command-event-kernel accepted=2 rejected=script_rejected duplicate=previous_result follow_up=later occupancy=2 inspected=entity:31:2 command_traces=4 event_traces=2")
+             "^command-event-kernel seed=12345 randomized=rejected occupancy=2 checkpoints=2")
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(

@@ -7,8 +7,10 @@
 #include "command_event_kernel_scenario.hpp"
 #include "hex_pathing_scenario.hpp"
 
+#include <charconv>
 #include <cstdint>
 #include <iostream>
+#include <span>
 #include <string_view>
 #include <utility>
 
@@ -18,6 +20,7 @@ constexpr int usage_error = 2;
 constexpr int validation_error = 3;
 constexpr int self_check_error = 4;
 constexpr int scenario_error = 5;
+constexpr std::uint64_t default_scenario_seed = 12345;
 
 void print_usage(std::ostream& output) {
   output << "usage:\n"
@@ -25,7 +28,8 @@ void print_usage(std::ostream& output) {
             "  dross_headless validate-id <namespace:name>\n"
             "  dross_headless scenario identity-lifecycle\n"
             "  dross_headless scenario hex-pathing\n"
-            "  dross_headless scenario command-event-kernel\n";
+            "  dross_headless scenario command-event-kernel [--seed N] [--record PATH]\n"
+            "  dross_headless replay --verify-checkpoints PATH\n";
 }
 
 [[nodiscard]] bool foundation_self_check() {
@@ -94,6 +98,33 @@ void print_usage(std::ostream& output) {
   return 0;
 }
 
+[[nodiscard]] int run_command_scenario(const std::span<const char* const> arguments) {
+  std::uint64_t seed = default_scenario_seed;
+  std::string record_path;
+  for (std::size_t index = 3; index < arguments.size(); index += 2) {
+    if (index + 1 >= arguments.size()) {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+    const std::string_view option{arguments[index]};
+    if (option == "--record") {
+      record_path = arguments[index + 1];
+      continue;
+    }
+    if (option != "--seed") {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+    const std::string_view value{arguments[index + 1]};
+    const auto parsed = std::from_chars(value.data(), value.data() + value.size(), seed);
+    if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+  }
+  return run_command_event_kernel_scenario(seed, record_path);
+}
+
 } // namespace
 
 int main(const int argument_count, const char* const arguments[]) {
@@ -126,9 +157,13 @@ int main(const int argument_count, const char* const arguments[]) {
       std::string_view{arguments[2]} == "hex-pathing") {
     return run_hex_pathing_scenario();
   }
-  if (argument_count == 3 && std::string_view{arguments[1]} == "scenario" &&
+  if (argument_count >= 3 && std::string_view{arguments[1]} == "scenario" &&
       std::string_view{arguments[2]} == "command-event-kernel") {
-    return run_command_event_kernel_scenario();
+    return run_command_scenario({arguments, static_cast<std::size_t>(argument_count)});
+  }
+  if (argument_count == 4 && std::string_view{arguments[1]} == "replay" &&
+      std::string_view{arguments[2]} == "--verify-checkpoints") {
+    return run_replay_verification(arguments[3]);
   }
 
   print_usage(std::cerr);

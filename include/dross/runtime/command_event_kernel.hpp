@@ -8,6 +8,7 @@
 #include <dross/hex/occupancy.hpp>
 #include <dross/identity/content_id.hpp>
 #include <dross/identity/ids.hpp>
+#include <dross/random/random_hub.hpp>
 #include <dross/world/world_storage.hpp>
 
 #include <compare>
@@ -34,11 +35,15 @@ struct CommandMetadata {
   CommandSource source;
   CausationId causation;
   CorrelationId correlation;
+
+  [[nodiscard]] auto operator<=>(const CommandMetadata&) const = default;
 };
 
 struct PlaceEntityEnvelope {
   CommandMetadata metadata;
   placement::PlaceEntity payload;
+
+  [[nodiscard]] auto operator<=>(const PlaceEntityEnvelope&) const = default;
 };
 
 enum class CommandRejection : std::uint8_t {
@@ -95,11 +100,20 @@ public:
 class HeadlessPlacementScriptPort final : public PlacementScriptPort {
 public:
   void reject_cell(HexCellId cell, ContentId reason);
+  void random_reject_cell(HexCellId cell, RationalChance chance, RandomStream& stream,
+                          ContentId reason);
   [[nodiscard]] PlacementRuleContribution
   contribute(const placement::PlaceEntity& command) const override;
 
 private:
   std::vector<std::pair<HexCellId, ContentId>> rejections_;
+  struct RandomRejection {
+    HexCellId cell;
+    RationalChance chance;
+    RandomStream* stream;
+    ContentId reason;
+  };
+  std::vector<RandomRejection> random_rejections_;
 };
 
 struct CommandTrace {

@@ -1,11 +1,18 @@
 #include "command_event_kernel_scenario.hpp"
 
-#include <dross/runtime/command_event_kernel.hpp>
+#include <dross/foundation/version.hpp>
+#include <dross/random/random_hub.hpp>
+#include <dross/runtime/fixed_tick_runtime.hpp>
+#include <dross/runtime/replay.hpp>
 
 #include <cstdint>
+#include <fstream>
 #include <iostream>
+#include <iterator>
 #include <stdexcept>
+#include <string>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -29,30 +36,31 @@ dross::HexCellId cell(const int column) {
 dross::CompiledHexMap make_map() {
   dross::CompiledHexMapBuilder builder;
   for (int column = 0; column < 3; ++column) {
-    const auto added = builder.add_cell(dross::CellFacts{
-        .id = cell(column),
-        .surface_height = dross::Millimeters{0},
-        .terrain = content_id("demo:floor"),
-        .base_cost = dross::MovementCost{1},
-        .clearance = dross::Clearance::open,
-        .traversable = true,
-        .semantic_tags = {},
-    });
-    if (!added) {
+    if (!builder.add_cell(dross::CellFacts{
+            .id = cell(column),
+            .surface_height = dross::Millimeters{0},
+            .terrain = content_id("demo:floor"),
+            .base_cost = dross::MovementCost{1},
+            .clearance = dross::Clearance::open,
+            .traversable = true,
+            .semantic_tags = {},
+        })) {
       throw std::logic_error{"command-event scenario map construction failed"};
     }
   }
   return std::move(builder).build().value();
 }
 
-dross::PlaceEntityEnvelope command(const std::uint64_t command_id, const dross::EntityRef entity,
-                                   const int column, const std::uint64_t causation) {
+dross::PlaceEntityEnvelope command(const std::uint64_t command_id, const dross::Tick tick,
+                                   const dross::EntityRef entity, const int column,
+                                   const std::uint64_t causation,
+                                   const dross::CommandSource source) {
   return dross::PlaceEntityEnvelope{
       .metadata =
           dross::CommandMetadata{
               .id = dross::CommandId{command_id},
-              .tick = dross::Tick{1},
-              .source = dross::CommandSource::headless_test,
+              .tick = tick,
+              .source = source,
               .causation = dross::CausationId{causation},
               .correlation = dross::CorrelationId{scenario_correlation},
           },
@@ -68,62 +76,142 @@ dross::PlaceEntityEnvelope command(const std::uint64_t command_id, const dross::
   };
 }
 
-} // namespace
+struct ScenarioResult {
+  dross::ReplayLog replay;
+  bool random_rejected{false};
+  std::size_t occupancy{0};
+};
 
-int run_command_event_kernel_scenario() {
+ScenarioResult execute_scenario(const std::uint64_t seed,
+                                const std::vector<dross::PlaceEntityEnvelope>* replay_commands) {
   dross::WorldStorage world{dross::WorldConfig{
       .lineage = scenario_lineage, .instance_id = dross::WorldInstanceId{scenario_instance}}};
-  const auto first = world.write().spawn(dross::SpawnPlan::runtime());
-  const auto second = world.write().spawn(dross::SpawnPlan::runtime());
-  const auto blocked = world.write().spawn(dross::SpawnPlan::runtime());
-  if (!first || !second || !blocked) {
-    std::cerr << "command-event entity setup failed\n";
-    return scenario_error;
-  }
+  const auto first = world.write().spawn(dross::SpawnPlan::runtime()).value();
+  const auto second = world.write().spawn(dross::SpawnPlan::runtime()).value();
+  const auto randomized = world.write().spawn(dross::SpawnPlan::runtime()).value();
 
+  dross::RandomHub random{dross::MasterSeed{seed}};
+  auto& script_stream = random.stream(dross::RandomStreamId{content_id("dross:world_scripts")});
   dross::HeadlessPlacementScriptPort scripts;
-  scripts.reject_cell(cell(2), content_id("demo:warded"));
+  scripts.random_reject_cell(cell(2), dross::RationalChance{.numerator = 1, .denominator = 2},
+                             script_stream, content_id("demo:unstable_ward"));
   dross::InMemoryTraceSink trace;
   dross::CommandEventKernel kernel{world, make_map(), scripts, trace};
-  const auto first_command = command(1, *first, 0, initial_causation);
   auto follow_up = kernel.events().subscribe_capability(
       [&first, &second](const dross::placement::EntityPlaced& event,
                         dross::EventReactionContext& context) {
-        if (event.entity == *first) {
-          context.enqueue_follow_up(command(2, *second, 1, initial_causation));
+        if (event.entity == first) {
+          context.enqueue_follow_up(command(2, dross::Tick{0}, second, 1, initial_causation,
+                                            dross::CommandSource::authoritative_system));
         }
       });
   if (!follow_up) {
-    std::cerr << "command-event listener setup failed\n";
-    return scenario_error;
+    throw std::logic_error{"command-event listener setup failed"};
   }
 
-  kernel.enqueue(first_command);
-  const auto first_cycle = kernel.run_cycle();
-  const auto follow_up_cycle = kernel.run_cycle();
-  kernel.enqueue(command(3, *blocked, 2, rejected_causation));
-  const auto rejected_cycle = kernel.run_cycle();
-  const auto revision = kernel.occupancy().revision();
-  kernel.enqueue(first_command);
-  const auto duplicate_cycle = kernel.run_cycle();
-
-  const auto inspection = kernel.last_placement();
-  if (first_cycle.size() != 1 || follow_up_cycle.size() != 1 || rejected_cycle.size() != 1 ||
-      duplicate_cycle.size() != 1 || !first_cycle.front().accepted ||
-      !follow_up_cycle.front().accepted ||
-      rejected_cycle.front().rejection != dross::CommandRejection::script_rejected ||
-      duplicate_cycle.front() != first_cycle.front() || kernel.occupancy().revision() != revision ||
-      !inspection || inspection->entity != *second || trace.events().size() != 2 ||
-      trace.commands().size() != 4) {
-    std::cerr << "command-event kernel scenario failed\n";
-    return scenario_error;
+  std::vector<dross::PlaceEntityEnvelope> external{
+      command(1, dross::Tick{0}, first, 0, initial_causation, dross::CommandSource::headless_test),
+      command(3, dross::Tick{1}, randomized, 2, rejected_causation,
+              dross::CommandSource::headless_test),
+  };
+  if (replay_commands != nullptr) {
+    external = *replay_commands;
   }
 
-  std::cout << "command-event-kernel accepted=2 rejected=script_rejected"
-               " duplicate=previous_result follow_up=later"
-            << " occupancy=" << kernel.occupancy().entries().size()
-            << " inspected=" << inspection->entity.id()
-            << " command_traces=" << trace.commands().size()
-            << " event_traces=" << trace.events().size() << '\n';
-  return 0;
+  dross::EngineRuntime runtime{kernel, dross::RuntimeConfig{}};
+  for (const auto& value : external) {
+    if (!runtime.schedule_external(value)) {
+      throw std::logic_error{"command-event schedule failed"};
+    }
+  }
+
+  std::vector<dross::CanonicalCheckpoint> checkpoints;
+  runtime.set_checkpoint_callback([&](const dross::Tick tick) {
+    const auto pending = runtime.pending_external_commands();
+    checkpoints.push_back(
+        dross::canonical_checkpoint(tick, world, kernel.occupancy(), random.snapshot(), pending));
+  });
+  static_cast<void>(runtime.advance_tick());
+  static_cast<void>(runtime.advance_tick());
+
+  const bool random_rejected =
+      trace.commands().back().result.rejection == dross::CommandRejection::script_rejected;
+  return ScenarioResult{
+      .replay =
+          dross::ReplayLog{
+              .header =
+                  dross::ReplayHeader{
+                      .engine_version = dross::engine_version(),
+                      .schema_version = 1,
+                      .scenario = content_id("dross:command_event_kernel"),
+                      .base_package = content_id("dross:base"),
+                      .master_seed = dross::MasterSeed{seed},
+                      .random_algorithm_version = dross::random_algorithm_version,
+                  },
+              .external_commands = replay_commands == nullptr ? external : *replay_commands,
+              .checkpoints = std::move(checkpoints),
+          },
+      .random_rejected = random_rejected,
+      .occupancy = kernel.occupancy().entries().size(),
+  };
+}
+
+bool write_replay(const std::string& path, const dross::ReplayLog& replay) {
+  const auto bytes = dross::encode_replay(replay);
+  std::ofstream output{path, std::ios::binary};
+  output.write(reinterpret_cast<const char*>(bytes.data()),
+               static_cast<std::streamsize>(bytes.size()));
+  return output.good();
+}
+
+} // namespace
+
+int run_command_event_kernel_scenario(const std::uint64_t seed, const std::string& record_path) {
+  try {
+    const auto result = execute_scenario(seed, nullptr);
+    if (!record_path.empty() && !write_replay(record_path, result.replay)) {
+      std::cerr << "failed to write replay\n";
+      return scenario_error;
+    }
+    std::cout << "command-event-kernel seed=" << seed
+              << " randomized=" << (result.random_rejected ? "rejected" : "accepted")
+              << " occupancy=" << result.occupancy
+              << " checkpoints=" << result.replay.checkpoints.size() << '\n';
+    return 0;
+  } catch (const std::exception& error) {
+    std::cerr << "command-event kernel scenario failed: " << error.what() << '\n';
+    return scenario_error;
+  }
+}
+
+int run_replay_verification(const std::string& path) {
+  std::ifstream input{path, std::ios::binary};
+  const std::vector<char> characters{std::istreambuf_iterator<char>{input},
+                                     std::istreambuf_iterator<char>{}};
+  std::vector<std::byte> bytes;
+  bytes.reserve(characters.size());
+  for (const auto value : characters) {
+    bytes.push_back(static_cast<std::byte>(value));
+  }
+  const auto recorded = dross::decode_replay(bytes);
+  if (!recorded) {
+    std::cerr << "invalid replay\n";
+    return scenario_error;
+  }
+  try {
+    const auto replayed =
+        execute_scenario(recorded->header.master_seed.value(), &recorded->external_commands);
+    const auto divergence =
+        dross::first_divergence(recorded->checkpoints, replayed.replay.checkpoints);
+    if (divergence) {
+      std::cerr << "replay divergence tick=" << divergence->tick.value()
+                << " section=" << static_cast<unsigned int>(divergence->section) << '\n';
+      return scenario_error;
+    }
+    std::cout << "replay verified checkpoints=" << recorded->checkpoints.size() << '\n';
+    return 0;
+  } catch (const std::exception& error) {
+    std::cerr << "replay failed: " << error.what() << '\n';
+    return scenario_error;
+  }
 }
