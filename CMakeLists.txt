@@ -39,6 +39,7 @@ add_library(dross_core STATIC
   src/core/runtime/fixed_tick_runtime.cpp
   src/core/runtime/machine_trace.cpp
   src/core/runtime/replay.cpp
+  src/core/runtime/script_runtime.cpp
   src/core/runtime/simulation_mode.cpp
   src/core/runtime/world_lifecycle.cpp
   src/core/world/world_storage.cpp
@@ -111,6 +112,7 @@ add_executable(dross_tests
   tests/unit/runtime/command_event_kernel_test.cpp
   tests/unit/runtime/fixed_tick_runtime_test.cpp
   tests/unit/runtime/replay_test.cpp
+  tests/unit/runtime/script_runtime_test.cpp
   tests/unit/runtime/simulation_mode_test.cpp
   tests/unit/runtime/world_lifecycle_test.cpp
   tests/unit/world/world_storage_test.cpp
