@@ -20,7 +20,13 @@ dross::CanonicalCheckpoint checkpoint_for(const std::vector<std::uint64_t>& spaw
   dross::OccupancyIndex occupancy;
   dross::RandomHub random{dross::MasterSeed{seed}};
   static_cast<void>(random.stream(dross::RandomStreamId{content_id("dross:combat")}).next_u64());
-  return dross::canonical_checkpoint(dross::Tick{3}, world, occupancy, random.snapshot(), {});
+  dross::NullMachineTrace trace;
+  dross::WorldLifecycle lifecycle{trace};
+  dross::SimulationMode mode{trace};
+  REQUIRE(lifecycle.restore(
+      dross::WorldLifecycleSnapshot{.state = dross::WorldLifecycleState::running}));
+  return dross::canonical_checkpoint(dross::Tick{3}, world, occupancy, random.snapshot(),
+                                     lifecycle.snapshot(), mode.snapshot(), {});
 }
 
 } // namespace
@@ -36,6 +42,28 @@ TEST_CASE("changed master seed changes the random checkpoint section") {
   CHECK(first.overall != second.overall);
   CHECK(first.sections.at(dross::CheckpointSection::random) !=
         second.sections.at(dross::CheckpointSection::random));
+}
+
+TEST_CASE("machine state changes the canonical machine section") {
+  dross::WorldStorage world{
+      dross::WorldConfig{.lineage = 7, .instance_id = dross::WorldInstanceId{9}}};
+  dross::OccupancyIndex occupancy;
+  dross::RandomHub random{dross::MasterSeed{12345}};
+  dross::NullMachineTrace trace;
+  dross::WorldLifecycle lifecycle{trace};
+  dross::SimulationMode mode{trace};
+  REQUIRE(lifecycle.restore(
+      dross::WorldLifecycleSnapshot{.state = dross::WorldLifecycleState::running}));
+  const auto exploration =
+      dross::canonical_checkpoint(dross::Tick{0}, world, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {});
+  REQUIRE(mode.request_combat());
+  const auto pending =
+      dross::canonical_checkpoint(dross::Tick{0}, world, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {});
+
+  CHECK(exploration.sections.at(dross::CheckpointSection::machines) !=
+        pending.sections.at(dross::CheckpointSection::machines));
 }
 
 TEST_CASE("replay DTO has a deterministic round trip") {
