@@ -8,7 +8,7 @@ project(
   dross_engine
   VERSION 0.1.0
   DESCRIPTION "Godot-adapted deterministic tactics engine"
-  LANGUAGES CXX)
+  LANGUAGES C CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -21,7 +21,10 @@ include(DrossSanitizers)
 include(DrossStaticAnalysis)
 
 add_library(dross_core STATIC
+  src/core/foundation/byte_codec.cpp
   src/core/foundation/version.cpp
+  src/core/identity/content_id.cpp
+  src/core/identity/ids.cpp
 )
 add_library(dross::core ALIAS dross_core)
 
@@ -31,6 +34,7 @@ target_include_directories(dross_core
     "$<INSTALL_INTERFACE:include>"
 )
 target_compile_features(dross_core PUBLIC cxx_std_20)
+target_link_libraries(dross_core PUBLIC tl::expected PRIVATE blake3::blake3)
 dross_target_warnings(dross_core)
 dross_enable_sanitizers(dross_core)
 

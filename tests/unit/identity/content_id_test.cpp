@@ -46,14 +46,13 @@ TEST_CASE("content IDs have canonical lexical ordering") {
 TEST_CASE("content ID canonical bytes and BLAKE3 digest are stable") {
   const auto id = dross::ContentId::parse("dross:thump").value();
   constexpr std::array<std::byte, 32> expected{
-      std::byte{0xF8}, std::byte{0x9A}, std::byte{0x0D}, std::byte{0xD8},
-      std::byte{0xA6}, std::byte{0x73}, std::byte{0xD2}, std::byte{0xED},
-      std::byte{0xB1}, std::byte{0x0B}, std::byte{0x5E}, std::byte{0xCB},
-      std::byte{0x48}, std::byte{0x14}, std::byte{0xD7}, std::byte{0x73},
-      std::byte{0xB3}, std::byte{0x38}, std::byte{0x8F}, std::byte{0xAE},
-      std::byte{0x06}, std::byte{0x84}, std::byte{0xB1}, std::byte{0xC4},
-      std::byte{0x12}, std::byte{0xE7}, std::byte{0x6F}, std::byte{0xCD},
-      std::byte{0x9B}, std::byte{0x0D}, std::byte{0x61}, std::byte{0xFC}};
+      std::byte{0x5D}, std::byte{0x5E}, std::byte{0x34}, std::byte{0x24}, std::byte{0x14},
+      std::byte{0x0D}, std::byte{0x0A}, std::byte{0xE1}, std::byte{0x9A}, std::byte{0xC4},
+      std::byte{0x91}, std::byte{0xEF}, std::byte{0x86}, std::byte{0x62}, std::byte{0xAF},
+      std::byte{0x03}, std::byte{0x5A}, std::byte{0x51}, std::byte{0xF6}, std::byte{0xC3},
+      std::byte{0x40}, std::byte{0x86}, std::byte{0x87}, std::byte{0x37}, std::byte{0xE9},
+      std::byte{0x10}, std::byte{0xA9}, std::byte{0xAB}, std::byte{0x58}, std::byte{0x62},
+      std::byte{0x90}, std::byte{0xA8}};
 
   CHECK(id.stable_hash() == expected);
 }

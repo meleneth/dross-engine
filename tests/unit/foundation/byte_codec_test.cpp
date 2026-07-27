@@ -3,6 +3,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -15,13 +16,12 @@ TEST_CASE("byte writer uses fixed-width little-endian encoding") {
   writer.write_u64(0x0123456789ABCDEF);
   writer.write_string("ok");
 
-  const std::array expected{
-      std::byte{0x34}, std::byte{0x12}, std::byte{0xEF}, std::byte{0xCD},
-      std::byte{0xAB}, std::byte{0x89}, std::byte{0xEF}, std::byte{0xCD},
-      std::byte{0xAB}, std::byte{0x89}, std::byte{0x67}, std::byte{0x45},
-      std::byte{0x23}, std::byte{0x01}, std::byte{0x02}, std::byte{0x00},
-      std::byte{0x00}, std::byte{0x00}, std::byte{'o'},  std::byte{'k'}};
-  CHECK(writer.bytes() == expected);
+  const std::array expected{std::byte{0x34}, std::byte{0x12}, std::byte{0xEF}, std::byte{0xCD},
+                            std::byte{0xAB}, std::byte{0x89}, std::byte{0xEF}, std::byte{0xCD},
+                            std::byte{0xAB}, std::byte{0x89}, std::byte{0x67}, std::byte{0x45},
+                            std::byte{0x23}, std::byte{0x01}, std::byte{0x02}, std::byte{0x00},
+                            std::byte{0x00}, std::byte{0x00}, std::byte{'o'},  std::byte{'k'}};
+  CHECK(std::ranges::equal(writer.bytes(), expected));
 }
 
 TEST_CASE("byte reader round trips validated content IDs") {
@@ -44,8 +44,8 @@ TEST_CASE("byte reader rejects truncation and impossible lengths") {
   REQUIRE_FALSE(integer);
   CHECK(integer.error().reason == dross::DecodeErrorReason::truncated);
 
-  const std::array invalid_length{
-      std::byte{0xFF}, std::byte{0xFF}, std::byte{0xFF}, std::byte{0x7F}};
+  const std::array invalid_length{std::byte{0xFF}, std::byte{0xFF}, std::byte{0xFF},
+                                  std::byte{0x7F}};
   dross::ByteReader string_reader{invalid_length};
   const auto string = string_reader.read_string();
   REQUIRE_FALSE(string);

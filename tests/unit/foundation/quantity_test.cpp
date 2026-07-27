@@ -6,8 +6,8 @@
 #include <limits>
 #include <type_traits>
 
-STATIC_REQUIRE_FALSE(std::is_convertible_v<dross::ActionPoints, dross::HitPoints>);
-STATIC_REQUIRE_FALSE(std::is_convertible_v<dross::MovementCost, dross::Millimeters>);
+static_assert(!std::is_convertible_v<dross::ActionPoints, dross::HitPoints>);
+static_assert(!std::is_convertible_v<dross::MovementCost, dross::Millimeters>);
 
 TEST_CASE("tick checked addition succeeds without implicit arithmetic") {
   constexpr dross::Tick tick{40};

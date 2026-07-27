@@ -30,6 +30,19 @@ CPMAddPackage(
     "EXPECTED_BUILD_TESTS OFF")
 CPMAddPackage(NAME nlohmann_json GITHUB_REPOSITORY nlohmann/json GIT_TAG v3.12.0 SYSTEM YES)
 CPMAddPackage(NAME blake3 GITHUB_REPOSITORY BLAKE3-team/BLAKE3 GIT_TAG 1.8.2 SYSTEM YES)
+if(blake3_ADDED)
+  add_library(dross_blake3 STATIC
+    "${blake3_SOURCE_DIR}/c/blake3.c"
+    "${blake3_SOURCE_DIR}/c/blake3_dispatch.c"
+    "${blake3_SOURCE_DIR}/c/blake3_portable.c")
+  target_include_directories(dross_blake3 SYSTEM PUBLIC "${blake3_SOURCE_DIR}/c")
+  target_compile_definitions(dross_blake3 PRIVATE
+    BLAKE3_NO_AVX2
+    BLAKE3_NO_AVX512
+    BLAKE3_NO_SSE2
+    BLAKE3_NO_SSE41)
+  add_library(blake3::blake3 ALIAS dross_blake3)
+endif()
 CPMAddPackage(NAME fmt GITHUB_REPOSITORY fmtlib/fmt GIT_TAG 11.2.0 SYSTEM YES)
 CPMAddPackage(
   NAME spdlog
