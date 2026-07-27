@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -231,4 +232,74 @@ TEST_CASE("fatal lifecycle fault prevents later commands") {
 
   CHECK_FALSE(runtime.schedule_external(scheduled_command(1, dross::Tick{0}, entity, 0)));
   CHECK_FALSE(fixture.lifecycle.begin_save());
+}
+
+TEST_CASE("save boundary accepts exploration and combat between command phases") {
+  RuntimeFixture fixture{1};
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
+                                   fixture.trace};
+  dross::EngineRuntime runtime{kernel, fixture.lifecycle, fixture.mode, dross::RuntimeConfig{}};
+
+  CHECK(runtime.save_boundary());
+  REQUIRE(fixture.mode.restore(
+      dross::SimulationModeSnapshot{.state = dross::SimulationModeState::combat}));
+  CHECK(runtime.save_boundary());
+}
+
+TEST_CASE("save boundary refuses pending and active command work") {
+  struct BoundaryProbeScript final : dross::PlacementScriptPort {
+    dross::EngineRuntime* runtime{nullptr};
+    mutable std::optional<dross::SaveBoundaryError> observed;
+
+    dross::PlacementRuleContribution
+    contribute(const dross::placement::PlaceEntity&) const override {
+      const auto boundary = runtime->save_boundary();
+      if (!boundary) {
+        observed = boundary.error();
+      }
+      return dross::PlacementRuleContribution{
+          .phase = dross::PlacementRulePhase::script,
+          .accepted = true,
+          .reason = std::nullopt,
+      };
+    }
+  };
+
+  RuntimeFixture fixture{1};
+  const auto entity = fixture.spawn();
+  BoundaryProbeScript scripts;
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), scripts, fixture.trace};
+  dross::EngineRuntime runtime{kernel, fixture.lifecycle, fixture.mode, dross::RuntimeConfig{}};
+  scripts.runtime = &runtime;
+  kernel.enqueue(scheduled_command(1, dross::Tick{0}, entity, 0));
+
+  const auto pending = runtime.save_boundary();
+  REQUIRE_FALSE(pending);
+  CHECK(pending.error() == dross::SaveBoundaryError::commands_pending);
+  static_cast<void>(kernel.run_cycle());
+  REQUIRE(scripts.observed);
+  CHECK(*scripts.observed == dross::SaveBoundaryError::command_active);
+}
+
+TEST_CASE("save boundary refuses an event queue drain") {
+  RuntimeFixture fixture{1};
+  const auto entity = fixture.spawn();
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
+                                   fixture.trace};
+  dross::EngineRuntime runtime{kernel, fixture.lifecycle, fixture.mode, dross::RuntimeConfig{}};
+  std::optional<dross::SaveBoundaryError> observed;
+  auto subscription = kernel.events().subscribe_capability(
+      [&](const dross::placement::EntityPlaced&, dross::EventReactionContext&) {
+        const auto boundary = runtime.save_boundary();
+        if (!boundary) {
+          observed = boundary.error();
+        }
+      });
+  REQUIRE(subscription);
+  kernel.enqueue(scheduled_command(1, dross::Tick{0}, entity, 0));
+
+  static_cast<void>(kernel.run_cycle());
+
+  REQUIRE(observed);
+  CHECK(*observed == dross::SaveBoundaryError::event_queue_draining);
 }
