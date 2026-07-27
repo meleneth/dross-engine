@@ -4,6 +4,8 @@
 #include <dross/identity/content_id.hpp>
 #include <dross/world/world_storage.hpp>
 
+#include "hex_pathing_scenario.hpp"
+
 #include <cstdint>
 #include <iostream>
 #include <string_view>
@@ -20,7 +22,8 @@ void print_usage(std::ostream& output) {
   output << "usage:\n"
             "  dross_headless version\n"
             "  dross_headless validate-id <namespace:name>\n"
-            "  dross_headless scenario identity-lifecycle\n";
+            "  dross_headless scenario identity-lifecycle\n"
+            "  dross_headless scenario hex-pathing\n";
 }
 
 [[nodiscard]] bool foundation_self_check() {
@@ -116,6 +119,10 @@ int main(const int argument_count, const char* const arguments[]) {
   if (argument_count == 3 && std::string_view{arguments[1]} == "scenario" &&
       std::string_view{arguments[2]} == "identity-lifecycle") {
     return run_identity_lifecycle();
+  }
+  if (argument_count == 3 && std::string_view{arguments[1]} == "scenario" &&
+      std::string_view{arguments[2]} == "hex-pathing") {
+    return run_hex_pathing_scenario();
   }
 
   print_usage(std::cerr);

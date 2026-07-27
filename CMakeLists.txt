@@ -50,6 +50,7 @@ dross_target_warnings(dross_core)
 dross_enable_sanitizers(dross_core)
 
 add_executable(dross_headless
+  tools/dross_cli/hex_pathing_scenario.cpp
   tools/dross_cli/main.cpp
 )
 target_link_libraries(dross_headless PRIVATE dross::core)
@@ -80,7 +81,7 @@ catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME headless.version COMMAND dross_headless version)
 set_tests_properties(
   headless.version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-02")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-03")
 add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
 set_tests_properties(
   headless.validate_id
@@ -93,6 +94,11 @@ set_tests_properties(
   headless.identity_lifecycle
   PROPERTIES PASS_REGULAR_EXPRESSION
              "^identity-lifecycle world=42 alive=\\[entity:17:2,entity:17:40\\] named=entity:17:40 next=3")
+add_test(NAME headless.hex_pathing COMMAND dross_headless scenario hex-pathing)
+set_tests_properties(
+  headless.hex_pathing
+  PROPERTIES PASS_REGULAR_EXPRESSION
+             "^hex-pathing single=\\[0,0,east>0,1,east\\] cost=1 asymmetric=\\[0,0,east>0,0,southeast>0,1,southeast\\] cost=2 rotations=1 blocked=\\[occupied,blocked_edge\\] revision=1")
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(
