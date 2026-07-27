@@ -33,6 +33,7 @@ add_library(dross_core STATIC
   src/core/identity/content_id.cpp
   src/core/identity/entity_id_allocator.cpp
   src/core/identity/ids.cpp
+  src/core/persistence/save_container.cpp
   src/core/random/random_hub.cpp
   src/core/runtime/command_event_kernel.cpp
   src/core/runtime/fixed_tick_runtime.cpp

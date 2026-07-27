@@ -93,7 +93,7 @@ TEST_CASE("save decoder rejects truncated and malformed container bytes") {
   const auto encoded = dross::encode_save_container(container_with({}));
   const std::array malformed{std::byte{0xFF}, std::byte{0x00}};
 
-  CHECK_FALSE(dross::decode_save_container(
-      std::span<const std::byte>{encoded}.first(encoded.size() - 1)));
+  CHECK_FALSE(
+      dross::decode_save_container(std::span<const std::byte>{encoded}.first(encoded.size() - 1)));
   CHECK_FALSE(dross::decode_save_container(malformed));
 }
