@@ -97,6 +97,12 @@ ScenarioResult execute_scenario(const std::uint64_t seed,
                              script_stream, content_id("demo:unstable_ward"));
   dross::InMemoryTraceSink trace;
   dross::CommandEventKernel kernel{world, make_map(), scripts, trace};
+  dross::NullMachineTrace machine_trace;
+  dross::WorldLifecycle lifecycle{machine_trace};
+  if (!lifecycle.begin_load() || !lifecycle.load_succeeded() || !lifecycle.begin_run()) {
+    throw std::logic_error{"command-event lifecycle setup failed"};
+  }
+  dross::SimulationMode mode{machine_trace};
   auto follow_up = kernel.events().subscribe_capability(
       [&first, &second](const dross::placement::EntityPlaced& event,
                         dross::EventReactionContext& context) {
@@ -118,7 +124,7 @@ ScenarioResult execute_scenario(const std::uint64_t seed,
     external = *replay_commands;
   }
 
-  dross::EngineRuntime runtime{kernel, dross::RuntimeConfig{}};
+  dross::EngineRuntime runtime{kernel, lifecycle, mode, dross::RuntimeConfig{}};
   for (const auto& value : external) {
     if (!runtime.schedule_external(value)) {
       throw std::logic_error{"command-event schedule failed"};

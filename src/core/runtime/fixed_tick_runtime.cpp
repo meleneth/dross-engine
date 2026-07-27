@@ -14,8 +14,10 @@ Result<void, ClockError> SimulationClock::advance() {
   return {};
 }
 
-EngineRuntime::EngineRuntime(CommandEventKernel& kernel, const RuntimeConfig config)
-    : kernel_{&kernel}, config_{config}, clock_{Tick{0}, config.ticks_per_second} {}
+EngineRuntime::EngineRuntime(CommandEventKernel& kernel, WorldLifecycle& lifecycle,
+                             SimulationMode& mode, const RuntimeConfig config)
+    : kernel_{&kernel}, lifecycle_{&lifecycle}, mode_{&mode}, config_{config},
+      clock_{Tick{0}, config.ticks_per_second} {}
 
 void EngineRuntime::set_checkpoint_callback(std::function<void(Tick)> callback) {
   checkpoint_callback_ = std::move(callback);
@@ -34,6 +36,9 @@ Result<void, ScheduleError> EngineRuntime::schedule_external(PlaceEntityEnvelope
   if (state_ == RuntimeState::faulted) {
     return tl::unexpected{ScheduleError::runtime_faulted};
   }
+  if (lifecycle_->state() != WorldLifecycleState::running) {
+    return tl::unexpected{ScheduleError::world_not_running};
+  }
   if (command.metadata.tick < clock_.current()) {
     return tl::unexpected{ScheduleError::elapsed_tick};
   }
@@ -43,6 +48,10 @@ Result<void, ScheduleError> EngineRuntime::schedule_external(PlaceEntityEnvelope
   });
   ++next_submission_sequence_;
   return {};
+}
+
+bool EngineRuntime::request_combat() {
+  return lifecycle_->state() == WorldLifecycleState::running && mode_->request_combat();
 }
 
 TickReport EngineRuntime::advance_tick() {
@@ -55,6 +64,12 @@ TickReport EngineRuntime::advance_tick() {
       .fault = std::nullopt,
   };
   if (state_ == RuntimeState::faulted) {
+    return report;
+  }
+  if (lifecycle_->state() != WorldLifecycleState::running) {
+    if (lifecycle_->state() == WorldLifecycleState::faulted) {
+      state_ = RuntimeState::faulted;
+    }
     return report;
   }
 
@@ -93,6 +108,9 @@ TickReport EngineRuntime::advance_tick() {
   }
 
   report.phases.push_back(TickPhase::advance_time_systems);
+  if (mode_->state() == SimulationModeState::combat_pending) {
+    static_cast<void>(mode_->reach_safe_boundary());
+  }
   report.phases.push_back(TickPhase::produce_inspection);
   report.phases.push_back(TickPhase::checkpoint);
   if (checkpoint_callback_) {

@@ -106,12 +106,6 @@ struct WorldLifecycle::Impl {
   sml::sm<WorldLifecycleDefinition, sml::logger<DrossSmlLogger>> machine;
 };
 
-void InMemoryMachineTrace::record(const MachineTraceEntry entry) { entries_.push_back(entry); }
-
-const std::vector<MachineTraceEntry>& InMemoryMachineTrace::entries() const noexcept {
-  return entries_;
-}
-
 WorldLifecycle::WorldLifecycle(MachineTraceSink& trace) : trace_{&trace} {
   static DrossSmlLogger logger;
   impl_ = std::make_unique<Impl>(logger);

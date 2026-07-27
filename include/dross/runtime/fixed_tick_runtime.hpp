@@ -3,6 +3,8 @@
 #include <dross/foundation/quantities.hpp>
 #include <dross/foundation/result.hpp>
 #include <dross/runtime/command_event_kernel.hpp>
+#include <dross/runtime/simulation_mode.hpp>
+#include <dross/runtime/world_lifecycle.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -48,6 +50,7 @@ enum class RuntimeFault : std::uint8_t {
 enum class ScheduleError : std::uint8_t {
   elapsed_tick,
   runtime_faulted,
+  world_not_running,
 };
 
 enum class TickPhase : std::uint8_t {
@@ -70,9 +73,11 @@ struct TickReport {
 
 class EngineRuntime {
 public:
-  EngineRuntime(CommandEventKernel& kernel, RuntimeConfig config);
+  EngineRuntime(CommandEventKernel& kernel, WorldLifecycle& lifecycle, SimulationMode& mode,
+                RuntimeConfig config);
 
   [[nodiscard]] Result<void, ScheduleError> schedule_external(PlaceEntityEnvelope command);
+  [[nodiscard]] bool request_combat();
   [[nodiscard]] TickReport advance_tick();
   void set_checkpoint_callback(std::function<void(Tick)> callback);
   [[nodiscard]] std::vector<PlaceEntityEnvelope> pending_external_commands() const;
@@ -90,6 +95,8 @@ private:
   };
 
   CommandEventKernel* kernel_;
+  WorldLifecycle* lifecycle_;
+  SimulationMode* mode_;
   RuntimeConfig config_;
   SimulationClock clock_;
   RuntimeState state_{RuntimeState::running};

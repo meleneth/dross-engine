@@ -36,7 +36,9 @@ add_library(dross_core STATIC
   src/core/random/random_hub.cpp
   src/core/runtime/command_event_kernel.cpp
   src/core/runtime/fixed_tick_runtime.cpp
+  src/core/runtime/machine_trace.cpp
   src/core/runtime/replay.cpp
+  src/core/runtime/simulation_mode.cpp
   src/core/runtime/world_lifecycle.cpp
   src/core/world/world_storage.cpp
 )
