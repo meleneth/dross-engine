@@ -34,8 +34,8 @@ TEST_CASE("named RandomHub stream locks the pcg64 golden vector") {
 }
 
 TEST_CASE("stream derivation has versioned stable golden material") {
-  const auto material = dross::derive_random_stream(
-      dross::MasterSeed{12345}, stream_id("dross:combat"));
+  const auto material =
+      dross::derive_random_stream(dross::MasterSeed{12345}, stream_id("dross:combat"));
 
   CHECK(dross::random_algorithm_version == 1);
   CHECK(material == dross::RandomSeedMaterial{
@@ -74,16 +74,10 @@ TEST_CASE("integer and rational sampling reject invalid contracts") {
   REQUIRE(integer);
   CHECK(*integer >= -4);
   CHECK(*integer <= 4);
-  CHECK_FALSE(stream.chance(dross::RationalChance{.numerator = 1,
-                                                  .denominator = 0}));
-  CHECK_FALSE(
-      stream.chance(dross::RationalChance{.numerator = 2, .denominator = 1}));
-  CHECK(stream.chance(
-            dross::RationalChance{.numerator = 0, .denominator = 1})
-            .value() == false);
-  CHECK(stream.chance(
-            dross::RationalChance{.numerator = 1, .denominator = 1})
-            .value() == true);
+  CHECK_FALSE(stream.chance(dross::RationalChance{.numerator = 1, .denominator = 0}));
+  CHECK_FALSE(stream.chance(dross::RationalChance{.numerator = 2, .denominator = 1}));
+  CHECK(stream.chance(dross::RationalChance{.numerator = 0, .denominator = 1}).value() == false);
+  CHECK(stream.chance(dross::RationalChance{.numerator = 1, .denominator = 1}).value() == true);
 }
 
 TEST_CASE("Dross shuffle has a deterministic vector without std shuffle") {
@@ -108,20 +102,15 @@ TEST_CASE("RandomHub snapshot restore resumes every stream") {
 
   REQUIRE(hub.restore(snapshot));
 
-  CHECK(hub.stream(stream_id("dross:combat")).next_u64() ==
-        expected_combat);
-  CHECK(hub.stream(stream_id("dross:world_scripts")).next_u64() ==
-        expected_scripts);
+  CHECK(hub.stream(stream_id("dross:combat")).next_u64() == expected_combat);
+  CHECK(hub.stream(stream_id("dross:world_scripts")).next_u64() == expected_scripts);
 }
 
 TEST_CASE("script child stream IDs depend on module and stable scope identity") {
   const auto module = dross::ContentId::parse("mousecult:ritual").value();
-  const auto first = dross::script_child_stream_id(
-      module, dross::EntityId{7, 11});
-  const auto repeated = dross::script_child_stream_id(
-      module, dross::EntityId{7, 11});
-  const auto other_scope = dross::script_child_stream_id(
-      module, dross::EntityId{7, 12});
+  const auto first = dross::script_child_stream_id(module, dross::EntityId{7, 11});
+  const auto repeated = dross::script_child_stream_id(module, dross::EntityId{7, 11});
+  const auto other_scope = dross::script_child_stream_id(module, dross::EntityId{7, 12});
 
   CHECK(first == repeated);
   CHECK(first != other_scope);

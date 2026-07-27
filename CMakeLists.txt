@@ -33,6 +33,7 @@ add_library(dross_core STATIC
   src/core/identity/content_id.cpp
   src/core/identity/entity_id_allocator.cpp
   src/core/identity/ids.cpp
+  src/core/random/random_hub.cpp
   src/core/runtime/command_event_kernel.cpp
   src/core/runtime/fixed_tick_runtime.cpp
   src/core/world/world_storage.cpp
@@ -45,6 +46,8 @@ target_include_directories(dross_core
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/generated/include>"
     "$<INSTALL_INTERFACE:include>"
 )
+target_include_directories(dross_core SYSTEM PRIVATE
+  "${pcg_cpp_SOURCE_DIR}/include")
 target_compile_features(dross_core PUBLIC cxx_std_20)
 target_link_libraries(dross_core
   PUBLIC tl::expected
@@ -124,4 +127,9 @@ add_test(
   NAME architecture.no_entt_in_public_api
   COMMAND Python3::Interpreter
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/architecture/no_entt_in_public_api.py"
+          "${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(
+  NAME architecture.no_forbidden_random_api
+  COMMAND Python3::Interpreter
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/architecture/no_forbidden_random_api.py"
           "${CMAKE_CURRENT_SOURCE_DIR}")
