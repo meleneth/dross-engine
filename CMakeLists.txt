@@ -52,6 +52,7 @@ add_executable(dross_tests
   tests/unit/foundation/quantity_test.cpp
   tests/unit/identity/content_id_test.cpp
   tests/unit/identity/identity_test.cpp
+  tests/unit/world/world_storage_test.cpp
 )
 target_link_libraries(dross_tests PRIVATE dross::core Catch2::Catch2WithMain)
 target_compile_features(dross_tests PRIVATE cxx_std_20)
@@ -77,4 +78,9 @@ add_test(
   NAME architecture.no_godot_in_core
   COMMAND Python3::Interpreter
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/architecture/no_godot_in_core.py"
+          "${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(
+  NAME architecture.no_entt_in_public_api
+  COMMAND Python3::Interpreter
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/architecture/no_entt_in_public_api.py"
           "${CMAKE_CURRENT_SOURCE_DIR}")
