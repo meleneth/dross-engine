@@ -61,6 +61,7 @@ add_executable(dross_tests
   tests/unit/foundation/quantity_test.cpp
   tests/unit/hex/hex_coord_test.cpp
   tests/unit/hex/hex_map_test.cpp
+  tests/unit/hex/path_planner_test.cpp
   tests/unit/hex/hex_topology_test.cpp
   tests/unit/identity/content_id_test.cpp
   tests/unit/identity/identity_test.cpp
