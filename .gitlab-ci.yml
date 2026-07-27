@@ -1,0 +1,55 @@
+stages:
+  - format
+  - build
+  - sanitize
+
+variables:
+  CPM_SOURCE_CACHE: "$CI_PROJECT_DIR/.cpm-cache"
+
+cache:
+  key: "$CI_JOB_NAME"
+  paths:
+    - .cpm-cache/
+
+format-check:
+  stage: format
+  image: debian:stable-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends ca-certificates clang-format cmake git ninja-build g++ python3
+  script:
+    - cmake --preset linux-debug
+    - cmake --build --preset linux-debug --target format-check
+
+clang-debug-test:
+  stage: build
+  image: debian:stable-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends ca-certificates clang cmake git ninja-build python3
+  script:
+    - CC=clang CXX=clang++ cmake --preset linux-debug
+    - cmake --build --preset linux-debug
+    - ctest --preset linux-debug --output-on-failure
+
+gcc-release-test:
+  stage: build
+  image: debian:stable-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends ca-certificates cmake git ninja-build g++ python3
+  script:
+    - cmake --preset linux-release
+    - cmake --build --preset linux-release
+    - ctest --preset linux-release --output-on-failure
+
+asan-ubsan-test:
+  stage: sanitize
+  image: debian:stable-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends ca-certificates clang cmake git ninja-build python3
+  script:
+    - CC=clang CXX=clang++ cmake --preset linux-asan-ubsan
+    - cmake --build --preset linux-asan-ubsan
+    - ctest --preset linux-asan-ubsan --output-on-failure

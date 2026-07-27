@@ -1,0 +1,34 @@
+file(GLOB_RECURSE DROSS_FORMAT_FILES CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
+
+find_program(CLANG_FORMAT_EXE NAMES clang-format)
+find_program(CLANG_TIDY_EXE NAMES clang-tidy)
+
+add_custom_target(format
+  COMMAND ${CMAKE_COMMAND}
+          -DCLANG_FORMAT_EXE=${CLANG_FORMAT_EXE}
+          -DDROSS_FORMAT_MODE=fix
+          "-DDROSS_FORMAT_FILES=${DROSS_FORMAT_FILES}"
+          -P "${CMAKE_CURRENT_LIST_DIR}/RunClangFormat.cmake"
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  VERBATIM)
+
+add_custom_target(format-check
+  COMMAND ${CMAKE_COMMAND}
+          -DCLANG_FORMAT_EXE=${CLANG_FORMAT_EXE}
+          -DDROSS_FORMAT_MODE=check
+          "-DDROSS_FORMAT_FILES=${DROSS_FORMAT_FILES}"
+          -P "${CMAKE_CURRENT_LIST_DIR}/RunClangFormat.cmake"
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  VERBATIM)
+
+add_custom_target(tidy
+  COMMAND ${CMAKE_COMMAND}
+          -DCLANG_TIDY_EXE=${CLANG_TIDY_EXE}
+          "-DDROSS_BINARY_DIR=${CMAKE_BINARY_DIR}"
+          "-DDROSS_SOURCE_DIR=${CMAKE_SOURCE_DIR}"
+          -P "${CMAKE_CURRENT_LIST_DIR}/RunClangTidy.cmake"
+  WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+  VERBATIM)

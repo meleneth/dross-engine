@@ -1,5 +1,6 @@
 # Build outputs
 /build/
+/build*/
 /out/
 /cmake-build-*/
 /CMakeFiles/
@@ -8,6 +9,7 @@
 
 # CMake/CPM dependency cache
 /.cpm-cache/
+/.cache/
 /CPM_modules/
 
 # Native artifacts

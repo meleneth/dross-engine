@@ -1,0 +1,18 @@
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  modernize-*,
+  -modernize-use-trailing-return-type,
+  performance-*,
+  readability-*,
+  cppcoreguidelines-avoid-goto,
+  cppcoreguidelines-pro-type-member-init
+WarningsAsErrors: '*'
+HeaderFilterRegex: '^(include|src|tests)/'
+FormatStyle: file
+CheckOptions:
+  - key: readability-identifier-length.IgnoredParameterNames
+    value: '^[a-z]$'
+  - key: readability-identifier-length.IgnoredVariableNames
+    value: '^[xyzqi]$'
