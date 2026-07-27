@@ -1,6 +1,7 @@
 #pragma once
 
 #include <dross/foundation/result.hpp>
+#include <dross/hex/hex_topology.hpp>
 #include <dross/identity/entity_alias.hpp>
 #include <dross/identity/entity_id_allocator.hpp>
 #include <dross/identity/entity_ref.hpp>
@@ -49,6 +50,7 @@ struct SpawnError {
 enum class EntityLookupErrorReason : std::uint8_t {
   wrong_world_instance,
   entity_not_found,
+  capability_not_present,
 };
 
 struct EntityLookupError {
@@ -64,6 +66,7 @@ public:
   [[nodiscard]] bool valid(EntityRef entity) const;
   [[nodiscard]] Result<PersistentIdentity, EntityLookupError> lookup(EntityRef entity) const;
   [[nodiscard]] Result<PersistentIdentity, EntityLookupError> identity(EntityRef entity) const;
+  [[nodiscard]] Result<HexPose, EntityLookupError> pose(EntityRef entity) const;
   [[nodiscard]] std::optional<EntityRef> find(EntityId id) const;
   [[nodiscard]] std::optional<EntityRef> find(const EntityAlias& alias) const;
   [[nodiscard]] std::size_t entity_count() const;
@@ -80,6 +83,7 @@ class WorldWrite {
 public:
   [[nodiscard]] Result<EntityRef, SpawnError> spawn(const SpawnPlan& plan);
   [[nodiscard]] Result<void, DestroyError> destroy(EntityRef entity);
+  void commit_pose(EntityRef entity, HexPose pose) noexcept;
 
 private:
   friend class WorldStorage;

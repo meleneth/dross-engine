@@ -44,8 +44,7 @@ dross::CompiledHexMap map_with(std::initializer_list<HexCellId> cells) {
   return std::move(builder).build().value();
 }
 
-dross::PlaceEntityEnvelope envelope(const std::uint64_t command,
-                                    const dross::EntityRef entity,
+dross::PlaceEntityEnvelope envelope(const std::uint64_t command, const dross::EntityRef entity,
                                     const HexCellId& target) {
   return dross::PlaceEntityEnvelope{
       .metadata =
@@ -56,10 +55,11 @@ dross::PlaceEntityEnvelope envelope(const std::uint64_t command,
               .causation = dross::CausationId{command + 100},
               .correlation = dross::CorrelationId{9},
           },
-      .payload = dross::placement::PlaceEntity{
-          .entity = entity,
-          .target = HexPose{.anchor = target, .facing = HexFacing::east},
-      },
+      .payload =
+          dross::placement::PlaceEntity{
+              .entity = entity,
+              .target = HexPose{.anchor = target, .facing = HexFacing::east},
+          },
   };
 }
 
@@ -81,12 +81,10 @@ struct Fixture {
 
 TEST_CASE("command router rejects duplicate authoritative handlers") {
   dross::CommandRouter router;
-  REQUIRE(router.register_place_entity([](const auto&) {
-    return dross::CommandResult::accepted_result();
-  }));
-  const auto duplicate = router.register_place_entity([](const auto&) {
-    return dross::CommandResult::accepted_result();
-  });
+  REQUIRE(router.register_place_entity(
+      [](const auto&) { return dross::CommandResult::accepted_result(); }));
+  const auto duplicate = router.register_place_entity(
+      [](const auto&) { return dross::CommandResult::accepted_result(); });
   REQUIRE_FALSE(duplicate);
   CHECK(duplicate.error() == dross::RegistrationError::duplicate_command_handler);
 }
@@ -96,8 +94,8 @@ TEST_CASE("placement rules are stable and rejection leaves world unchanged") {
   dross::HeadlessPlacementScriptPort scripts;
   scripts.reject_cell(cell(1, 0), id("test:script_block"));
   dross::InMemoryTraceSink trace;
-  dross::CommandEventKernel kernel{
-      fixture.world, map_with({cell(0, 0), cell(1, 0)}), scripts, trace};
+  dross::CommandEventKernel kernel{fixture.world, map_with({cell(0, 0), cell(1, 0)}), scripts,
+                                   trace};
 
   kernel.enqueue(envelope(1, fixture.first, cell(1, 0)));
   const auto before = kernel.canonical_summary();
@@ -108,12 +106,11 @@ TEST_CASE("placement rules are stable and rejection leaves world unchanged") {
   CHECK(results.front().rejection == dross::CommandRejection::script_rejected);
   CHECK(kernel.canonical_summary() == before);
   REQUIRE(trace.commands().size() == 1);
-  CHECK(trace.commands().front().contributions ==
-        std::vector<dross::PlacementRulePhase>{
-            dross::PlacementRulePhase::engine_invariant,
-            dross::PlacementRulePhase::hex_capability,
-            dross::PlacementRulePhase::script,
-        });
+  CHECK(trace.commands().front().contributions == std::vector<dross::PlacementRulePhase>{
+                                                      dross::PlacementRulePhase::engine_invariant,
+                                                      dross::PlacementRulePhase::hex_capability,
+                                                      dross::PlacementRulePhase::script,
+                                                  });
   CHECK(trace.events().empty());
 }
 
@@ -121,14 +118,13 @@ TEST_CASE("accepted placement commits before a queued typed event is observed") 
   Fixture fixture;
   dross::HeadlessPlacementScriptPort scripts;
   dross::InMemoryTraceSink trace;
-  dross::CommandEventKernel kernel{
-      fixture.world, map_with({cell(0, 0), cell(1, 0)}), scripts, trace};
+  dross::CommandEventKernel kernel{fixture.world, map_with({cell(0, 0), cell(1, 0)}), scripts,
+                                   trace};
   bool observed_committed_pose = false;
   auto subscription = kernel.events().subscribe_capability(
       [&fixture, &observed_committed_pose](const dross::placement::EntityPlaced& event,
                                            dross::EventReactionContext&) {
-        observed_committed_pose =
-            fixture.world.read().pose(event.entity).value() == event.pose;
+        observed_committed_pose = fixture.world.read().pose(event.entity).value() == event.pose;
       });
 
   kernel.enqueue(envelope(2, fixture.first, cell(0, 0)));
@@ -143,16 +139,35 @@ TEST_CASE("accepted placement commits before a queued typed event is observed") 
   CHECK(trace.events().front().causation == dross::CausationId{102});
 }
 
+TEST_CASE("blocked placement rejection preserves the canonical world summary") {
+  Fixture fixture;
+  dross::HeadlessPlacementScriptPort scripts;
+  dross::InMemoryTraceSink trace;
+  dross::CommandEventKernel kernel{fixture.world, map_with({cell(0, 0)}), scripts, trace};
+  kernel.enqueue(envelope(20, fixture.first, cell(0, 0)));
+  REQUIRE(kernel.run_cycle().front().accepted);
+  const auto before = kernel.canonical_summary();
+
+  kernel.enqueue(envelope(21, fixture.second, cell(0, 0)));
+  const auto rejected = kernel.run_cycle();
+
+  REQUIRE(rejected.size() == 1);
+  CHECK_FALSE(rejected.front().accepted);
+  CHECK(rejected.front().rejection == dross::CommandRejection::occupied);
+  CHECK(kernel.canonical_summary() == before);
+  CHECK_FALSE(fixture.world.read().pose(fixture.second));
+}
+
 TEST_CASE("listeners cannot reenter and follow-up commands run in the next cycle") {
   Fixture fixture;
   dross::HeadlessPlacementScriptPort scripts;
   dross::InMemoryTraceSink trace;
-  dross::CommandEventKernel kernel{
-      fixture.world, map_with({cell(0, 0), cell(1, 0)}), scripts, trace};
+  dross::CommandEventKernel kernel{fixture.world, map_with({cell(0, 0), cell(1, 0)}), scripts,
+                                   trace};
   bool active_during_listener = false;
   auto subscription = kernel.events().subscribe_capability(
-      [&kernel, &fixture, &active_during_listener](
-          const dross::placement::EntityPlaced&, dross::EventReactionContext& context) {
+      [&kernel, &fixture, &active_during_listener](const dross::placement::EntityPlaced&,
+                                                   dross::EventReactionContext& context) {
         active_during_listener = kernel.command_active();
         context.enqueue_follow_up(envelope(4, fixture.second, cell(1, 0)));
       });
@@ -173,8 +188,8 @@ TEST_CASE("duplicate command IDs return the previous result without a second com
   Fixture fixture;
   dross::HeadlessPlacementScriptPort scripts;
   dross::InMemoryTraceSink trace;
-  dross::CommandEventKernel kernel{
-      fixture.world, map_with({cell(0, 0), cell(1, 0)}), scripts, trace};
+  dross::CommandEventKernel kernel{fixture.world, map_with({cell(0, 0), cell(1, 0)}), scripts,
+                                   trace};
   const auto command = envelope(5, fixture.first, cell(0, 0));
 
   kernel.enqueue(command);
@@ -193,25 +208,31 @@ TEST_CASE("event subscriptions are lifetime safe and listener phases are fixed")
   Fixture fixture;
   dross::HeadlessPlacementScriptPort scripts;
   dross::InMemoryTraceSink trace;
-  dross::CommandEventKernel kernel{
-      fixture.world, map_with({cell(0, 0)}), scripts, trace};
+  dross::CommandEventKernel kernel{fixture.world, map_with({cell(0, 0)}), scripts, trace};
   std::vector<dross::EventListenerPhase> phases;
-  auto invariant = kernel.events().subscribe_invariant(
-      [&phases](const auto&, auto&) {
-        phases.push_back(dross::EventListenerPhase::native_invariant);
-      });
+  auto invariant = kernel.events().subscribe_invariant([&phases](const auto&, auto&) {
+    phases.push_back(dross::EventListenerPhase::native_invariant);
+  });
   {
-    auto capability = kernel.events().subscribe_capability(
-        [&phases](const auto&, auto&) {
-          phases.push_back(dross::EventListenerPhase::native_capability);
-        });
+    auto capability = kernel.events().subscribe_capability([&phases](const auto&, auto&) {
+      phases.push_back(dross::EventListenerPhase::native_capability);
+    });
   }
 
   kernel.enqueue(envelope(6, fixture.first, cell(0, 0)));
-  kernel.run_cycle();
+  const auto results = kernel.run_cycle();
 
-  CHECK(phases ==
-        std::vector<dross::EventListenerPhase>{
-            dross::EventListenerPhase::native_invariant,
-        });
+  REQUIRE(results.size() == 1);
+  CHECK(phases == std::vector<dross::EventListenerPhase>{
+                      dross::EventListenerPhase::native_invariant,
+                  });
+}
+
+TEST_CASE("event queue rejects invalid listener phases") {
+  dross::PlacementEventQueue events;
+  const auto invalid =
+      events.subscribe(static_cast<dross::EventListenerPhase>(255), [](const auto&, auto&) {});
+
+  REQUIRE_FALSE(invalid);
+  CHECK(invalid.error() == dross::EventRegistrationError::invalid_listener_phase);
 }

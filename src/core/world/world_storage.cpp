@@ -8,6 +8,10 @@
 
 namespace dross {
 
+struct PlacementPose {
+  std::optional<HexPose> value;
+};
+
 struct WorldStorage::Impl {
   explicit Impl(const WorldConfig& config)
       : lineage{config.lineage}, instance_id{config.instance_id},
@@ -57,6 +61,23 @@ Result<PersistentIdentity, EntityLookupError> WorldRead::lookup(const EntityRef 
 
 Result<PersistentIdentity, EntityLookupError> WorldRead::identity(const EntityRef entity) const {
   return lookup(entity);
+}
+
+Result<HexPose, EntityLookupError> WorldRead::pose(const EntityRef entity) const {
+  if (entity.world_instance() != storage_->impl_->instance_id) {
+    return tl::unexpected{
+        EntityLookupError{.reason = EntityLookupErrorReason::wrong_world_instance}};
+  }
+  const auto found = storage_->impl_->entities.find(entity.id());
+  if (found == storage_->impl_->entities.end()) {
+    return tl::unexpected{EntityLookupError{.reason = EntityLookupErrorReason::entity_not_found}};
+  }
+  const auto& pose = storage_->impl_->registry.get<const PlacementPose>(found->second);
+  if (!pose.value) {
+    return tl::unexpected{
+        EntityLookupError{.reason = EntityLookupErrorReason::capability_not_present}};
+  }
+  return *pose.value;
 }
 
 std::optional<EntityRef> WorldRead::find(const EntityId entity_id) const {
@@ -114,6 +135,7 @@ Result<EntityRef, SpawnError> WorldWrite::spawn(const SpawnPlan& plan) {
   const auto handle = storage_->impl_->registry.create();
   storage_->impl_->registry.emplace<PersistentIdentity>(
       handle, PersistentIdentity{.id = *allocated, .alias = plan.alias});
+  storage_->impl_->registry.emplace<PlacementPose>(handle, PlacementPose{});
   storage_->impl_->entities.emplace(*allocated, handle);
   if (plan.alias) {
     storage_->impl_->aliases.emplace(plan.alias->content_id(), *allocated);
@@ -136,6 +158,11 @@ Result<void, DestroyError> WorldWrite::destroy(const EntityRef entity) {
   storage_->impl_->registry.destroy(found->second);
   storage_->impl_->entities.erase(found);
   return {};
+}
+
+void WorldWrite::commit_pose(const EntityRef entity, HexPose pose) noexcept {
+  const auto found = storage_->impl_->entities.find(entity.id());
+  storage_->impl_->registry.get<PlacementPose>(found->second).value = std::move(pose);
 }
 
 } // namespace dross
