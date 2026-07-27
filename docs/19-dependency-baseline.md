@@ -12,13 +12,16 @@ Reference: https://godotengine.org/download/archive/4.7.1-stable/
 
 Godot is installed as a tool, not acquired through CPM.
 
-### godot-cpp 4.5 stable API target
+### godot-cpp 4.7 stable API target
 
 Role: official C++ GDExtension bindings.
 
 Reference: https://github.com/godotengine/godot-cpp
 
-Use the stable Godot 4.5 binding line with Godot 4.7.1 initially. Configure the extension compatibility minimum accordingly. The master v10 line is beta at this baseline date and is not the default.
+Use the exact godot-cpp revision recorded in `docs/dependency-lock.md`, whose
+bundled API is Godot 4.7 stable, with Godot 4.7.1. Configure the extension
+compatibility minimum as Godot 4.7. ADR-0023 records why an immutable untagged
+revision is used.
 
 ## Core architecture
 

@@ -8,7 +8,7 @@ Build and load `dross_godot`, register a world host and the first typed definiti
 
 - `docs/11-godot-boundary.md`
 - `docs/19-dependency-baseline.md`
-- ADR-0001, ADR-0010, ADR-0017, ADR-0020
+- ADR-0001, ADR-0010, ADR-0017, ADR-0020, ADR-0023
 
 ## Live production consumer
 
@@ -16,7 +16,9 @@ A minimal Godot project loads the extension headlessly, creates a `DrossWorldHos
 
 ## Dependency step
 
-Add pinned godot-cpp 4.5 stable through CPM or the documented CMake subdirectory integration. Use Godot 4.7.1 stable as the tested editor and runtime.
+Add the pinned godot-cpp revision carrying the Godot 4.7 stable API through
+CPM or the documented CMake subdirectory integration. Use Godot 4.7.1 stable
+as the tested editor and runtime.
 
 The top-level project owns C++ standard, MSVC runtime, warnings, and output paths. Isolate any godot-cpp CMake global-setting behavior rather than letting it leak unnoticed.
 
@@ -75,7 +77,7 @@ C++ adapter tests where possible, then Godot headless tests:
 - raw `Variant` dictionaries compiled lazily during command handling;
 - autoload singleton owning registry;
 - SCons build for Dross extension;
-- adopting godot-cpp v10 beta without ADR;
+- adopting an unpinned godot-cpp branch;
 - suppressing Dross warnings globally because of godot-cpp.
 
 ## Validation
@@ -108,7 +110,7 @@ Use the exact pinned Godot executable in CI.
 
 ## Stop conditions
 
-- required class, Resource, or editor integration is unavailable through 4.5 bindings;
+- required class, Resource, or editor integration is unavailable through the pinned 4.7 bindings;
 - godot-cpp CMake integration corrupts top-level compiler or CRT policy;
 - extension cannot load on both Linux and Windows target layouts;
 - Resource inheritance cannot provide the typed authoring shape without dynamic dictionaries.

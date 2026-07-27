@@ -12,13 +12,12 @@ The initial conservative baseline is:
 
 ```text
 Godot editor/runtime: 4.7.1 stable
-godot-cpp API target: 4.5 stable
-minimum extension compatibility: Godot 4.5
+godot-cpp API target: 4.7 stable
+minimum extension compatibility: Godot 4.7
 ```
 
-The earlier godot-cpp target is intentional because GDExtensions targeting an earlier Godot 4 minor are expected to work on later minors, while the stable godot-cpp line avoids beginning on the v10 beta branch.
-
-Any required Godot 4.6 or 4.7 native API that is absent from 4.5 bindings is a stop condition and requires an ADR before upgrading.
+ADR-0023 supersedes the earlier 4.5 compatibility target. The exact godot-cpp
+commit is pinned because no 4.7 release tag is available.
 
 ## Adapter targets
 

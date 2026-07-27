@@ -1,0 +1,13 @@
+; Engine configuration file.
+; Prefer editing this file through the Godot editor.
+
+config_version=5
+
+[application]
+
+config/name="Dross Phase 08"
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

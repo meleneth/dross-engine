@@ -78,4 +78,6 @@ The first camera is orthographic. Camera code should not assume the authoritativ
 
 ## Godot binding baseline upgrade
 
-The baseline uses Godot 4.7.1 with the stable godot-cpp 4.5 API target. Moving to godot-cpp v10 or a later stable line requires an ADR after a concrete missing API or maintenance reason appears.
+The baseline uses Godot 4.7.1 with the Godot 4.7 stable API from the immutable
+godot-cpp revision accepted by ADR-0023. Moving to another godot-cpp revision
+requires an explicit dependency update.

@@ -1,6 +1,6 @@
 # ADR-0017: Godot 4.7.1 with Stable 4.5 godot-cpp Bindings
 
-Status: Accepted
+Status: Superseded by ADR-0023
 
 ## Context
 

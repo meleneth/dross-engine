@@ -145,7 +145,7 @@ Also open the editor interactively and record the exact manual smoke steps compl
 
 ## Stop conditions
 
-- godot-cpp 4.5 lacks a required editor gizmo or physics query API;
+- the pinned godot-cpp 4.7 API lacks a required editor gizmo or physics query API;
 - Godot headless cannot exercise required editor behavior, requiring a documented interactive-only test strategy;
 - stable cell addressing cannot survive rebake under the accepted grid transform model;
 - analyzer outputs cannot be quantized consistently.

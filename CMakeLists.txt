@@ -44,6 +44,7 @@ add_library(dross_core STATIC
   src/core/world/world_storage.cpp
 )
 add_library(dross::core ALIAS dross_core)
+set_target_properties(dross_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_include_directories(dross_core
   PUBLIC
@@ -60,6 +61,27 @@ target_link_libraries(dross_core
   PRIVATE blake3::blake3 EnTT::EnTT eventpp::eventpp)
 dross_target_warnings(dross_core)
 dross_enable_sanitizers(dross_core)
+
+if(DROSS_BUILD_GODOT)
+  add_library(dross_godot SHARED
+    src/godot/dross_actor_definition.cpp
+    src/godot/dross_footprint_definition.cpp
+    src/godot/dross_validation_error.cpp
+    src/godot/dross_world_host.cpp
+    src/godot/register_types.cpp
+  )
+  target_link_libraries(dross_godot PRIVATE dross::core godot::cpp)
+  target_compile_features(dross_godot PRIVATE cxx_std_20)
+  target_include_directories(dross_godot PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/godot")
+  set_target_properties(
+    dross_godot
+    PROPERTIES
+      CXX_VISIBILITY_PRESET hidden
+      VISIBILITY_INLINES_HIDDEN YES
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/godot/bin"
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/godot/bin")
+  dross_target_warnings(dross_godot)
+endif()
 
 add_executable(dross_headless
   tools/dross_cli/command_event_kernel_scenario.cpp
