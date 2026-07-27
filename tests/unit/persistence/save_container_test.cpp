@@ -27,6 +27,19 @@ dross::SaveContainer container_with(std::vector<dross::ComponentRecord> records)
               .map_id = content_id("dross:arena"),
               .map_hash = map_hash,
           },
+      .runtime =
+          dross::SaveRuntimeSnapshot{
+              .random =
+                  dross::RandomHubSnapshot{
+                      .master_seed = dross::MasterSeed{12345},
+                      .algorithm_version = dross::random_algorithm_version,
+                      .streams = {},
+                  },
+              .lifecycle =
+                  dross::WorldLifecycleSnapshot{.state = dross::WorldLifecycleState::running},
+              .mode =
+                  dross::SimulationModeSnapshot{.state = dross::SimulationModeState::exploration},
+          },
       .components = std::move(records),
   };
 }
@@ -285,4 +298,31 @@ TEST_CASE("world component snapshot round trips through a fresh world") {
   CHECK((*loaded)->read().identity(*loaded_ref)->alias == alias);
   CHECK((*loaded)->read().pose(*loaded_ref) == pose);
   CHECK(loaded_ref->world_instance() != entity.world_instance());
+}
+
+TEST_CASE("save bytes restore random streams and machine snapshots through production APIs") {
+  auto expected = container_with({});
+  dross::RandomHub source{dross::MasterSeed{12345}};
+  auto& stream = source.stream(dross::RandomStreamId{content_id("test:persistence")});
+  static_cast<void>(stream.next_u64());
+  static_cast<void>(stream.next_u64());
+  expected.runtime.random = source.snapshot();
+  expected.runtime.mode =
+      dross::SimulationModeSnapshot{.state = dross::SimulationModeState::combat_pending};
+
+  const auto decoded = dross::decode_save_container(dross::encode_save_container(expected));
+  REQUIRE(decoded);
+  dross::RandomHub restored_random{dross::MasterSeed{12345}};
+  REQUIRE(restored_random.restore(decoded->runtime.random));
+  dross::NullMachineTrace trace;
+  dross::WorldLifecycle restored_lifecycle{trace};
+  dross::SimulationMode restored_mode{trace};
+  REQUIRE(restored_lifecycle.restore(decoded->runtime.lifecycle));
+  REQUIRE(restored_mode.restore(decoded->runtime.mode));
+
+  CHECK(restored_random.snapshot() == source.snapshot());
+  CHECK(restored_lifecycle.snapshot() == expected.runtime.lifecycle);
+  CHECK(restored_mode.snapshot() == expected.runtime.mode);
+  CHECK(restored_random.stream(dross::RandomStreamId{content_id("test:persistence")}).next_u64() ==
+        source.stream(dross::RandomStreamId{content_id("test:persistence")}).next_u64());
 }

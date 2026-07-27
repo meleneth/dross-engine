@@ -176,6 +176,78 @@ Result<void, WorldLoadError> decode_pose_record(const ComponentRecord& record,
   return {};
 }
 
+void encode_runtime_snapshot(ByteWriter& writer, const SaveRuntimeSnapshot& snapshot) {
+  writer.write_u64(snapshot.random.master_seed.value());
+  writer.write_u32(snapshot.random.algorithm_version);
+  writer.write_u64(snapshot.random.streams.size());
+  for (const auto& stream : snapshot.random.streams) {
+    writer.write(stream.id.content_id());
+    writer.write_u64(stream.seed_material.state_low);
+    writer.write_u64(stream.seed_material.state_high);
+    writer.write_u64(stream.seed_material.sequence_low);
+    writer.write_u64(stream.seed_material.sequence_high);
+    writer.write_u64(stream.state_advance_low);
+    writer.write_u64(stream.state_advance_high);
+    writer.write_u64(stream.call_count);
+  }
+  writer.write_u16(static_cast<std::uint16_t>(snapshot.lifecycle.state));
+  writer.write_u16(static_cast<std::uint16_t>(snapshot.mode.state));
+}
+
+Result<SaveRuntimeSnapshot, SaveDecodeError> decode_runtime_snapshot(ByteReader& reader) {
+  const auto master_seed = reader.read_u64();
+  const auto algorithm_version = reader.read_u32();
+  const auto stream_count = reader.read_u64();
+  if (!master_seed || !algorithm_version || !stream_count) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  RandomHubSnapshot random{
+      .master_seed = MasterSeed{*master_seed},
+      .algorithm_version = *algorithm_version,
+      .streams = {},
+  };
+  random.streams.reserve(static_cast<std::size_t>(*stream_count));
+  for (std::uint64_t index = 0; index < *stream_count; ++index) {
+    const auto stream_id = reader.read_content_id();
+    const auto state_low = reader.read_u64();
+    const auto state_high = reader.read_u64();
+    const auto sequence_low = reader.read_u64();
+    const auto sequence_high = reader.read_u64();
+    const auto advance_low = reader.read_u64();
+    const auto advance_high = reader.read_u64();
+    const auto call_count = reader.read_u64();
+    if (!stream_id || !state_low || !state_high || !sequence_low || !sequence_high ||
+        !advance_low || !advance_high || !call_count) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    random.streams.push_back(RandomStreamSnapshot{
+        .id = RandomStreamId{*stream_id},
+        .seed_material =
+            RandomSeedMaterial{
+                .state_low = *state_low,
+                .state_high = *state_high,
+                .sequence_low = *sequence_low,
+                .sequence_high = *sequence_high,
+            },
+        .state_advance_low = *advance_low,
+        .state_advance_high = *advance_high,
+        .call_count = *call_count,
+    });
+  }
+  const auto lifecycle = reader.read_u16();
+  const auto mode = reader.read_u16();
+  if (!lifecycle || !mode ||
+      *lifecycle > static_cast<std::uint16_t>(WorldLifecycleState::faulted) ||
+      *mode > static_cast<std::uint16_t>(SimulationModeState::combat)) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  return SaveRuntimeSnapshot{
+      .random = std::move(random),
+      .lifecycle = WorldLifecycleSnapshot{.state = static_cast<WorldLifecycleState>(*lifecycle)},
+      .mode = SimulationModeSnapshot{.state = static_cast<SimulationModeState>(*mode)},
+  };
+}
+
 } // namespace
 
 Result<void, CodecRegistrationError>
@@ -262,6 +334,7 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
   writer.write_u64(container.header.allocator.next_runtime_sequence);
   writer.write(container.header.map_id);
   writer.write_string(encode_bytes(std::as_bytes(std::span{container.header.map_hash})));
+  encode_runtime_snapshot(writer, container.runtime);
 
   auto records = container.components;
   std::ranges::sort(records, [](const ComponentRecord& left, const ComponentRecord& right) {
@@ -305,6 +378,10 @@ decode_save_container(const std::span<const std::byte> bytes) {
   std::ranges::transform(*map_hash_bytes, map_hash.begin(), [](const std::byte value) {
     return std::to_integer<std::uint8_t>(value);
   });
+  auto runtime = decode_runtime_snapshot(reader);
+  if (!runtime) {
+    return tl::unexpected{runtime.error()};
+  }
 
   const auto component_count = reader.read_u64();
   if (!component_count) {
@@ -326,6 +403,7 @@ decode_save_container(const std::span<const std::byte> bytes) {
               .map_id = *map_id,
               .map_hash = map_hash,
           },
+      .runtime = *std::move(runtime),
       .components = {},
   };
   for (std::uint64_t index = 0; index < *component_count; ++index) {

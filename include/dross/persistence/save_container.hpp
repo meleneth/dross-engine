@@ -85,8 +85,17 @@ struct SaveHeader {
   [[nodiscard]] bool operator==(const SaveHeader&) const = default;
 };
 
+struct SaveRuntimeSnapshot {
+  RandomHubSnapshot random;
+  WorldLifecycleSnapshot lifecycle;
+  SimulationModeSnapshot mode;
+
+  [[nodiscard]] bool operator==(const SaveRuntimeSnapshot&) const = default;
+};
+
 struct SaveContainer {
   SaveHeader header;
+  SaveRuntimeSnapshot runtime;
   std::vector<ComponentRecord> components;
 
   [[nodiscard]] bool operator==(const SaveContainer&) const = default;
