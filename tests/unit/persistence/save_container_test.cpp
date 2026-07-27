@@ -97,3 +97,62 @@ TEST_CASE("save decoder rejects truncated and malformed container bytes") {
       dross::decode_save_container(std::span<const std::byte>{encoded}.first(encoded.size() - 1)));
   CHECK_FALSE(dross::decode_save_container(malformed));
 }
+
+TEST_CASE("persistent identity V0 migrates purely to the current V1 payload") {
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+  const auto legacy = dross::ComponentRecord{
+      .type_id = content_id("dross:persistent_identity"),
+      .version = 0,
+      .entity = dross::EntityId{9, 1},
+      .payload = {},
+  };
+
+  const auto migrated = registry.migrate_to_current(legacy);
+
+  REQUIRE(migrated);
+  CHECK(migrated->version == 1);
+  CHECK(migrated->payload == std::vector<std::byte>{
+                                 std::byte{0x00},
+                                 std::byte{0x00},
+                             });
+  CHECK(registry.validate(*migrated));
+}
+
+TEST_CASE("component migration rejects unknown types and unsupported future versions") {
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+  const auto unknown = dross::ComponentRecord{
+      .type_id = content_id("test:unknown"),
+      .version = 1,
+      .entity = dross::EntityId{9, 1},
+      .payload = {},
+  };
+  auto future = unknown;
+  future.type_id = content_id("dross:persistent_identity");
+  future.version = 2;
+
+  const auto unknown_result = registry.migrate_to_current(unknown);
+  const auto future_result = registry.migrate_to_current(future);
+
+  REQUIRE_FALSE(unknown_result);
+  CHECK(unknown_result.error() == dross::ComponentCodecError::unknown_type_id);
+  REQUIRE_FALSE(future_result);
+  CHECK(future_result.error() == dross::ComponentCodecError::unsupported_version);
+}
+
+TEST_CASE("current component validation rejects malformed payloads") {
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+  const auto malformed = dross::ComponentRecord{
+      .type_id = content_id("dross:hex_pose"),
+      .version = 1,
+      .entity = dross::EntityId{9, 1},
+      .payload = {std::byte{0x01}},
+  };
+
+  const auto validation = registry.validate(malformed);
+
+  REQUIRE_FALSE(validation);
+  CHECK(validation.error() == dross::ComponentCodecError::invalid_payload);
+}
