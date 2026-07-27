@@ -12,6 +12,11 @@
 /.cache/
 /CPM_modules/
 
+# Repository-local Python tool environment
+/.venv/
+__pycache__/
+.pytest_cache/
+
 # Native artifacts
 *.a
 *.dll
