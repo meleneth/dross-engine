@@ -65,7 +65,11 @@ struct RuntimeFixture {
             .lineage = 41,
             .instance_id = dross::WorldInstanceId{12},
         }},
-        map{fixed_tick_map(cell_count)} {}
+        map{fixed_tick_map(cell_count)}, lifecycle{machine_trace}, mode{machine_trace} {
+    REQUIRE(lifecycle.begin_load());
+    REQUIRE(lifecycle.load_succeeded());
+    REQUIRE(lifecycle.begin_run());
+  }
 
   dross::EntityRef spawn() { return world.write().spawn(dross::SpawnPlan::runtime()).value(); }
 
@@ -73,6 +77,9 @@ struct RuntimeFixture {
   dross::CompiledHexMap map;
   dross::HeadlessPlacementScriptPort scripts;
   dross::InMemoryTraceSink trace;
+  dross::NullMachineTrace machine_trace;
+  dross::WorldLifecycle lifecycle;
+  dross::SimulationMode mode;
 };
 
 } // namespace
@@ -92,7 +99,7 @@ TEST_CASE("external commands are ingested by target tick in submission order") {
   const auto second = fixture.spawn();
   dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
                                    fixture.trace};
-  dross::EngineRuntime runtime{kernel, dross::RuntimeConfig{}};
+  dross::EngineRuntime runtime{kernel, fixture.lifecycle, fixture.mode, dross::RuntimeConfig{}};
   REQUIRE(runtime.schedule_external(scheduled_command(2, dross::Tick{1}, second, 1)));
   REQUIRE(runtime.schedule_external(scheduled_command(1, dross::Tick{1}, first, 0)));
 
@@ -122,7 +129,8 @@ TEST_CASE("follow-up commands finish in bounded cycles within the same tick") {
       });
   REQUIRE(subscription);
   dross::EngineRuntime runtime{
-      kernel, dross::RuntimeConfig{.ticks_per_second = 30, .max_command_cycles_per_tick = 4}};
+      kernel, fixture.lifecycle, fixture.mode,
+      dross::RuntimeConfig{.ticks_per_second = 30, .max_command_cycles_per_tick = 4}};
   REQUIRE(runtime.schedule_external(scheduled_command(1, dross::Tick{0}, first, 0)));
 
   const auto report = runtime.advance_tick();
@@ -159,7 +167,8 @@ TEST_CASE("command cycle budget exhaustion faults the runtime") {
       });
   REQUIRE(subscription);
   dross::EngineRuntime runtime{
-      kernel, dross::RuntimeConfig{.ticks_per_second = 30, .max_command_cycles_per_tick = 2}};
+      kernel, fixture.lifecycle, fixture.mode,
+      dross::RuntimeConfig{.ticks_per_second = 30, .max_command_cycles_per_tick = 2}};
   REQUIRE(runtime.schedule_external(scheduled_command(1, dross::Tick{0}, first, 0)));
 
   const auto report = runtime.advance_tick();
@@ -176,11 +185,50 @@ TEST_CASE("commands cannot be scheduled into an elapsed tick") {
   const auto entity = fixture.spawn();
   dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
                                    fixture.trace};
-  dross::EngineRuntime runtime{kernel, dross::RuntimeConfig{}};
+  dross::EngineRuntime runtime{kernel, fixture.lifecycle, fixture.mode, dross::RuntimeConfig{}};
   static_cast<void>(runtime.advance_tick());
 
   const auto scheduled = runtime.schedule_external(scheduled_command(1, dross::Tick{0}, entity, 0));
 
   REQUIRE_FALSE(scheduled);
   CHECK(scheduled.error() == dross::ScheduleError::elapsed_tick);
+}
+
+TEST_CASE("runtime rejects commands until world lifecycle is running") {
+  RuntimeFixture fixture{1};
+  REQUIRE(fixture.lifecycle.begin_unload());
+  REQUIRE(fixture.lifecycle.unload_succeeded());
+  const auto entity = fixture.spawn();
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
+                                   fixture.trace};
+  dross::EngineRuntime runtime{kernel, fixture.lifecycle, fixture.mode, dross::RuntimeConfig{}};
+
+  const auto scheduled = runtime.schedule_external(scheduled_command(1, dross::Tick{0}, entity, 0));
+
+  REQUIRE_FALSE(scheduled);
+  CHECK(scheduled.error() == dross::ScheduleError::world_not_running);
+}
+
+TEST_CASE("runtime releases combat pending only at its safe tick boundary") {
+  RuntimeFixture fixture{1};
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
+                                   fixture.trace};
+  dross::EngineRuntime runtime{kernel, fixture.lifecycle, fixture.mode, dross::RuntimeConfig{}};
+
+  REQUIRE(runtime.request_combat());
+  CHECK(fixture.mode.state() == dross::SimulationModeState::combat_pending);
+  static_cast<void>(runtime.advance_tick());
+  CHECK(fixture.mode.state() == dross::SimulationModeState::combat);
+}
+
+TEST_CASE("fatal lifecycle fault prevents later commands") {
+  RuntimeFixture fixture{1};
+  const auto entity = fixture.spawn();
+  dross::CommandEventKernel kernel{fixture.world, std::move(fixture.map), fixture.scripts,
+                                   fixture.trace};
+  dross::EngineRuntime runtime{kernel, fixture.lifecycle, fixture.mode, dross::RuntimeConfig{}};
+  REQUIRE(fixture.lifecycle.fatal_fault());
+
+  CHECK_FALSE(runtime.schedule_external(scheduled_command(1, dross::Tick{0}, entity, 0)));
+  CHECK_FALSE(fixture.lifecycle.begin_save());
 }
