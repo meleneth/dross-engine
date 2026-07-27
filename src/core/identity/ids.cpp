@@ -5,7 +5,7 @@
 namespace dross {
 
 std::ostream& operator<<(std::ostream& output, const EntityId value) {
-  return output << "entity:" << value.value();
+  return output << "entity:" << value.lineage() << ':' << value.sequence();
 }
 
 std::ostream& operator<<(std::ostream& output, const WorldInstanceId value) {

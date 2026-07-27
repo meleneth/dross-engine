@@ -25,11 +25,10 @@ TEST_CASE("entity IDs order, display, and round trip canonically") {
 
   dross::ByteWriter writer;
   writer.write(second);
-  const std::array expected{
-      std::byte{0x07}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
-      std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
-      std::byte{0x2A}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
-      std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00}};
+  const std::array expected{std::byte{0x07}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
+                            std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
+                            std::byte{0x2A}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00},
+                            std::byte{0x00}, std::byte{0x00}, std::byte{0x00}, std::byte{0x00}};
   CHECK(std::ranges::equal(writer.bytes(), expected));
 
   dross::ByteReader reader{writer.bytes()};

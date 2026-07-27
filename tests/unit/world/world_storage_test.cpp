@@ -57,8 +57,8 @@ TEST_CASE("entities can be queried by stable ID and alias") {
   const auto spawned = write.spawn(dross::SpawnPlan::authored(8, alias("demo:named_actor")));
   REQUIRE(spawned);
 
-  CHECK(world.read().find(spawned->id()) == spawned);
-  CHECK(world.read().find(alias("demo:named_actor")) == spawned);
+  CHECK(world.read().find(spawned->id()) == *spawned);
+  CHECK(world.read().find(alias("demo:named_actor")) == *spawned);
   REQUIRE(world.read().identity(*spawned));
   CHECK(world.read().identity(*spawned)->alias == alias("demo:named_actor"));
 }

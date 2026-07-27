@@ -52,7 +52,10 @@ void ByteWriter::write_string(const std::string_view value) {
 
 void ByteWriter::write(const ContentId& value) { write_string(value.canonical()); }
 
-void ByteWriter::write(const EntityId value) { write_u64(value.value()); }
+void ByteWriter::write(const EntityId value) {
+  write_u64(value.lineage());
+  write_u64(value.sequence());
+}
 
 Result<std::uint16_t, DecodeError> ByteReader::read_u16() {
   return read_little_endian<std::uint16_t>(bytes_, position_);
@@ -97,11 +100,15 @@ Result<ContentId, DecodeError> ByteReader::read_content_id() {
 }
 
 Result<EntityId, DecodeError> ByteReader::read_entity_id() {
-  auto value = read_u64();
-  if (!value) {
-    return tl::unexpected{value.error()};
+  auto lineage = read_u64();
+  if (!lineage) {
+    return tl::unexpected{lineage.error()};
   }
-  return EntityId{*value};
+  auto sequence = read_u64();
+  if (!sequence) {
+    return tl::unexpected{sequence.error()};
+  }
+  return EntityId{*lineage, *sequence};
 }
 
 } // namespace dross
