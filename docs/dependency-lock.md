@@ -17,3 +17,4 @@ Phase 00 records immutable native dependency pins used by `cmake/Dependencies.cm
 | spdlog | v1.15.3 | MIT | https://github.com/gabime/spdlog |
 | RapidCheck | ff6af6fc683159deb51c543b065eba14dfcf329b | BSD-2-Clause | https://github.com/emil-e/rapidcheck |
 | godot-cpp | 357ad8694d49e56d38b487cdf59def8ab3037c83 (Godot 4.7 stable API) | MIT | https://github.com/godotengine/godot-cpp |
+| GdUnit4 | 769bf69f71c9d02a698646369eb4e4070aa3a53a (v6.2 development line) | MIT | https://github.com/godot-gdunit-labs/gdUnit4 |

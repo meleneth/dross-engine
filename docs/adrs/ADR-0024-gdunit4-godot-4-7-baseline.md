@@ -1,6 +1,6 @@
 # ADR-0024: Select a GdUnit4 Baseline for Godot 4.7
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 
@@ -37,9 +37,18 @@ be selected only if GdUnit4 is no longer desired.
 
 ## Decision
 
-Pending.
+Temporarily use the GdUnit4 v6.2 development line at exact commit
+`769bf69f71c9d02a698646369eb4e4070aa3a53a`.
 
-## Enforcement after acceptance
+This commit identifies the addon as version 6.2.0, includes upstream CI coverage
+for Godot 4.7, and follows the repository's owner-review policy. Vendor the
+release archive shape so upstream development tests and repository-only files
+do not become part of the Godot project.
+
+Replace this pin with the first v6.2 release tag that explicitly supports Godot
+4.7 after validating that release with the same Phase 08 suite.
+
+## Enforcement
 
 - record the selected immutable version in `docs/dependency-lock.md`;
 - vendor or acquire the addon reproducibly in CI;
