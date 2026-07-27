@@ -79,3 +79,19 @@ TEST_CASE("world lifecycle restores every persistent state through production ev
     CHECK(lifecycle.snapshot().state == state);
   }
 }
+
+TEST_CASE("runtime work and save admission are processed by the lifecycle machine") {
+  dross::InMemoryMachineTrace trace;
+  dross::WorldLifecycle lifecycle{trace};
+
+  CHECK_FALSE(lifecycle.request_runtime_work());
+  CHECK_FALSE(lifecycle.request_save_boundary());
+  REQUIRE(lifecycle.begin_load());
+  REQUIRE(lifecycle.load_succeeded());
+  REQUIRE(lifecycle.begin_run());
+  CHECK(lifecycle.request_runtime_work());
+  CHECK(lifecycle.request_save_boundary());
+  REQUIRE(lifecycle.fatal_fault());
+  CHECK_FALSE(lifecycle.request_runtime_work());
+  CHECK_FALSE(lifecycle.request_save_boundary());
+}
