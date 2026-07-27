@@ -36,6 +36,10 @@ dross_enable_sanitizers(dross_core)
 
 add_executable(dross_tests
   tests/unit/foundation/version_test.cpp
+  tests/unit/foundation/byte_codec_test.cpp
+  tests/unit/foundation/quantity_test.cpp
+  tests/unit/identity/content_id_test.cpp
+  tests/unit/identity/identity_test.cpp
 )
 target_link_libraries(dross_tests PRIVATE dross::core Catch2::Catch2WithMain)
 target_compile_features(dross_tests PRIVATE cxx_std_20)
