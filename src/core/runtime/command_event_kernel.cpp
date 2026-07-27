@@ -220,7 +220,10 @@ CommandResult CommandEventKernel::handle(const PlaceEntityEnvelope& command) {
   phases.push_back(PlacementRulePhase::engine_invariant);
   if (!world_->read().valid(command.payload.entity)) {
     const auto result = CommandResult::rejected(CommandRejection::invalid_entity);
-    trace_->record(CommandTrace{command.metadata, false, result, std::move(phases)});
+    trace_->record(CommandTrace{.metadata = command.metadata,
+                                .duplicate = false,
+                                .result = result,
+                                .contributions = std::move(phases)});
     return result;
   }
 
@@ -228,13 +231,19 @@ CommandResult CommandEventKernel::handle(const PlaceEntityEnvelope& command) {
   const auto facts = map_.cell(command.payload.target.anchor);
   if (!facts || !facts->traversable) {
     const auto result = CommandResult::rejected(CommandRejection::invalid_target);
-    trace_->record(CommandTrace{command.metadata, false, result, std::move(phases)});
+    trace_->record(CommandTrace{.metadata = command.metadata,
+                                .duplicate = false,
+                                .result = result,
+                                .contributions = std::move(phases)});
     return result;
   }
   const std::vector cells{command.payload.target.anchor};
   if (!occupancy_.can_occupy(cells)) {
     const auto result = CommandResult::rejected(CommandRejection::occupied);
-    trace_->record(CommandTrace{command.metadata, false, result, std::move(phases)});
+    trace_->record(CommandTrace{.metadata = command.metadata,
+                                .duplicate = false,
+                                .result = result,
+                                .contributions = std::move(phases)});
     return result;
   }
 
@@ -242,7 +251,10 @@ CommandResult CommandEventKernel::handle(const PlaceEntityEnvelope& command) {
   const auto contribution = scripts_->contribute(command.payload);
   if (!contribution.accepted) {
     const auto result = CommandResult::rejected(CommandRejection::script_rejected);
-    trace_->record(CommandTrace{command.metadata, false, result, std::move(phases)});
+    trace_->record(CommandTrace{.metadata = command.metadata,
+                                .duplicate = false,
+                                .result = result,
+                                .contributions = std::move(phases)});
     return result;
   }
 
@@ -250,7 +262,10 @@ CommandResult CommandEventKernel::handle(const PlaceEntityEnvelope& command) {
   const auto staged = staged_occupancy.place(command.payload.entity.id(), cells);
   if (!staged) {
     const auto result = CommandResult::rejected(CommandRejection::occupied);
-    trace_->record(CommandTrace{command.metadata, false, result, std::move(phases)});
+    trace_->record(CommandTrace{.metadata = command.metadata,
+                                .duplicate = false,
+                                .result = result,
+                                .contributions = std::move(phases)});
     return result;
   }
 
@@ -266,7 +281,10 @@ CommandResult CommandEventKernel::handle(const PlaceEntityEnvelope& command) {
   world_->write().commit_pose(command.payload.entity, std::move(staged_pose));
   occupancy_ = std::move(staged_occupancy);
   const auto result = CommandResult::accepted_result();
-  trace_->record(CommandTrace{command.metadata, false, result, std::move(phases)});
+  trace_->record(CommandTrace{.metadata = command.metadata,
+                              .duplicate = false,
+                              .result = result,
+                              .contributions = std::move(phases)});
   return result;
 }
 
@@ -279,7 +297,7 @@ void CommandEventKernel::drain_events() {
   events_.impl_->context = &context;
   events_.impl_->draining = true;
   for (const auto& event : pending_events_) {
-    const auto queued = QueuedPlacementEvent{event.payload, event.source};
+    const auto queued = QueuedPlacementEvent{.payload = event.payload, .source = event.source};
     events_.impl_->invariant.enqueue(entity_placed_event, queued);
     events_.impl_->capability.enqueue(entity_placed_event, queued);
   }

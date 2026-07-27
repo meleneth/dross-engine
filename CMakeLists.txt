@@ -52,6 +52,7 @@ dross_target_warnings(dross_core)
 dross_enable_sanitizers(dross_core)
 
 add_executable(dross_headless
+  tools/dross_cli/command_event_kernel_scenario.cpp
   tools/dross_cli/hex_pathing_scenario.cpp
   tools/dross_cli/main.cpp
 )
@@ -85,7 +86,7 @@ catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME headless.version COMMAND dross_headless version)
 set_tests_properties(
   headless.version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-03")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-04")
 add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
 set_tests_properties(
   headless.validate_id
@@ -103,6 +104,12 @@ set_tests_properties(
   headless.hex_pathing
   PROPERTIES PASS_REGULAR_EXPRESSION
              "^hex-pathing single=\\[0,0,east>0,1,east\\] cost=1 asymmetric=\\[0,0,east>0,0,southeast>0,1,southeast\\] cost=2 rotations=1 blocked=\\[occupied,blocked_edge\\] revision=1")
+add_test(NAME headless.command_event_kernel
+         COMMAND dross_headless scenario command-event-kernel)
+set_tests_properties(
+  headless.command_event_kernel
+  PROPERTIES PASS_REGULAR_EXPRESSION
+             "^command-event-kernel accepted=2 rejected=script_rejected duplicate=previous_result follow_up=later occupancy=2 inspected=entity:31:2 command_traces=4 event_traces=2")
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 add_test(
