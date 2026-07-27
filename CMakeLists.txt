@@ -28,6 +28,8 @@ add_library(dross_core STATIC
   src/core/hex/hex_coord.cpp
   src/core/hex/hex_topology.cpp
   src/core/hex/occupancy.cpp
+  src/core/hex/path_planner.cpp
+  src/core/hex/traversal.cpp
   src/core/identity/content_id.cpp
   src/core/identity/entity_id_allocator.cpp
   src/core/identity/ids.cpp
