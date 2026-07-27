@@ -1,0 +1,51 @@
+# Build outputs
+/build/
+/out/
+/cmake-build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/compile_commands.json
+
+# CMake/CPM dependency cache
+/.cpm-cache/
+/CPM_modules/
+
+# Native artifacts
+*.a
+*.dll
+*.dylib
+*.exe
+*.exp
+*.ilk
+*.lib
+*.log
+*.o
+*.obj
+*.pdb
+*.so
+
+# Test and coverage outputs
+/Testing/
+/coverage/
+*.gcda
+*.gcno
+*.profdata
+*.profraw
+
+# Godot generated/local state
+/.godot/
+/godot/.godot/
+/godot/.import/
+/godot/export.cfg
+/godot/export_presets.cfg
+
+# Editor and OS noise
+/.idea/
+/.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.DS_Store
+Thumbs.db
+desktop.ini
