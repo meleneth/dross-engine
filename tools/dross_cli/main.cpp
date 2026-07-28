@@ -10,6 +10,7 @@
 #include "hex_pathing_scenario.hpp"
 #include "lifecycle_machine_scenario.hpp"
 #include "persistence_scenario.hpp"
+#include "thump_scenario.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -40,6 +41,7 @@ void print_usage(std::ostream& output) {
             "  dross_headless scenario grid-bake\n"
             "  dross_headless scenario command-event-kernel [--seed N] [--record PATH]\n"
             "  dross_headless scenario exploration-movement [--seed N] [--record PATH]\n"
+            "  dross_headless scenario thump-on-field-mouse [--seed N] [--record PATH]\n"
             "  dross_headless scenario lifecycle-machines [--record PATH]\n"
             "  dross_headless scenario persistence-foundation [--seed N] --save PATH\n"
             "  dross_headless inspect-save PATH\n"
@@ -305,6 +307,32 @@ int main(const int argument_count, const char* const arguments[]) {
       }
     }
     return run_exploration_movement_scenario(seed, record_path);
+  }
+  if (argument_count >= 3 && std::string_view{arguments[1]} == "scenario" &&
+      std::string_view{arguments[2]} == "thump-on-field-mouse") {
+    std::uint64_t seed = default_scenario_seed;
+    std::string record_path;
+    for (std::size_t index = 3; index < static_cast<std::size_t>(argument_count); index += 2) {
+      if (index + 1 >= static_cast<std::size_t>(argument_count)) {
+        print_usage(std::cerr);
+        return usage_error;
+      }
+      const std::string_view option{arguments[index]};
+      if (option == "--record") {
+        record_path = arguments[index + 1];
+      } else if (option == "--seed") {
+        const std::string_view value{arguments[index + 1]};
+        const auto parsed = std::from_chars(value.data(), value.data() + value.size(), seed);
+        if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
+          print_usage(std::cerr);
+          return usage_error;
+        }
+      } else {
+        print_usage(std::cerr);
+        return usage_error;
+      }
+    }
+    return run_thump_scenario(seed, record_path);
   }
   const auto persistence =
       dispatch_persistence_command({arguments, static_cast<std::size_t>(argument_count)});

@@ -101,6 +101,7 @@ add_executable(dross_headless
   tools/dross_cli/lifecycle_machine_scenario.cpp
   tools/dross_cli/main.cpp
   tools/dross_cli/persistence_scenario.cpp
+  tools/dross_cli/thump_scenario.cpp
 )
 target_link_libraries(dross_headless PRIVATE dross::core)
 target_compile_features(dross_headless PRIVATE cxx_std_20)

@@ -1,6 +1,7 @@
 #include "command_event_kernel_scenario.hpp"
 #include "exploration_movement_scenario.hpp"
 #include "lifecycle_machine_scenario.hpp"
+#include "thump_scenario.hpp"
 
 #include <dross/foundation/version.hpp>
 #include <dross/random/random_hub.hpp>
@@ -213,6 +214,9 @@ int run_replay_verification(const std::string& path) {
   }
   if (recorded->header.scenario == content_id("dross:exploration_movement")) {
     return verify_exploration_movement_replay(*recorded);
+  }
+  if (recorded->header.scenario == content_id("dross:thump_on_field_mouse")) {
+    return verify_thump_replay(*recorded);
   }
   try {
     const auto replayed =
