@@ -141,7 +141,7 @@ catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME headless.version COMMAND dross_headless version)
 set_tests_properties(
   headless.version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-10")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-11")
 add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
 set_tests_properties(
   headless.validate_id
@@ -163,6 +163,12 @@ add_test(NAME headless.grid_bake COMMAND dross_headless scenario grid-bake)
 set_tests_properties(
   headless.grid_bake
   PROPERTIES PASS_REGULAR_EXPRESSION "^grid-bake cells=2 edges=1 manual=1")
+add_test(NAME headless.exploration_movement
+         COMMAND dross_headless scenario exploration-movement --seed 12345)
+set_tests_properties(
+  headless.exploration_movement
+  PROPERTIES PASS_REGULAR_EXPRESSION
+             "^exploration-movement seed=12345 final=3 entered=3 checkpoints=6")
 add_test(NAME headless.command_event_kernel
          COMMAND dross_headless scenario command-event-kernel)
 set_tests_properties(

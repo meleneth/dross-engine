@@ -14,7 +14,7 @@ TEST_CASE("engine version is semantic and deterministic") {
 TEST_CASE("build information excludes volatile values") {
   const std::string_view info = dross::build_information();
 
-  CHECK(info == "dross-engine 0.1.0 phase-10");
+  CHECK(info == "dross-engine 0.1.0 phase-11");
   CHECK(info.find("202") == std::string_view::npos);
   CHECK(info.find(':') == std::string_view::npos);
 }
