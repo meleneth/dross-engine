@@ -33,6 +33,7 @@ class RecordingPort final : public dross::ScriptRuntimePort {
 public:
   bool fault_rule{false};
   bool fault_event{false};
+  bool request_combat{false};
   std::vector<std::string> calls;
   std::vector<std::uint64_t> rolls;
 
@@ -49,6 +50,9 @@ public:
     rolls.push_back(random.next_u64());
     transaction.set_state(dross::ScriptStateKey::parse("visited").value(), true);
     transaction.add_rule(dross::ScriptRuleContribution{.accepted = true, .reason = {}});
+    if (request_combat) {
+      transaction.request_combat();
+    }
     if (fault_rule) {
       return tl::unexpected{std::string{"rule failed"}};
     }
@@ -129,6 +133,24 @@ TEST_CASE("rule callback fault discards buffered state") {
   CHECK(result.fault->callback == "contribute_placement");
   CHECK(runtime.state().values().empty());
   CHECK_FALSE(runtime.world_faulted());
+}
+
+TEST_CASE("script commands are deferred until a successful callback pass") {
+  RecordingPort port;
+  port.request_combat = true;
+  dross::RandomHub random{dross::MasterSeed{9}};
+  dross::TypedScriptRuntime runtime{port, random};
+  REQUIRE(runtime.install(region_module("demo:command")));
+
+  const auto accepted = runtime.contribute_placement(query(), dross::Tick{4});
+  REQUIRE(accepted.accepted);
+  CHECK(accepted.deferred_mode_commands ==
+        std::vector<dross::ScriptModeCommand>{dross::ScriptModeCommand::request_combat});
+
+  port.fault_rule = true;
+  const auto faulted = runtime.contribute_placement(query(), dross::Tick{5});
+  CHECK_FALSE(faulted.accepted);
+  CHECK(faulted.deferred_mode_commands.empty());
 }
 
 TEST_CASE("event callback fault discards output and faults world after commit") {

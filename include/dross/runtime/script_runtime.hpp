@@ -109,12 +109,17 @@ struct ScriptRuleContribution {
   std::optional<ContentId> reason;
 };
 
+enum class ScriptModeCommand : std::uint8_t {
+  request_combat,
+};
+
 class ScriptCallbackTransaction {
 public:
   ScriptCallbackTransaction(const ScriptModule& module, const ScriptStateBag& state);
 
   void add_rule(ScriptRuleContribution contribution);
   void submit(PlaceEntityEnvelope command);
+  void request_combat();
   void set_state(ScriptStateKey key, ScriptStateValue value);
   [[nodiscard]] const ScriptStateValue* state(const ScriptStateKey& key) const;
 
@@ -125,6 +130,9 @@ public:
   [[nodiscard]] const std::vector<ScriptStateWrite>& state_writes() const noexcept {
     return state_writes_;
   }
+  [[nodiscard]] const std::vector<ScriptModeCommand>& mode_commands() const noexcept {
+    return mode_commands_;
+  }
 
 private:
   const ScriptModule* module_;
@@ -132,6 +140,7 @@ private:
   std::vector<ScriptRuleContribution> rules_;
   std::vector<PlaceEntityEnvelope> commands_;
   std::vector<ScriptStateWrite> state_writes_;
+  std::vector<ScriptModeCommand> mode_commands_;
 };
 
 struct ScriptCallbackError {
@@ -158,11 +167,13 @@ struct ScriptRuleResult {
   bool accepted;
   std::optional<ContentId> reason;
   std::vector<PlaceEntityEnvelope> deferred_commands;
+  std::vector<ScriptModeCommand> deferred_mode_commands;
   std::optional<ScriptCallbackError> fault;
 };
 
 struct ScriptEventResult {
   std::vector<PlaceEntityEnvelope> deferred_commands;
+  std::vector<ScriptModeCommand> deferred_mode_commands;
   std::optional<ScriptCallbackError> fault;
 };
 
@@ -177,6 +188,7 @@ public:
 
   [[nodiscard]] const std::vector<ScriptModule>& modules() const noexcept { return modules_; }
   [[nodiscard]] const ScriptStateBag& state() const noexcept { return state_; }
+  void restore_state(ScriptStateBag state) { state_ = std::move(state); }
   [[nodiscard]] bool world_faulted() const noexcept { return world_faulted_; }
 
 private:

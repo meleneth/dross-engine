@@ -207,6 +207,10 @@ void ScriptCallbackTransaction::submit(PlaceEntityEnvelope command) {
   commands_.push_back(std::move(command));
 }
 
+void ScriptCallbackTransaction::request_combat() {
+  mode_commands_.push_back(ScriptModeCommand::request_combat);
+}
+
 void ScriptCallbackTransaction::set_state(ScriptStateKey key, ScriptStateValue value) {
   state_writes_.push_back(ScriptStateWrite{
       .address =
@@ -257,9 +261,14 @@ Result<void, ScriptModuleError> TypedScriptRuntime::install(ScriptModule module)
 
 ScriptRuleResult TypedScriptRuntime::contribute_placement(const placement::PlaceEntity& query,
                                                           const Tick tick) {
-  ScriptRuleResult result{.accepted = true, .reason = {}, .deferred_commands = {}, .fault = {}};
+  ScriptRuleResult result{.accepted = true,
+                          .reason = {},
+                          .deferred_commands = {},
+                          .deferred_mode_commands = {},
+                          .fault = {}};
   std::vector<ScriptStateWrite> pending_state;
   std::vector<PlaceEntityEnvelope> pending_commands;
+  std::vector<ScriptModeCommand> pending_mode_commands;
   for (const auto& module : modules_) {
     ScriptCallbackTransaction transaction{module, state_};
     auto callback = port_->contribute_placement(module, query, transaction, stream_for(module));
@@ -282,12 +291,15 @@ ScriptRuleResult TypedScriptRuntime::contribute_placement(const placement::Place
                          transaction.state_writes().end());
     pending_commands.insert(pending_commands.end(), transaction.commands().begin(),
                             transaction.commands().end());
+    pending_mode_commands.insert(pending_mode_commands.end(), transaction.mode_commands().begin(),
+                                 transaction.mode_commands().end());
     if (!result.accepted) {
       return result;
     }
   }
   state_.apply(pending_state);
   result.deferred_commands = std::move(pending_commands);
+  result.deferred_mode_commands = std::move(pending_mode_commands);
   return result;
 }
 
@@ -309,6 +321,9 @@ ScriptEventResult TypedScriptRuntime::on_entity_placed(const placement::EntityPl
     state_.apply(transaction.state_writes());
     result.deferred_commands.insert(result.deferred_commands.end(), transaction.commands().begin(),
                                     transaction.commands().end());
+    result.deferred_mode_commands.insert(result.deferred_mode_commands.end(),
+                                         transaction.mode_commands().begin(),
+                                         transaction.mode_commands().end());
   }
   return result;
 }
