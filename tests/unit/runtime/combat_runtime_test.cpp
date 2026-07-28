@@ -99,6 +99,33 @@ TEST_CASE("dead combatants are skipped and one survivor completes combat") {
   CHECK_FALSE(session.end_turn(dross::EntityId{7, 3}));
 }
 
+TEST_CASE("combat session snapshot codec restores active turn AP and living roster") {
+  dross::CombatSession original{{combatant(1, 10, 4), combatant(2, 8, 3), combatant(3, 6, 2)}};
+  REQUIRE(original.start());
+  REQUIRE(original.spend_action_points(dross::EntityId{7, 1}, 2));
+  REQUIRE(original.set_alive(dross::EntityId{7, 2}, false));
+
+  dross::ByteWriter writer;
+  dross::encode_combat_session_snapshot(writer, original.snapshot());
+  dross::ByteReader reader{writer.bytes()};
+  const auto decoded = dross::decode_combat_session_snapshot(reader);
+  REQUIRE(decoded);
+  CHECK(reader.remaining() == 0);
+
+  dross::CombatSession restored{{combatant(1, 10, 4), combatant(2, 8, 3), combatant(3, 6, 2)}};
+  REQUIRE(restored.restore(*decoded));
+  CHECK(restored.snapshot() == original.snapshot());
+  REQUIRE(restored.end_turn(dross::EntityId{7, 1}));
+  CHECK(restored.active_actor() == dross::EntityId{7, 3});
+  CHECK(restored.action_points(dross::EntityId{7, 3}) == 2);
+
+  auto mismatched = *decoded;
+  mismatched.combatants[0].entity = dross::EntityId{99, 1};
+  dross::CombatSession rejected{{combatant(1, 10, 4), combatant(2, 8, 3), combatant(3, 6, 2)}};
+  CHECK_FALSE(rejected.restore(mismatched));
+  CHECK(rejected.state() == dross::CombatSessionState::inactive);
+}
+
 TEST_CASE("generic adjacent ability spends AP and commits deterministic damage") {
   dross::CombatSession session{{combatant(1, 10, 3), combatant(2, 5, 2)}};
   REQUIRE(session.start());

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <dross/foundation/byte_codec.hpp>
 #include <dross/foundation/quantities.hpp>
 #include <dross/generated/actor_killed.hpp>
 #include <dross/generated/damage_applied.hpp>
@@ -26,6 +27,26 @@ struct CombatantDefinition {
   std::uint32_t maximum_action_points;
 };
 
+struct CombatantSnapshot {
+  EntityId entity;
+  std::uint32_t action_points;
+  bool alive;
+
+  [[nodiscard]] auto operator<=>(const CombatantSnapshot&) const = default;
+};
+
+struct CombatSessionSnapshot {
+  CombatSessionState state;
+  std::size_t active_index;
+  std::vector<CombatantSnapshot> combatants;
+
+  [[nodiscard]] auto operator<=>(const CombatSessionSnapshot&) const = default;
+};
+
+void encode_combat_session_snapshot(ByteWriter& writer, const CombatSessionSnapshot& snapshot);
+[[nodiscard]] Result<CombatSessionSnapshot, DecodeError>
+decode_combat_session_snapshot(ByteReader& reader);
+
 class CombatSession {
 public:
   explicit CombatSession(std::vector<CombatantDefinition> combatants);
@@ -43,6 +64,8 @@ public:
   [[nodiscard]] EntityId active_actor() const;
   [[nodiscard]] std::vector<EntityId> turn_order() const;
   [[nodiscard]] CombatSessionState state() const;
+  [[nodiscard]] CombatSessionSnapshot snapshot() const;
+  [[nodiscard]] bool restore(const CombatSessionSnapshot& snapshot);
 
 private:
   struct Impl;

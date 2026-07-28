@@ -81,6 +81,57 @@ struct CombatSession::Impl {
   std::size_t active_index{0};
 };
 
+void encode_combat_session_snapshot(ByteWriter& writer, const CombatSessionSnapshot& snapshot) {
+  writer.write_u16(static_cast<std::uint16_t>(snapshot.state));
+  writer.write_u64(snapshot.active_index);
+  writer.write_u64(snapshot.combatants.size());
+  for (const auto& combatant : snapshot.combatants) {
+    writer.write(combatant.entity);
+    writer.write_u32(combatant.action_points);
+    writer.write_u16(combatant.alive ? 1U : 0U);
+  }
+}
+
+Result<CombatSessionSnapshot, DecodeError> decode_combat_session_snapshot(ByteReader& reader) {
+  auto state = reader.read_u16();
+  auto active_index = reader.read_u64();
+  auto count = reader.read_u64();
+  if (!state || !active_index || !count) {
+    const auto error =
+        !state ? state.error() : (!active_index ? active_index.error() : count.error());
+    return tl::unexpected{error};
+  }
+  if (*state > static_cast<std::uint16_t>(CombatSessionState::completed) ||
+      *active_index > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()) ||
+      *count > reader.remaining() ||
+      *count > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())) {
+    return tl::unexpected{DecodeError{.position = 0, .reason = DecodeErrorReason::invalid_length}};
+  }
+  std::vector<CombatantSnapshot> combatants;
+  combatants.reserve(static_cast<std::size_t>(*count));
+  for (std::uint64_t index = 0; index < *count; ++index) {
+    auto entity = reader.read_entity_id();
+    auto action_points = reader.read_u32();
+    auto alive = reader.read_u16();
+    if (!entity || !action_points || !alive) {
+      const auto error =
+          !entity ? entity.error() : (!action_points ? action_points.error() : alive.error());
+      return tl::unexpected{error};
+    }
+    if (*alive > 1) {
+      return tl::unexpected{
+          DecodeError{.position = 0, .reason = DecodeErrorReason::invalid_length}};
+    }
+    combatants.push_back(
+        {.entity = *entity, .action_points = *action_points, .alive = *alive != 0});
+  }
+  return CombatSessionSnapshot{
+      .state = static_cast<CombatSessionState>(*state),
+      .active_index = static_cast<std::size_t>(*active_index),
+      .combatants = std::move(combatants),
+  };
+}
+
 CombatSession::CombatSession(std::vector<CombatantDefinition> combatants)
     : impl_{std::make_unique<Impl>(std::move(combatants))} {}
 CombatSession::~CombatSession() = default;
@@ -168,6 +219,61 @@ CombatSessionState CombatSession::state() const {
     return CombatSessionState::active;
   }
   return CombatSessionState::completed;
+}
+
+CombatSessionSnapshot CombatSession::snapshot() const {
+  std::vector<CombatantSnapshot> combatants;
+  combatants.reserve(impl_->combatants.size());
+  for (const auto& combatant : impl_->combatants) {
+    combatants.push_back({
+        .entity = combatant.definition.entity.id(),
+        .action_points = combatant.action_points,
+        .alive = combatant.alive,
+    });
+  }
+  return {
+      .state = state(),
+      .active_index = impl_->active_index,
+      .combatants = std::move(combatants),
+  };
+}
+
+bool CombatSession::restore(const CombatSessionSnapshot& restored) {
+  if (state() != CombatSessionState::inactive ||
+      restored.combatants.size() != impl_->combatants.size() ||
+      (!restored.combatants.empty() && restored.active_index >= restored.combatants.size())) {
+    return false;
+  }
+  std::size_t living = 0;
+  for (std::size_t index = 0; index < restored.combatants.size(); ++index) {
+    const auto& saved = restored.combatants[index];
+    const auto& current = impl_->combatants[index];
+    if (saved.entity != current.definition.entity.id() ||
+        saved.action_points > current.definition.maximum_action_points) {
+      return false;
+    }
+    living += saved.alive ? 1U : 0U;
+  }
+  const bool valid_active = restored.state == CombatSessionState::active && living > 1 &&
+                            restored.combatants[restored.active_index].alive;
+  const bool valid_completed = restored.state == CombatSessionState::completed && living <= 1;
+  const bool valid_inactive = restored.state == CombatSessionState::inactive;
+  if (!valid_active && !valid_completed && !valid_inactive) {
+    return false;
+  }
+  if (restored.state != CombatSessionState::inactive && !impl_->machine.process_event(Start{})) {
+    return false;
+  }
+  if (restored.state == CombatSessionState::completed &&
+      !impl_->machine.process_event(Complete{})) {
+    return false;
+  }
+  impl_->active_index = restored.active_index;
+  for (std::size_t index = 0; index < restored.combatants.size(); ++index) {
+    impl_->combatants[index].action_points = restored.combatants[index].action_points;
+    impl_->combatants[index].alive = restored.combatants[index].alive;
+  }
+  return true;
 }
 
 AbilityResolver::AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors,
