@@ -18,6 +18,7 @@ enum class OccupancyErrorReason : std::uint8_t {
   duplicate_cell,
   entity_already_placed,
   entity_not_placed,
+  invalid_revision,
 };
 
 struct OccupancyError {
@@ -44,6 +45,8 @@ public:
   [[nodiscard]] Result<void, OccupancyError> remove(EntityId entity);
   [[nodiscard]] Result<void, OccupancyError>
   rebuild(std::span<const OccupancyPlacement> placements);
+  [[nodiscard]] Result<void, OccupancyError> restore(std::span<const OccupancyPlacement> placements,
+                                                     std::uint64_t revision);
 
   [[nodiscard]] std::optional<EntityId> occupant(const HexCellId& cell) const;
   [[nodiscard]] bool can_occupy(std::span<const HexCellId> cells,

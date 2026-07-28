@@ -1,12 +1,14 @@
 #include "exploration_movement_scenario.hpp"
 
 #include <dross/foundation/version.hpp>
+#include <dross/persistence/save_container.hpp>
 #include <dross/random/random_hub.hpp>
 #include <dross/runtime/movement_runtime.hpp>
 #include <dross/runtime/simulation_mode.hpp>
 #include <dross/runtime/world_lifecycle.hpp>
 #include <dross/world/world_storage.hpp>
 
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -19,6 +21,7 @@ namespace {
 constexpr int scenario_error = 5;
 constexpr std::uint64_t scenario_lineage = 41;
 constexpr std::uint64_t scenario_instance = 11;
+constexpr std::uint64_t resumed_instance = 12;
 
 dross::ContentId content_id(const char* value) { return dross::ContentId::parse(value).value(); }
 
@@ -118,14 +121,114 @@ ScenarioResult execute(const std::uint64_t seed) {
   }
 
   std::vector<dross::CanonicalCheckpoint> checkpoints;
+  std::vector<std::byte> save_bytes;
   for (std::uint64_t tick = 0; tick < 6; ++tick) {
     static_cast<void>(movement.advance(dross::Tick{tick}));
     checkpoints.push_back(dross::canonical_checkpoint(
         dross::Tick{tick}, world, occupancy, random.snapshot(), lifecycle.snapshot(),
         mode.snapshot(), std::span<const dross::PlaceEntityEnvelope>{}));
+    if (tick == 1) {
+      const auto save = dross::SaveContainer{
+          .header =
+              dross::SaveHeader{
+                  .container_version = 1,
+                  .simulation_schema_version = 1,
+                  .engine_version = dross::engine_version(),
+                  .ticks_per_second = 30,
+                  .current_tick = dross::Tick{2},
+                  .world_lineage = scenario_lineage,
+                  .allocator = world.allocator_snapshot(),
+                  .map_id = content_id("demo:movement_room"),
+                  .map_hash = dross::canonical_map_hash(map),
+              },
+          .runtime =
+              dross::SaveRuntimeSnapshot{
+                  .random = random.snapshot(),
+                  .lifecycle = lifecycle.snapshot(),
+                  .mode = mode.snapshot(),
+              },
+          .content_manifest = dross::first_slice_content_manifest(),
+          .combat = {},
+          .movement =
+              dross::MovementBoundarySnapshot{
+                  .actor = actor.id(),
+                  .footprint = footprint.id().content_id(),
+                  .runtime = movement.snapshot(),
+              },
+          .door = {},
+          .script = {},
+          .components = dross::snapshot_world_components(world),
+      };
+      save_bytes = dross::encode_save_container(save);
+    }
   }
   if (events.started() != 1 || events.entered() != 3 || events.completed() != 1) {
     throw std::logic_error{"movement scenario event sequence failed"};
+  }
+
+  const auto save = dross::decode_save_container(save_bytes);
+  if (!save || !save->movement) {
+    throw std::logic_error{"movement scenario save did not round trip"};
+  }
+  dross::ComponentCodecRegistry codecs;
+  if (!dross::register_current_component_codecs(codecs)) {
+    throw std::logic_error{"movement scenario codec registration failed"};
+  }
+  const auto load_plan = dross::build_world_load_plan(
+      *save, codecs, content_id("demo:movement_room"), dross::canonical_map_hash(map));
+  if (!load_plan) {
+    throw std::logic_error{"movement scenario load plan failed"};
+  }
+  auto resumed_world = load_plan->construct(dross::WorldInstanceId{resumed_instance});
+  if (!resumed_world) {
+    throw std::logic_error{"movement scenario world restore failed"};
+  }
+  const auto resumed_actor = (*resumed_world)->read().find(save->movement->actor);
+  if (!resumed_actor) {
+    throw std::logic_error{"movement scenario restored actor missing"};
+  }
+  dross::OccupancyIndex resumed_occupancy;
+  if (!resumed_occupancy.restore(std::array{dross::OccupancyPlacement{
+                                     .entity = resumed_actor->id(),
+                                     .cells = footprint.expand(save->movement->runtime.pose),
+                                 }},
+                                 save->movement->runtime.expected_occupancy_revision)) {
+    throw std::logic_error{"movement scenario occupancy restore failed"};
+  }
+  ScenarioEvents resumed_events{**resumed_world};
+  dross::MovementRuntime resumed_movement{map,
+                                          resumed_occupancy,
+                                          planner,
+                                          footprint,
+                                          *resumed_actor,
+                                          save->movement->runtime.pose,
+                                          {.ticks_per_transition = 2},
+                                          &resumed_events};
+  if (!resumed_movement.restore(save->movement->runtime)) {
+    throw std::logic_error{"movement scenario runtime restore failed"};
+  }
+  dross::RandomHub resumed_random{save->runtime.random.master_seed};
+  dross::NullMachineTrace resumed_trace;
+  dross::WorldLifecycle resumed_lifecycle{resumed_trace};
+  dross::SimulationMode resumed_mode{resumed_trace};
+  if (!resumed_random.restore(save->runtime.random) ||
+      !resumed_lifecycle.restore(save->runtime.lifecycle) ||
+      !resumed_mode.restore(save->runtime.mode)) {
+    throw std::logic_error{"movement scenario machine restore failed"};
+  }
+  for (std::uint64_t tick = save->header.current_tick.value(); tick < 6; ++tick) {
+    static_cast<void>(resumed_movement.advance(dross::Tick{tick}));
+    const auto resumed_checkpoint = dross::canonical_checkpoint(
+        dross::Tick{tick}, **resumed_world, resumed_occupancy, resumed_random.snapshot(),
+        resumed_lifecycle.snapshot(), resumed_mode.snapshot(),
+        std::span<const dross::PlaceEntityEnvelope>{});
+    if (resumed_checkpoint.overall != checkpoints[static_cast<std::size_t>(tick)].overall) {
+      throw std::logic_error{"movement scenario resumed checkpoint diverged"};
+    }
+  }
+  if (resumed_movement.pose() != movement.pose() || resumed_events.entered() != 2 ||
+      resumed_events.completed() != 1) {
+    throw std::logic_error{"movement scenario resumed result diverged"};
   }
   return {
       .replay =

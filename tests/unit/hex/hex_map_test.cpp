@@ -114,3 +114,23 @@ TEST_CASE("occupancy deterministic rebuild equals incremental placement") {
   REQUIRE(incremental.place(placements[0].entity, placements[0].cells));
   CHECK(rebuilt.entries() == incremental.entries());
 }
+
+TEST_CASE("occupancy restore preserves canonical entries and saved revision") {
+  dross::OccupancyIndex restored;
+  const std::vector placements{
+      dross::OccupancyPlacement{.entity = dross::EntityId{7, 2}, .cells = {map_cell(1, 0)}},
+      dross::OccupancyPlacement{.entity = dross::EntityId{7, 1}, .cells = {map_cell(0, 0)}},
+  };
+
+  REQUIRE(restored.restore(placements, 9));
+  CHECK(restored.revision() == 9);
+  CHECK(
+      restored.entries() ==
+      std::vector{dross::OccupancyEntry{.cell = map_cell(0, 0), .entity = dross::EntityId{7, 1}},
+                  dross::OccupancyEntry{.cell = map_cell(1, 0), .entity = dross::EntityId{7, 2}}});
+
+  const auto invalid = restored.restore(placements, 0);
+  REQUIRE_FALSE(invalid);
+  CHECK(invalid.error().reason == dross::OccupancyErrorReason::invalid_revision);
+  CHECK(restored.revision() == 9);
+}

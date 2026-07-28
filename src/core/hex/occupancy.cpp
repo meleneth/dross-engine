@@ -96,6 +96,25 @@ OccupancyIndex::rebuild(const std::span<const OccupancyPlacement> placements) {
   return {};
 }
 
+Result<void, OccupancyError>
+OccupancyIndex::restore(const std::span<const OccupancyPlacement> placements,
+                        const std::uint64_t revision) {
+  if (!placements.empty() && revision == 0) {
+    return tl::unexpected{
+        OccupancyError{.reason = OccupancyErrorReason::invalid_revision, .cell = std::nullopt}};
+  }
+  OccupancyIndex restored;
+  const auto rebuilt = restored.rebuild(placements);
+  if (!rebuilt) {
+    return rebuilt;
+  }
+  restored.revision_ = revision;
+  by_cell_ = std::move(restored.by_cell_);
+  by_entity_ = std::move(restored.by_entity_);
+  revision_ = restored.revision_;
+  return {};
+}
+
 std::optional<EntityId> OccupancyIndex::occupant(const HexCellId& cell) const {
   const auto found = by_cell_.find(cell);
   return found == by_cell_.end() ? std::nullopt : std::optional<EntityId>{found->second};
