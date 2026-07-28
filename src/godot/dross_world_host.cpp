@@ -192,6 +192,20 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink {
   godot::String last_cue;
 };
 
+struct DrossWorldHost::DoorScenarioState final : DoorRuntime::EventSink {
+  explicit DoorScenarioState(CompiledDoorDefinition definition)
+      : edge{definition.footprint.edges().front()},
+        runtime{entity, std::move(definition.footprint), DoorState::closed, this} {}
+
+  void publish(const door::DoorOpened&) override { last_event = "dross:door_opened"; }
+  void publish(const door::DoorClosed&) override { last_event = "dross:door_closed"; }
+
+  EntityRef entity{WorldInstanceId{synthetic_instance}, EntityId{7, 3}};
+  EdgeKey edge;
+  DoorRuntime runtime;
+  godot::String last_event;
+};
+
 DrossWorldHost::DrossWorldHost() = default;
 DrossWorldHost::~DrossWorldHost() = default;
 
@@ -520,6 +534,27 @@ godot::String DrossWorldHost::get_last_presentation_cue() const {
   return combat_state_ ? combat_state_->last_cue : godot::String{};
 }
 
+bool DrossWorldHost::start_door_scenario(const godot::Ref<DrossDoorDefinition>& definition) {
+  if (definition.is_null()) {
+    return false;
+  }
+  auto compiled = definition->compile_core();
+  if (!compiled) {
+    return false;
+  }
+  door_state_ = std::make_unique<DoorScenarioState>(std::move(*compiled));
+  return true;
+}
+
+bool DrossWorldHost::open_door() { return door_state_ && door_state_->runtime.open(); }
+bool DrossWorldHost::close_door() { return door_state_ && door_state_->runtime.close(); }
+bool DrossWorldHost::is_door_open() const {
+  return door_state_ && door_state_->runtime.state() == DoorState::open;
+}
+bool DrossWorldHost::is_door_edge_traversable() const {
+  return door_state_ && door_state_->runtime.allows(door_state_->edge);
+}
+
 void DrossWorldHost::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("start_synthetic_world", "actor"),
                               &DrossWorldHost::start_synthetic_world);
@@ -577,6 +612,13 @@ void DrossWorldHost::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("is_mouse_killed"), &DrossWorldHost::is_mouse_killed);
   godot::ClassDB::bind_method(godot::D_METHOD("get_last_presentation_cue"),
                               &DrossWorldHost::get_last_presentation_cue);
+  godot::ClassDB::bind_method(godot::D_METHOD("start_door_scenario", "definition"),
+                              &DrossWorldHost::start_door_scenario);
+  godot::ClassDB::bind_method(godot::D_METHOD("open_door"), &DrossWorldHost::open_door);
+  godot::ClassDB::bind_method(godot::D_METHOD("close_door"), &DrossWorldHost::close_door);
+  godot::ClassDB::bind_method(godot::D_METHOD("is_door_open"), &DrossWorldHost::is_door_open);
+  godot::ClassDB::bind_method(godot::D_METHOD("is_door_edge_traversable"),
+                              &DrossWorldHost::is_door_edge_traversable);
 }
 
 } // namespace dross::godot_adapter

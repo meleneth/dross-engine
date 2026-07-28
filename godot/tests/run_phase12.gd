@@ -50,6 +50,25 @@ func _initialize() -> void:
 			"field mouse reaction did not use deterministic RandomHub access")
 	host.queue_free()
 
+	var door_definition := DrossDoorDefinition.new()
+	door_definition.door_id = "demo:side_door"
+	door_definition.region_id = "demo:room"
+	door_definition.from_q = 0
+	door_definition.from_r = 0
+	door_definition.to_q = 1
+	door_definition.to_r = 0
+	check(door_definition.is_valid(), "typed edge-anchored door did not compile")
+	var door_host := DrossWorldHost.new()
+	get_root().add_child(door_host)
+	check(door_host.start_door_scenario(door_definition), "door scenario did not start")
+	check(not door_host.is_door_edge_traversable(), "closed door allowed edge traversal")
+	check(door_host.open_door(), "OpenDoor was rejected")
+	check(door_host.is_door_open(), "OpenDoor did not commit state")
+	check(door_host.is_door_edge_traversable(), "open door still blocked traversal")
+	check(door_host.close_door(), "CloseDoor was rejected")
+	check(not door_host.is_door_edge_traversable(), "closed door lost traversal contribution")
+	door_host.queue_free()
+
 	var demo: Node3D = load("res://demo/phase12_thump.tscn").instantiate()
 	get_root().add_child(demo)
 	await process_frame

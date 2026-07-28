@@ -3,6 +3,7 @@
 #include "compiled_actor_definition.hpp"
 #include "dross_ability_definition.hpp"
 #include "dross_actor_definition.hpp"
+#include "dross_door_definition.hpp"
 #include "dross_entity_view.hpp"
 #include "dross_script_runtime.hpp"
 
@@ -61,6 +62,11 @@ public:
   [[nodiscard]] std::int64_t get_mouse_health() const;
   [[nodiscard]] bool is_mouse_killed() const;
   [[nodiscard]] godot::String get_last_presentation_cue() const;
+  [[nodiscard]] bool start_door_scenario(const godot::Ref<DrossDoorDefinition>& definition);
+  [[nodiscard]] bool open_door();
+  [[nodiscard]] bool close_door();
+  [[nodiscard]] bool is_door_open() const;
+  [[nodiscard]] bool is_door_edge_traversable() const;
 
 protected:
   static void _bind_methods();
@@ -70,10 +76,12 @@ private:
   struct ScriptScenarioState;
   struct MovementScenarioState;
   struct CombatScenarioState;
+  struct DoorScenarioState;
   std::unique_ptr<RuntimeState> state_;
   std::unique_ptr<ScriptScenarioState> script_state_;
   std::unique_ptr<MovementScenarioState> movement_state_;
   std::unique_ptr<CombatScenarioState> combat_state_;
+  std::unique_ptr<DoorScenarioState> door_state_;
 };
 
 } // namespace dross::godot_adapter

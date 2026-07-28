@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://demo/phase12_thump.gd" id="1_script"]
 
@@ -20,6 +20,13 @@ albedo_color = Color(0.45, 0.24, 0.12, 1)
 material = SubResource("MouseMaterial")
 radius = 0.42
 height = 0.84
+
+[sub_resource type="StandardMaterial3D" id="DoorMaterial"]
+albedo_color = Color(0.5, 0.28, 0.08, 1)
+
+[sub_resource type="BoxMesh" id="DoorMesh"]
+material = SubResource("DoorMaterial")
+size = Vector3(0.18, 2.2, 1.4)
 
 [sub_resource type="Environment" id="Environment"]
 background_mode = 1
@@ -47,6 +54,13 @@ mesh = SubResource("PlayerMesh")
 position = Vector3(1, 0.42, 0)
 mesh = SubResource("MouseMesh")
 
+[node name="SideDoor" type="Node3D" parent="."]
+position = Vector3(3, 0, -1.8)
+
+[node name="Panel" type="MeshInstance3D" parent="SideDoor"]
+position = Vector3(0, 1.1, 0.7)
+mesh = SubResource("DoorMesh")
+
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-55, -30, 0)
 shadow_enabled = true
@@ -72,4 +86,4 @@ offset_top = 58.0
 offset_right = 650.0
 offset_bottom = 90.0
 theme_override_font_sizes/font_size = 18
-text = "Press Space to Thump the field mouse"
+text = "Space: Thump field mouse    D: Toggle optional side door"
