@@ -183,7 +183,11 @@ int verify_exploration_movement_replay(const dross::ReplayLog& recorded) {
         dross::first_divergence(recorded.checkpoints, replayed.replay.checkpoints);
     if (divergence) {
       std::cerr << "replay divergence tick=" << divergence->tick.value()
-                << " section=" << static_cast<unsigned int>(divergence->section) << '\n';
+                << " section=" << static_cast<unsigned int>(divergence->section);
+      if (divergence->detail) {
+        std::cerr << " detail=" << *divergence->detail;
+      }
+      std::cerr << '\n';
       return scenario_error;
     }
     std::cout << "replay verified checkpoints=" << recorded.checkpoints.size() << '\n';

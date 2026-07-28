@@ -158,13 +158,18 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
                      const SimulationModeSnapshot mode,
                      const std::span<const PlaceEntityEnvelope> pending_commands) {
   std::map<CheckpointSection, CheckpointHash> sections;
+  std::map<CheckpointSection, std::map<std::string, CheckpointHash>> details;
 
   ByteWriter clock;
   clock.write_u64(tick.value());
   sections.emplace(CheckpointSection::clock, hash_bytes(clock.bytes()));
+  details[CheckpointSection::clock].emplace("current_tick", hash_bytes(clock.bytes()));
 
   ByteWriter identity;
   identity.write_u64(world.allocator_snapshot().next_runtime_sequence);
+  ByteWriter allocator;
+  allocator.write_u64(world.allocator_snapshot().next_runtime_sequence);
+  details[CheckpointSection::identity].emplace("allocator", hash_bytes(allocator.bytes()));
   const auto entity_ids = world.read().stable_entity_ids();
   identity.write_u64(entity_ids.size());
   for (const auto entity_id : entity_ids) {
@@ -178,6 +183,15 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
     if (persistent.alias) {
       identity.write(persistent.alias->content_id());
     }
+    ByteWriter entity_identity;
+    entity_identity.write(entity_id);
+    entity_identity.write_u16(persistent.alias.has_value() ? 1U : 0U);
+    if (persistent.alias) {
+      entity_identity.write(persistent.alias->content_id());
+    }
+    details[CheckpointSection::identity].emplace("entity/" + std::to_string(entity_id.lineage()) +
+                                                     "/" + std::to_string(entity_id.sequence()),
+                                                 hash_bytes(entity_identity.bytes()));
   }
   sections.emplace(CheckpointSection::identity, hash_bytes(identity.bytes()));
 
@@ -194,6 +208,16 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
     if (pose) {
       generated::encode_hex_pose(components, *pose);
     }
+    ByteWriter entity_pose;
+    entity_pose.write(entity_id);
+    entity_pose.write_u16(pose.has_value() ? 1U : 0U);
+    if (pose) {
+      generated::encode_hex_pose(entity_pose, *pose);
+    }
+    details[CheckpointSection::components].emplace("entity/" + std::to_string(entity_id.lineage()) +
+                                                       "/" + std::to_string(entity_id.sequence()) +
+                                                       "/dross:hex_pose",
+                                                   hash_bytes(entity_pose.bytes()));
   }
   sections.emplace(CheckpointSection::components, hash_bytes(components.bytes()));
 
@@ -219,6 +243,18 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
     random_state.write_u64(stream.state_advance_low);
     random_state.write_u64(stream.state_advance_high);
     random_state.write_u64(stream.call_count);
+    ByteWriter stream_state;
+    stream_state.write(stream.id.content_id());
+    stream_state.write_u64(stream.seed_material.state_low);
+    stream_state.write_u64(stream.seed_material.state_high);
+    stream_state.write_u64(stream.seed_material.sequence_low);
+    stream_state.write_u64(stream.seed_material.sequence_high);
+    stream_state.write_u64(stream.state_advance_low);
+    stream_state.write_u64(stream.state_advance_high);
+    stream_state.write_u64(stream.call_count);
+    details[CheckpointSection::random].emplace("stream/" +
+                                                   std::string{stream.id.content_id().canonical()},
+                                               hash_bytes(stream_state.bytes()));
   }
   sections.emplace(CheckpointSection::random, hash_bytes(random_state.bytes()));
 
@@ -226,6 +262,13 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
   machines.write_u16(static_cast<std::uint16_t>(lifecycle.state));
   machines.write_u16(static_cast<std::uint16_t>(mode.state));
   sections.emplace(CheckpointSection::machines, hash_bytes(machines.bytes()));
+  ByteWriter lifecycle_machine;
+  lifecycle_machine.write_u16(static_cast<std::uint16_t>(lifecycle.state));
+  details[CheckpointSection::machines].emplace("world_lifecycle",
+                                               hash_bytes(lifecycle_machine.bytes()));
+  ByteWriter mode_machine;
+  mode_machine.write_u16(static_cast<std::uint16_t>(mode.state));
+  details[CheckpointSection::machines].emplace("simulation_mode", hash_bytes(mode_machine.bytes()));
 
   auto commands =
       std::vector<PlaceEntityEnvelope>{pending_commands.begin(), pending_commands.end()};
@@ -237,6 +280,11 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
   pending.write_u64(commands.size());
   for (const auto& command : commands) {
     write_command(pending, command);
+    ByteWriter command_state;
+    write_command(command_state, command);
+    details[CheckpointSection::pending_commands].emplace(
+        "command/" + std::to_string(command.metadata.id.value()),
+        hash_bytes(command_state.bytes()));
   }
   sections.emplace(CheckpointSection::pending_commands, hash_bytes(pending.bytes()));
 
@@ -246,7 +294,11 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
     write_hash(combined, hash);
   }
   return CanonicalCheckpoint{
-      .tick = tick, .sections = std::move(sections), .overall = hash_bytes(combined.bytes())};
+      .tick = tick,
+      .sections = std::move(sections),
+      .details = std::move(details),
+      .overall = hash_bytes(combined.bytes()),
+  };
 }
 
 std::vector<std::byte> encode_replay(const ReplayLog& replay) {
@@ -279,6 +331,15 @@ std::vector<std::byte> encode_replay(const ReplayLog& replay) {
     for (const auto& [section, hash] : checkpoint.sections) {
       writer.write_u16(static_cast<std::uint16_t>(section));
       write_hash(writer, hash);
+    }
+    writer.write_u64(checkpoint.details.size());
+    for (const auto& [section, entries] : checkpoint.details) {
+      writer.write_u16(static_cast<std::uint16_t>(section));
+      writer.write_u64(entries.size());
+      for (const auto& [name, hash] : entries) {
+        writer.write_string(name);
+        write_hash(writer, hash);
+      }
     }
     write_hash(writer, checkpoint.overall);
   }
@@ -358,7 +419,8 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
     if (!tick || !section_count) {
       return tl::unexpected{ReplayDecodeError::invalid_format};
     }
-    CanonicalCheckpoint checkpoint{.tick = Tick{*tick}, .sections = {}, .overall = {}};
+    CanonicalCheckpoint checkpoint{
+        .tick = Tick{*tick}, .sections = {}, .details = {}, .overall = {}};
     for (std::uint64_t section_index = 0; section_index < *section_count; ++section_index) {
       const auto section = reader.read_u16();
       const auto hash = read_hash(reader);
@@ -366,6 +428,27 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
           *section > static_cast<std::uint16_t>(CheckpointSection::pending_commands) ||
           !checkpoint.sections.emplace(static_cast<CheckpointSection>(*section), *hash).second) {
         return tl::unexpected{ReplayDecodeError::invalid_format};
+      }
+    }
+    const auto detail_section_count = reader.read_u64();
+    if (!detail_section_count) {
+      return tl::unexpected{ReplayDecodeError::invalid_format};
+    }
+    for (std::uint64_t detail_section = 0; detail_section < *detail_section_count;
+         ++detail_section) {
+      const auto section = reader.read_u16();
+      const auto detail_count = reader.read_u64();
+      if (!section || !detail_count ||
+          *section > static_cast<std::uint16_t>(CheckpointSection::pending_commands)) {
+        return tl::unexpected{ReplayDecodeError::invalid_format};
+      }
+      auto& entries = checkpoint.details[static_cast<CheckpointSection>(*section)];
+      for (std::uint64_t detail = 0; detail < *detail_count; ++detail) {
+        const auto name = reader.read_string();
+        const auto hash = read_hash(reader);
+        if (!name || !hash || !entries.emplace(*name, *hash).second) {
+          return tl::unexpected{ReplayDecodeError::invalid_format};
+        }
       }
     }
     const auto overall = read_hash(reader);
@@ -392,14 +475,44 @@ first_divergence(const std::span<const CanonicalCheckpoint> expected,
     for (const auto& [section, hash] : expected[index].sections) {
       const auto found = actual[index].sections.find(section);
       if (found == actual[index].sections.end() || found->second != hash) {
-        return ReplayDivergence{.tick = expected[index].tick, .section = section};
+        std::optional<std::string> detail;
+        const auto expected_details = expected[index].details.find(section);
+        const auto actual_details = actual[index].details.find(section);
+        if (expected_details != expected[index].details.end() &&
+            actual_details != actual[index].details.end()) {
+          auto expected_entry = expected_details->second.begin();
+          auto actual_entry = actual_details->second.begin();
+          while (expected_entry != expected_details->second.end() ||
+                 actual_entry != actual_details->second.end()) {
+            if (actual_entry == actual_details->second.end() ||
+                (expected_entry != expected_details->second.end() &&
+                 expected_entry->first < actual_entry->first)) {
+              detail = expected_entry->first;
+              break;
+            }
+            if (expected_entry == expected_details->second.end() ||
+                actual_entry->first < expected_entry->first) {
+              detail = actual_entry->first;
+              break;
+            }
+            if (expected_entry->second != actual_entry->second) {
+              detail = expected_entry->first;
+              break;
+            }
+            ++expected_entry;
+            ++actual_entry;
+          }
+        }
+        return ReplayDivergence{
+            .tick = expected[index].tick, .section = section, .detail = std::move(detail)};
       }
     }
-    return ReplayDivergence{.tick = expected[index].tick, .section = CheckpointSection::clock};
+    return ReplayDivergence{
+        .tick = expected[index].tick, .section = CheckpointSection::clock, .detail = {}};
   }
   if (expected.size() != actual.size()) {
     const auto tick = count < expected.size() ? expected[count].tick : actual[count].tick;
-    return ReplayDivergence{.tick = tick, .section = CheckpointSection::clock};
+    return ReplayDivergence{.tick = tick, .section = CheckpointSection::clock, .detail = {}};
   }
   return std::nullopt;
 }

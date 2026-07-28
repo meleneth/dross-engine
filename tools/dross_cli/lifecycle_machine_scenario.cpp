@@ -115,8 +115,17 @@ int verify_lifecycle_replay(const dross::ReplayLog& recorded) {
   try {
     const auto replayed = execute_lifecycle_scenario();
     const auto divergence = dross::first_divergence(recorded.checkpoints, replayed.checkpoints);
-    if (divergence || recorded.machine_trace != replayed.machine_trace) {
-      std::cerr << "lifecycle replay divergence\n";
+    if (divergence) {
+      std::cerr << "lifecycle replay divergence tick=" << divergence->tick.value()
+                << " section=" << static_cast<unsigned int>(divergence->section);
+      if (divergence->detail) {
+        std::cerr << " detail=" << *divergence->detail;
+      }
+      std::cerr << '\n';
+      return scenario_error;
+    }
+    if (recorded.machine_trace != replayed.machine_trace) {
+      std::cerr << "lifecycle machine trace divergence\n";
       return scenario_error;
     }
     std::cout << "replay verified checkpoints=" << recorded.checkpoints.size()

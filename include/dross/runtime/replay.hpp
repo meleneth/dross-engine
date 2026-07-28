@@ -14,6 +14,7 @@
 #include <map>
 #include <optional>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace dross {
@@ -35,6 +36,7 @@ enum class CheckpointSection : std::uint8_t {
 struct CanonicalCheckpoint {
   Tick tick;
   std::map<CheckpointSection, CheckpointHash> sections;
+  std::map<CheckpointSection, std::map<std::string, CheckpointHash>> details;
   CheckpointHash overall;
 
   [[nodiscard]] bool operator==(const CanonicalCheckpoint&) const = default;
@@ -76,6 +78,7 @@ enum class ReplayDecodeError : std::uint8_t {
 struct ReplayDivergence {
   Tick tick;
   CheckpointSection section;
+  std::optional<std::string> detail;
 };
 
 [[nodiscard]] std::optional<ReplayDivergence>

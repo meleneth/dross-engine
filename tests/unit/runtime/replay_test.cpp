@@ -101,4 +101,19 @@ TEST_CASE("first replay divergence reports its tick and canonical section") {
   REQUIRE(divergence);
   CHECK(divergence->tick == dross::Tick{3});
   CHECK(divergence->section == dross::CheckpointSection::occupancy);
+  CHECK_FALSE(divergence->detail);
+}
+
+TEST_CASE("replay divergence localizes the first differing random stream") {
+  const auto expected = checkpoint_for({1, 2}, 12345);
+  const auto actual = checkpoint_for({1, 2}, 54321);
+
+  const std::array expected_values{expected};
+  const std::array actual_values{actual};
+  const auto divergence = dross::first_divergence(expected_values, actual_values);
+
+  REQUIRE(divergence);
+  CHECK(divergence->section == dross::CheckpointSection::random);
+  REQUIRE(divergence->detail);
+  CHECK(*divergence->detail == "stream/dross:combat");
 }
