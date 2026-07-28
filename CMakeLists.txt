@@ -38,6 +38,7 @@ add_library(dross_core STATIC
   src/core/random/random_hub.cpp
   src/core/runtime/command_event_kernel.cpp
   src/core/runtime/combat_runtime.cpp
+  src/core/runtime/door_runtime.cpp
   src/core/runtime/fixed_tick_runtime.cpp
   src/core/runtime/machine_trace.cpp
   src/core/runtime/movement_runtime.cpp
@@ -124,6 +125,7 @@ add_executable(dross_tests
   tests/unit/random/random_hub_test.cpp
   tests/unit/runtime/command_event_kernel_test.cpp
   tests/unit/runtime/combat_runtime_test.cpp
+  tests/unit/runtime/door_runtime_test.cpp
   tests/unit/runtime/fixed_tick_runtime_test.cpp
   tests/unit/runtime/replay_test.cpp
   tests/unit/runtime/movement_runtime_test.cpp

@@ -1,0 +1,56 @@
+#include <dross/runtime/door_runtime.hpp>
+
+#include <catch2/catch_test_macros.hpp>
+
+namespace {
+
+dross::ContentId id(const char* value) { return dross::ContentId::parse(value).value(); }
+
+dross::HexCellId cell(const std::int32_t q, const std::int32_t r = 0) {
+  return {.region = dross::RegionId{id("demo:room")}, .coord = {.q = q, .r = r}, .layer = 0};
+}
+
+dross::EdgeKey edge(const std::int32_t first, const std::int32_t second) {
+  return dross::EdgeKey::between(cell(first), cell(second)).value();
+}
+
+} // namespace
+
+TEST_CASE("edge footprint requires unique adjacent edges") {
+  const auto valid = dross::EdgeFootprint::create({edge(1, 0), edge(2, 1)});
+  REQUIRE(valid);
+  CHECK(valid->edges() == std::vector{edge(0, 1), edge(1, 2)});
+
+  CHECK_FALSE(dross::EdgeFootprint::create({}));
+  CHECK_FALSE(dross::EdgeFootprint::create({edge(0, 1), edge(1, 0)}));
+  const auto non_adjacent = dross::EdgeKey::between(cell(0), cell(2)).value();
+  CHECK_FALSE(dross::EdgeFootprint::create({non_adjacent}));
+}
+
+TEST_CASE("door lifecycle commits open and closed traversal state through SML") {
+  auto footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
+  dross::DoorRuntime door{std::move(footprint), dross::DoorState::closed};
+
+  CHECK_FALSE(door.allows(edge(0, 1)));
+  REQUIRE(door.open());
+  CHECK(door.state() == dross::DoorState::open);
+  CHECK(door.allows(edge(1, 0)));
+  CHECK_FALSE(door.open());
+  REQUIRE(door.close());
+  CHECK(door.state() == dross::DoorState::closed);
+  CHECK_FALSE(door.allows(edge(0, 1)));
+  CHECK_FALSE(door.close());
+}
+
+TEST_CASE("presentation acknowledgement cannot change committed door state") {
+  auto footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
+  dross::DoorRuntime door{std::move(footprint), dross::DoorState::closed};
+  REQUIRE(door.open());
+  const auto committed = door.state();
+
+  door.acknowledge_presentation(41);
+  door.acknowledge_presentation(41);
+  door.acknowledge_presentation(7);
+  CHECK(door.state() == committed);
+  CHECK(door.allows(edge(0, 1)));
+}
