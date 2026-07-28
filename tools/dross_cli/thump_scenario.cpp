@@ -60,21 +60,25 @@ ScenarioResult execute(const std::uint64_t seed) {
   if (!combat.start()) {
     throw std::logic_error{"Thump scenario combat start failed"};
   }
+  dross::RandomHub random{dross::MasterSeed{seed}};
+  auto& damage_random = random.stream(dross::RandomStreamId{content_id("dross:combat_damage")});
   dross::AbilityResolver resolver{
       combat,
       {
           {.entity = player, .pose = pose(0), .health = dross::HitPoints{8}},
           {.entity = mouse, .pose = pose(1), .health = dross::HitPoints{3}},
       },
+      nullptr,
+      &damage_random,
   };
   const dross::AbilityDefinition thump{
       .id = content_id("dross_demo:thump"),
       .range = 1,
       .action_point_cost = 2,
       .damage = dross::HitPoints{3},
+      .bonus_damage_max = 1,
       .presentation_cue = content_id("dross_demo:thump"),
   };
-  dross::RandomHub random{dross::MasterSeed{seed}};
   dross::OccupancyIndex occupancy;
   std::vector<dross::CanonicalCheckpoint> checkpoints;
   checkpoints.push_back(dross::canonical_checkpoint(

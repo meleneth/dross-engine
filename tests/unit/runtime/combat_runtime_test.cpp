@@ -162,3 +162,28 @@ TEST_CASE("lethal generic ability marks the target dead and completes combat") {
   REQUIRE(events.killed);
   CHECK(events.killed->ability == id("dross_demo:thump"));
 }
+
+TEST_CASE("seeded bonus damage is reproducible through a named RandomHub stream") {
+  auto resolve = [](const std::uint64_t seed) {
+    dross::CombatSession session{{combatant(1, 10, 3), combatant(2, 5, 2)}};
+    REQUIRE(session.start());
+    dross::RandomHub random{dross::MasterSeed{seed}};
+    auto& stream = random.stream(dross::RandomStreamId{id("dross:combat_damage")});
+    dross::AbilityResolver resolver{
+        session,
+        {
+            {.entity = combatant(1, 10, 3).entity, .pose = pose(0), .health = dross::HitPoints{8}},
+            {.entity = combatant(2, 5, 2).entity, .pose = pose(1), .health = dross::HitPoints{20}},
+        },
+        nullptr,
+        &stream,
+    };
+    auto ability = thump();
+    ability.bonus_damage_max = 3;
+    return resolver.perform(ability, dross::EntityId{7, 1}, dross::EntityId{7, 2}).damage;
+  };
+
+  CHECK(resolve(12345) == resolve(12345));
+  CHECK(resolve(12345).value() >= 3);
+  CHECK(resolve(12345).value() <= 6);
+}

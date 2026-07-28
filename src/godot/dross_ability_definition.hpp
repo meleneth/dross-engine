@@ -22,6 +22,8 @@ public:
   [[nodiscard]] std::int64_t get_action_point_cost() const noexcept;
   void set_damage(std::int64_t value);
   [[nodiscard]] std::int64_t get_damage() const noexcept;
+  void set_bonus_damage_max(std::int64_t value);
+  [[nodiscard]] std::int64_t get_bonus_damage_max() const noexcept;
   void set_presentation_cue(const godot::String& value);
   [[nodiscard]] godot::String get_presentation_cue() const;
   [[nodiscard]] bool is_valid() const;
@@ -36,6 +38,7 @@ private:
   std::int64_t range_{1};
   std::int64_t action_point_cost_{1};
   std::int64_t damage_{1};
+  std::int64_t bonus_damage_max_{0};
 };
 
 } // namespace dross::godot_adapter

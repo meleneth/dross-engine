@@ -6,6 +6,7 @@
 #include <dross/hex/hex_topology.hpp>
 #include <dross/identity/content_id.hpp>
 #include <dross/identity/entity_ref.hpp>
+#include <dross/random/random_hub.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -53,6 +54,7 @@ struct AbilityDefinition {
   std::uint32_t range;
   std::uint32_t action_point_cost;
   HitPoints damage;
+  std::uint32_t bonus_damage_max{0};
   ContentId presentation_cue;
 };
 
@@ -93,7 +95,7 @@ public:
   };
 
   AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors,
-                  EventSink* events = nullptr);
+                  EventSink* events = nullptr, RandomStream* random = nullptr);
 
   [[nodiscard]] AbilityResult perform(const AbilityDefinition& ability, EntityId actor,
                                       EntityId target);
@@ -103,6 +105,7 @@ private:
   CombatSession* session_;
   std::vector<AbilityActorState> actors_;
   EventSink* events_;
+  RandomStream* random_;
 };
 
 } // namespace dross

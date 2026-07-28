@@ -29,6 +29,12 @@ std::int64_t DrossAbilityDefinition::get_action_point_cost() const noexcept {
 }
 void DrossAbilityDefinition::set_damage(const std::int64_t value) { damage_ = value; }
 std::int64_t DrossAbilityDefinition::get_damage() const noexcept { return damage_; }
+void DrossAbilityDefinition::set_bonus_damage_max(const std::int64_t value) {
+  bonus_damage_max_ = value;
+}
+std::int64_t DrossAbilityDefinition::get_bonus_damage_max() const noexcept {
+  return bonus_damage_max_;
+}
 void DrossAbilityDefinition::set_presentation_cue(const godot::String& value) {
   presentation_cue_ = value;
 }
@@ -40,7 +46,9 @@ std::optional<AbilityDefinition> DrossAbilityDefinition::compile_core() const {
   constexpr auto maximum = static_cast<std::int64_t>(std::numeric_limits<std::uint32_t>::max());
   if (!ability || !cue || range_ < 0 || range_ > maximum || action_point_cost_ < 0 ||
       action_point_cost_ > maximum || damage_ <= 0 ||
-      damage_ > std::numeric_limits<std::int32_t>::max()) {
+      damage_ > std::numeric_limits<std::int32_t>::max() || bonus_damage_max_ < 0 ||
+      bonus_damage_max_ > maximum ||
+      bonus_damage_max_ > std::numeric_limits<std::int32_t>::max() - damage_) {
     return std::nullopt;
   }
   return AbilityDefinition{
@@ -48,6 +56,7 @@ std::optional<AbilityDefinition> DrossAbilityDefinition::compile_core() const {
       .range = static_cast<std::uint32_t>(range_),
       .action_point_cost = static_cast<std::uint32_t>(action_point_cost_),
       .damage = HitPoints{static_cast<std::int32_t>(damage_)},
+      .bonus_damage_max = static_cast<std::uint32_t>(bonus_damage_max_),
       .presentation_cue = std::move(*cue),
   };
 }
@@ -69,6 +78,10 @@ void DrossAbilityDefinition::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("set_damage", "value"),
                               &DrossAbilityDefinition::set_damage);
   godot::ClassDB::bind_method(godot::D_METHOD("get_damage"), &DrossAbilityDefinition::get_damage);
+  godot::ClassDB::bind_method(godot::D_METHOD("set_bonus_damage_max", "value"),
+                              &DrossAbilityDefinition::set_bonus_damage_max);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_bonus_damage_max"),
+                              &DrossAbilityDefinition::get_bonus_damage_max);
   godot::ClassDB::bind_method(godot::D_METHOD("set_presentation_cue", "value"),
                               &DrossAbilityDefinition::set_presentation_cue);
   godot::ClassDB::bind_method(godot::D_METHOD("get_presentation_cue"),
@@ -80,6 +93,8 @@ void DrossAbilityDefinition::_bind_methods() {
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "action_point_cost"),
                "set_action_point_cost", "get_action_point_cost");
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "damage"), "set_damage", "get_damage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "bonus_damage_max"), "set_bonus_damage_max",
+               "get_bonus_damage_max");
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "presentation_cue"),
                "set_presentation_cue", "get_presentation_cue");
 }

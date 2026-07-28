@@ -5,6 +5,7 @@
 #include <boost/sml.hpp>
 
 #include <algorithm>
+#include <limits>
 #include <utility>
 
 namespace dross {
@@ -170,8 +171,8 @@ CombatSessionState CombatSession::state() const {
 }
 
 AbilityResolver::AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors,
-                                 EventSink* events)
-    : session_{&session}, actors_{std::move(actors)}, events_{events} {
+                                 EventSink* events, RandomStream* random)
+    : session_{&session}, actors_{std::move(actors)}, events_{events}, random_{random} {
   std::ranges::sort(actors_, {}, [](const AbilityActorState& value) { return value.entity.id(); });
 }
 
@@ -190,7 +191,10 @@ AbilityResult AbilityResolver::perform(const AbilityDefinition& ability, const E
         .killed = false,
     };
   };
-  if (ability.damage.value() <= 0) {
+  if (ability.damage.value() <= 0 || (ability.bonus_damage_max > 0 && random_ == nullptr) ||
+      ability.bonus_damage_max >
+          static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max() -
+                                     ability.damage.value())) {
     return rejected(AbilityRejection::invalid_ability);
   }
   if (source == actors_.end()) {
@@ -218,8 +222,15 @@ AbilityResult AbilityResolver::perform(const AbilityDefinition& ability, const E
     return rejected(AbilityRejection::insufficient_action_points);
   }
 
+  const auto bonus =
+      ability.bonus_damage_max == 0
+          ? 0
+          : static_cast<std::int32_t>(
+                random_->bounded_u64(static_cast<std::uint64_t>(ability.bonus_damage_max) + 1)
+                    .value());
+  const auto rolled_damage = HitPoints{static_cast<std::int32_t>(ability.damage.value() + bonus)};
   const auto applied =
-      ability.damage.value() >= destination->health.value() ? destination->health : ability.damage;
+      rolled_damage.value() >= destination->health.value() ? destination->health : rolled_damage;
   destination->health =
       HitPoints{static_cast<std::int32_t>(destination->health.value() - applied.value())};
   const bool killed = destination->health.value() == 0;
