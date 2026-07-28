@@ -83,6 +83,9 @@ struct MovementSnapshot {
   [[nodiscard]] bool operator==(const MovementSnapshot&) const = default;
 };
 
+void encode_movement_snapshot(ByteWriter& writer, const MovementSnapshot& snapshot);
+[[nodiscard]] Result<MovementSnapshot, DecodeError> decode_movement_snapshot(ByteReader& reader);
+
 class MovementRuntime {
 public:
   MovementRuntime(const CompiledHexMap& map, OccupancyIndex& occupancy, const PathPlanner& planner,

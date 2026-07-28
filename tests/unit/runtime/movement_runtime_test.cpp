@@ -152,6 +152,28 @@ TEST_CASE("movement snapshot restores a partially elapsed edge") {
   CHECK(original.occupancy.entries() == restored.occupancy.entries());
 }
 
+TEST_CASE("movement snapshot codec resumes to the same final state") {
+  Fixture original;
+  REQUIRE(original.movement.move_to(pose(2, 0)));
+  CHECK(original.movement.advance(dross::Tick{0}) == dross::MovementAdvance::in_progress);
+
+  dross::ByteWriter writer;
+  dross::encode_movement_snapshot(writer, original.movement.snapshot());
+  dross::ByteReader reader{writer.bytes()};
+  const auto decoded = dross::decode_movement_snapshot(reader);
+  REQUIRE(decoded);
+  CHECK(reader.remaining() == 0);
+
+  Fixture resumed;
+  REQUIRE(resumed.movement.restore(*decoded));
+  for (std::uint64_t tick = 1; tick < 4; ++tick) {
+    static_cast<void>(original.movement.advance(dross::Tick{tick}));
+    static_cast<void>(resumed.movement.advance(dross::Tick{tick}));
+  }
+  CHECK(resumed.movement.snapshot() == original.movement.snapshot());
+  CHECK(resumed.occupancy.entries() == original.occupancy.entries());
+}
+
 TEST_CASE("multi-cell footprint occupancy moves atomically at the edge boundary") {
   dross::CompiledHexMapBuilder builder;
   for (std::int32_t q = 0; q < 3; ++q) {

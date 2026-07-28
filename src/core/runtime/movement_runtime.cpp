@@ -81,6 +81,76 @@ MovementLifecycleState MovementLifecycle::state() const {
   return MovementLifecycleState::blocked;
 }
 
+void encode_movement_snapshot(ByteWriter& writer, const MovementSnapshot& snapshot) {
+  writer.write_u16(static_cast<std::uint16_t>(snapshot.state));
+  generated::encode_hex_pose(writer, snapshot.pose);
+  writer.write_u64(snapshot.path.size());
+  for (const auto& path_pose : snapshot.path) {
+    generated::encode_hex_pose(writer, path_pose);
+  }
+  writer.write_u64(snapshot.next_pose);
+  writer.write_u32(snapshot.transition_ticks);
+  writer.write_u64(snapshot.expected_occupancy_revision);
+  writer.write_u16(snapshot.cancel_requested ? 1U : 0U);
+  writer.write_u16(snapshot.combat_stop_requested ? 1U : 0U);
+}
+
+Result<MovementSnapshot, DecodeError> decode_movement_snapshot(ByteReader& reader) {
+  auto state = reader.read_u16();
+  auto restored_pose = generated::decode_hex_pose(reader);
+  auto path_size = reader.read_u64();
+  if (!state || !restored_pose || !path_size) {
+    const auto error =
+        !state ? state.error() : (!restored_pose ? restored_pose.error() : path_size.error());
+    return tl::unexpected{error};
+  }
+  if (*state > static_cast<std::uint16_t>(MovementLifecycleState::blocked) ||
+      *path_size > reader.remaining() ||
+      *path_size > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())) {
+    return tl::unexpected{DecodeError{.position = 0, .reason = DecodeErrorReason::invalid_length}};
+  }
+  std::vector<HexPose> path;
+  path.reserve(static_cast<std::size_t>(*path_size));
+  for (std::uint64_t index = 0; index < *path_size; ++index) {
+    auto path_pose = generated::decode_hex_pose(reader);
+    if (!path_pose) {
+      return tl::unexpected{path_pose.error()};
+    }
+    path.push_back(*std::move(path_pose));
+  }
+  auto next_pose = reader.read_u64();
+  auto transition_ticks = reader.read_u32();
+  auto occupancy_revision = reader.read_u64();
+  auto cancel_requested = reader.read_u16();
+  auto combat_stop_requested = reader.read_u16();
+  if (!next_pose || !transition_ticks || !occupancy_revision || !cancel_requested ||
+      !combat_stop_requested) {
+    const auto error =
+        !next_pose
+            ? next_pose.error()
+            : (!transition_ticks
+                   ? transition_ticks.error()
+                   : (!occupancy_revision ? occupancy_revision.error()
+                                          : (!cancel_requested ? cancel_requested.error()
+                                                               : combat_stop_requested.error())));
+    return tl::unexpected{error};
+  }
+  if (*next_pose > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()) ||
+      *cancel_requested > 1 || *combat_stop_requested > 1) {
+    return tl::unexpected{DecodeError{.position = 0, .reason = DecodeErrorReason::invalid_length}};
+  }
+  return MovementSnapshot{
+      .state = static_cast<MovementLifecycleState>(*state),
+      .pose = *std::move(restored_pose),
+      .path = std::move(path),
+      .next_pose = static_cast<std::size_t>(*next_pose),
+      .transition_ticks = *transition_ticks,
+      .expected_occupancy_revision = *occupancy_revision,
+      .cancel_requested = *cancel_requested != 0,
+      .combat_stop_requested = *combat_stop_requested != 0,
+  };
+}
+
 MovementRuntime::MovementRuntime(const CompiledHexMap& map, OccupancyIndex& occupancy,
                                  const PathPlanner& planner, const FootprintDefinition& footprint,
                                  const EntityRef entity, HexPose initial_pose,
