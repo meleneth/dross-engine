@@ -63,6 +63,14 @@
 - Fields:
   - `door`: `entity_ref`
 
+## `dross:end_turn`
+
+- Kind: `command`
+- C++ type: `dross::combat::EndTurn`
+- Version: 1
+- Fields:
+  - `actor`: `entity_ref`
+
 ## `dross:entity_placed`
 
 - Kind: `event`
@@ -135,4 +143,13 @@
 - Fields:
   - `entity`: `entity_ref`
   - `target`: `hex_pose`
+
+## `dross:request_combat_start`
+
+- Kind: `command`
+- C++ type: `dross::combat::RequestCombatStart`
+- Version: 1
+- Fields:
+  - `requester`: `entity_ref`
+  - `opponent`: `entity_ref`
 

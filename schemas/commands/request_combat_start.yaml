@@ -1,0 +1,10 @@
+kind: command
+namespace: dross.combat
+name: RequestCombatStart
+version: 1
+id: dross:request_combat_start
+fields:
+  - name: requester
+    type: entity_ref
+  - name: opponent
+    type: entity_ref

@@ -1,0 +1,8 @@
+kind: command
+namespace: dross.combat
+name: EndTurn
+version: 1
+id: dross:end_turn
+fields:
+  - name: actor
+    type: entity_ref

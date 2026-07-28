@@ -48,6 +48,10 @@ inline constexpr std::array schema_registry{
                         .name = "DoorOpened",
                         .kind = SchemaKind::event,
                         .version = 1U},
+    SchemaRegistryEntry{.stable_id = "dross:end_turn",
+                        .name = "EndTurn",
+                        .kind = SchemaKind::command,
+                        .version = 1U},
     SchemaRegistryEntry{.stable_id = "dross:entity_placed",
                         .name = "EntityPlaced",
                         .kind = SchemaKind::event,
@@ -80,15 +84,21 @@ inline constexpr std::array schema_registry{
                         .name = "PlacementRule",
                         .kind = SchemaKind::rule,
                         .version = 1U},
+    SchemaRegistryEntry{.stable_id = "dross:request_combat_start",
+                        .name = "RequestCombatStart",
+                        .kind = SchemaKind::command,
+                        .version = 1U},
 };
 
 inline constexpr std::array command_registry{
     std::string_view{"dross:cancel_movement"},
     std::string_view{"dross:close_door"},
+    std::string_view{"dross:end_turn"},
     std::string_view{"dross:move_to"},
     std::string_view{"dross:open_door"},
     std::string_view{"dross:perform_ability"},
     std::string_view{"dross:place_entity"},
+    std::string_view{"dross:request_combat_start"},
 };
 
 } // namespace dross::generated

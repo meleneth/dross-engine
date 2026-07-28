@@ -6,6 +6,7 @@
 #include <dross/generated/damage_applied.hpp>
 #include <dross/generated/door_closed.hpp>
 #include <dross/generated/door_opened.hpp>
+#include <dross/generated/end_turn.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/move_to.hpp>
 #include <dross/generated/movement_completed.hpp>
@@ -13,6 +14,7 @@
 #include <dross/generated/open_door.hpp>
 #include <dross/generated/perform_ability.hpp>
 #include <dross/generated/place_entity.hpp>
+#include <dross/generated/request_combat_start.hpp>
 #include <dross/generated/domain_events.hpp>
 #include <dross/generated/schema_registry.hpp>
 
@@ -33,6 +35,8 @@ static_assert(std::is_standard_layout_v<
 static_assert(std::is_standard_layout_v<
     dross::door::DoorOpened>);
 static_assert(std::is_standard_layout_v<
+    dross::combat::EndTurn>);
+static_assert(std::is_standard_layout_v<
     dross::placement::EntityPlaced>);
 static_assert(std::is_standard_layout_v<
     dross::movement::MoveTo>);
@@ -46,4 +50,6 @@ static_assert(std::is_standard_layout_v<
     dross::combat::PerformAbility>);
 static_assert(std::is_standard_layout_v<
     dross::placement::PlaceEntity>);
-static_assert(dross::generated::schema_registry.size() == 15);
+static_assert(std::is_standard_layout_v<
+    dross::combat::RequestCombatStart>);
+static_assert(dross::generated::schema_registry.size() == 17);
