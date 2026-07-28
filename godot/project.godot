@@ -9,7 +9,7 @@ config/name="Dross Phase 08"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg", "res://addons/dross_editor/plugin.cfg")
 
 [rendering]
 

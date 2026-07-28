@@ -196,6 +196,37 @@ godot::Ref<DrossCompiledHexMap> DrossHexGridRegion3D::compile_map() {
   return compiled;
 }
 
+godot::Vector3 DrossHexGridRegion3D::cell_center(const std::int64_t q, const std::int64_t r) const {
+  return axial_center(q, r, cell_radius_);
+}
+
+godot::String DrossHexGridRegion3D::select_cell_at_local(const godot::Vector3& point) const {
+  if (cell_radius_ <= 0.0) {
+    return {};
+  }
+  const auto fractional_q = (std::sqrt(3.0) / 3.0 * static_cast<double>(point.x) -
+                             1.0 / 3.0 * static_cast<double>(point.z)) /
+                            cell_radius_;
+  const auto fractional_r = (2.0 / 3.0 * static_cast<double>(point.z)) / cell_radius_;
+  auto cube_x = std::round(fractional_q);
+  auto cube_z = std::round(fractional_r);
+  auto cube_y = std::round(-fractional_q - fractional_r);
+  const auto dx = std::abs(cube_x - fractional_q);
+  const auto dy = std::abs(cube_y + fractional_q + fractional_r);
+  const auto dz = std::abs(cube_z - fractional_r);
+  if (dx > dy && dx > dz) {
+    cube_x = -cube_y - cube_z;
+  } else if (dy > dz) {
+    cube_y = -cube_x - cube_z;
+  } else {
+    cube_z = -cube_x - cube_y;
+  }
+  const auto key = std::string{region_id_.utf8().get_data()} + ":" +
+                   std::to_string(static_cast<std::int64_t>(cube_x)) + "," +
+                   std::to_string(static_cast<std::int64_t>(cube_z)) + ",0";
+  return godot::String{key.c_str()};
+}
+
 void DrossHexGridRegion3D::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("set_region_id", "value"),
                               &DrossHexGridRegion3D::set_region_id);
@@ -234,6 +265,10 @@ void DrossHexGridRegion3D::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("compile_map"), &DrossHexGridRegion3D::compile_map);
   godot::ClassDB::bind_method(godot::D_METHOD("get_last_bake"),
                               &DrossHexGridRegion3D::get_last_bake);
+  godot::ClassDB::bind_method(godot::D_METHOD("cell_center", "q", "r"),
+                              &DrossHexGridRegion3D::cell_center);
+  godot::ClassDB::bind_method(godot::D_METHOD("select_cell_at_local", "point"),
+                              &DrossHexGridRegion3D::select_cell_at_local);
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "region_id"), "set_region_id",
                "get_region_id");
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::FLOAT, "cell_radius"), "set_cell_radius",

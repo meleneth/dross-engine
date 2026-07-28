@@ -49,6 +49,8 @@ public:
   [[nodiscard]] godot::Ref<DrossHexGridBake> bake_geometry();
   [[nodiscard]] godot::Ref<DrossCompiledHexMap> compile_map();
   [[nodiscard]] godot::Ref<DrossHexGridBake> get_last_bake() const { return last_bake_; }
+  [[nodiscard]] godot::Vector3 cell_center(std::int64_t q, std::int64_t r) const;
+  [[nodiscard]] godot::String select_cell_at_local(const godot::Vector3& point) const;
 
 protected:
   static void _bind_methods();
