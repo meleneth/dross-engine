@@ -65,6 +65,7 @@ dross_enable_sanitizers(dross_core)
 
 if(DROSS_BUILD_GODOT)
   add_library(dross_godot SHARED
+    generated/src/godot_api.cpp
     src/godot/dross_actor_definition.cpp
     src/godot/dross_footprint_definition.cpp
     src/godot/dross_validation_error.cpp

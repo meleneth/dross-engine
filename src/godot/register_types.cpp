@@ -3,6 +3,8 @@
 #include "dross_validation_error.hpp"
 #include "dross_world_host.hpp"
 
+#include <dross/generated/godot_api.hpp>
+
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
@@ -17,6 +19,7 @@ void initialize_dross_module(godot::ModuleInitializationLevel level) {
   godot::ClassDB::register_class<dross::godot_adapter::DrossFootprintDefinition>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossActorDefinition>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossWorldHost>();
+  dross::generated::godot_api::register_generated_godot_types();
 }
 
 void uninitialize_dross_module(godot::ModuleInitializationLevel level) {

@@ -40,6 +40,23 @@ fields:
     type: hex_pose
 """.lstrip(),
     )
+    write_schema(
+        root,
+        "rules",
+        "placement_rule.yaml",
+        """
+kind: rule
+namespace: dross.placement
+name: PlacementRule
+version: 1
+id: dross:placement_rule
+fields:
+  - name: entity
+    type: entity_ref
+  - name: target
+    type: hex_pose
+""".lstrip(),
+    )
 
 
 def snapshot(root: Path) -> dict[str, bytes]:
@@ -70,6 +87,11 @@ def test_generation_is_idempotent_sorted_and_uses_lf(tmp_path: Path) -> None:
     assert registry.index("dross:entity_placed") < registry.index(
         "dross:place_entity"
     )
+    godot_header = first["include/dross/generated/godot_api.hpp"].decode()
+    assert "class DrossEntityPlacedEvent final" in godot_header
+    assert "class DrossPlacementRuleQuery final" in godot_header
+    compile_fixture = first["tests/generated_schema_compile.cpp"].decode()
+    assert "PlacementRule" not in compile_fixture
 
 
 def test_generation_does_not_touch_handwritten_files(tmp_path: Path) -> None:

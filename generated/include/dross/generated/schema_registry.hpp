@@ -9,6 +9,7 @@ namespace dross::generated {
 enum class SchemaKind {
   command,
   event,
+  rule,
 };
 
 struct SchemaRegistryEntry {
@@ -26,6 +27,10 @@ inline constexpr std::array schema_registry{
     SchemaRegistryEntry{.stable_id = "dross:place_entity",
                         .name = "PlaceEntity",
                         .kind = SchemaKind::command,
+                        .version = 1U},
+    SchemaRegistryEntry{.stable_id = "dross:placement_rule",
+                        .name = "PlacementRule",
+                        .kind = SchemaKind::rule,
                         .version = 1U},
 };
 

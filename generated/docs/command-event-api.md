@@ -19,3 +19,12 @@
   - `entity`: `entity_ref`
   - `target`: `hex_pose`
 
+## `dross:placement_rule`
+
+- Kind: `rule`
+- C++ type: `dross::placement::PlacementRule`
+- Version: 1
+- Fields:
+  - `entity`: `entity_ref`
+  - `target`: `hex_pose`
+

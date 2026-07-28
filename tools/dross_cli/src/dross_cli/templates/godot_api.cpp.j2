@@ -1,0 +1,126 @@
+// {{ notice }}
+#include <dross/generated/godot_api.hpp>
+
+#include <godot_cpp/core/class_db.hpp>
+
+#include <cstdint>
+#include <string_view>
+#include <utility>
+
+namespace dross::generated::godot_api {
+
+{% for schema in catalog if schema.kind == "event" %}
+godot::Ref<Dross{{ schema.name }}Event>
+Dross{{ schema.name }}Event::from_core(
+    const {{ schema.namespace | cpp_namespace }}::{{ schema.name }}& value) {
+  godot::Ref<Dross{{ schema.name }}Event> event;
+  event.instantiate();
+{% for field in schema.fields %}
+{% if field.type == "entity_ref" %}
+  event->{{ field.name }}_world_ = value.{{ field.name }}.world_instance().value();
+  event->{{ field.name }}_lineage_ = value.{{ field.name }}.id().lineage();
+  event->{{ field.name }}_sequence_ = value.{{ field.name }}.id().sequence();
+{% elif field.type == "hex_pose" %}
+  event->{{ field.name }}_region_ =
+      godot::String{value.{{ field.name }}.anchor.region.content_id().canonical().data()};
+  event->{{ field.name }}_q_ = value.{{ field.name }}.anchor.coord.q;
+  event->{{ field.name }}_r_ = value.{{ field.name }}.anchor.coord.r;
+  event->{{ field.name }}_layer_ = value.{{ field.name }}.anchor.layer;
+  event->{{ field.name }}_facing_ = static_cast<std::uint8_t>(value.{{ field.name }}.facing);
+{% endif %}
+{% endfor %}
+  return event;
+}
+
+{% for field in schema.fields %}
+{% if field.type == "entity_ref" %}
+std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}_world() const {
+  return static_cast<std::int64_t>({{ field.name }}_world_);
+}
+std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}_lineage() const {
+  return static_cast<std::int64_t>({{ field.name }}_lineage_);
+}
+std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}_sequence() const {
+  return static_cast<std::int64_t>({{ field.name }}_sequence_);
+}
+{% elif field.type == "hex_pose" %}
+godot::String Dross{{ schema.name }}Event::get_{{ field.name }}_region() const {
+  return {{ field.name }}_region_;
+}
+std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}_q() const {
+  return {{ field.name }}_q_;
+}
+std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}_r() const {
+  return {{ field.name }}_r_;
+}
+std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}_layer() const {
+  return {{ field.name }}_layer_;
+}
+std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}_facing() const {
+  return {{ field.name }}_facing_;
+}
+{% endif %}
+{% endfor %}
+
+void Dross{{ schema.name }}Event::_bind_methods() {
+{% for field in schema.fields %}
+{% if field.type == "entity_ref" %}
+  godot::ClassDB::bind_method(godot::D_METHOD("get_{{ field.name }}_world"),
+                              &Dross{{ schema.name }}Event::get_{{ field.name }}_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_{{ field.name }}_lineage"),
+                              &Dross{{ schema.name }}Event::get_{{ field.name }}_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_{{ field.name }}_sequence"),
+                              &Dross{{ schema.name }}Event::get_{{ field.name }}_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "{{ field.name }}_world"), "",
+               "get_{{ field.name }}_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "{{ field.name }}_lineage"), "",
+               "get_{{ field.name }}_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "{{ field.name }}_sequence"), "",
+               "get_{{ field.name }}_sequence");
+{% elif field.type == "hex_pose" %}
+{% for suffix, type in [("region", "STRING"), ("q", "INT"), ("r", "INT"), ("layer", "INT"), ("facing", "INT")] %}
+  godot::ClassDB::bind_method(godot::D_METHOD("get_{{ field.name }}_{{ suffix }}"),
+                              &Dross{{ schema.name }}Event::get_{{ field.name }}_{{ suffix }});
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::{{ type }}, "{{ field.name }}_{{ suffix }}"), "",
+               "get_{{ field.name }}_{{ suffix }}");
+{% endfor %}
+{% endif %}
+{% endfor %}
+}
+
+{% endfor %}
+{% for schema in catalog if schema.kind == "rule" %}
+void Dross{{ schema.name }}Query::reject(const godot::String& reason) {
+  const auto utf8 = reason.utf8();
+  auto parsed = ContentId::parse(
+      std::string_view{utf8.get_data(), static_cast<std::size_t>(utf8.length())});
+  if (!parsed) {
+    return;
+  }
+  accepted_ = false;
+  reason_ = reason;
+  core_reason_ = std::move(*parsed);
+}
+
+void Dross{{ schema.name }}Query::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("reject", "reason"),
+                              &Dross{{ schema.name }}Query::reject);
+  godot::ClassDB::bind_method(godot::D_METHOD("is_accepted"),
+                              &Dross{{ schema.name }}Query::is_accepted);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_reason"),
+                              &Dross{{ schema.name }}Query::get_reason);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::BOOL, "accepted"), "", "is_accepted");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "reason"), "", "get_reason");
+}
+
+{% endfor %}
+void register_generated_godot_types() {
+{% for schema in catalog if schema.kind == "event" %}
+  godot::ClassDB::register_class<Dross{{ schema.name }}Event>();
+{% endfor %}
+{% for schema in catalog if schema.kind == "rule" %}
+  godot::ClassDB::register_class<Dross{{ schema.name }}Query>();
+{% endfor %}
+}
+
+} // namespace dross::generated::godot_api

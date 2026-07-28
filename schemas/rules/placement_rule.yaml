@@ -1,0 +1,10 @@
+kind: rule
+namespace: dross.placement
+name: PlacementRule
+version: 1
+id: dross:placement_rule
+fields:
+  - name: entity
+    type: entity_ref
+  - name: target
+    type: hex_pose

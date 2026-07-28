@@ -51,6 +51,8 @@ def render_files(project_root: Path) -> list[RenderedFile]:
     rendered: list[RenderedFile] = []
     payload_template = environment.get_template("payload.hpp.j2")
     for schema in catalog:
+        if schema.kind == "rule":
+            continue
         rendered.append(
             RenderedFile(
                 Path("include/dross/generated")
@@ -66,6 +68,8 @@ def render_files(project_root: Path) -> list[RenderedFile]:
         ("events.hpp.j2", "include/dross/generated/domain_events.hpp"),
         ("docs.md.j2", "docs/command-event-api.md"),
         ("compile.cpp.j2", "tests/generated_schema_compile.cpp"),
+        ("godot_api.hpp.j2", "include/dross/generated/godot_api.hpp"),
+        ("godot_api.cpp.j2", "src/godot_api.cpp"),
     ):
         rendered.append(
             RenderedFile(

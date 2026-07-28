@@ -1,5 +1,5 @@
 // {{ notice }}
-{% for schema in catalog %}
+{% for schema in catalog if schema.kind != "rule" %}
 #include <dross/generated/{{ schema.name | snake_case }}.hpp>
 {% endfor %}
 #include <dross/generated/domain_events.hpp>
@@ -7,7 +7,7 @@
 
 #include <type_traits>
 
-{% for schema in catalog %}
+{% for schema in catalog if schema.kind != "rule" %}
 static_assert(std::is_standard_layout_v<
     {{ schema.namespace | cpp_namespace }}::{{ schema.name }}>);
 {% endfor %}

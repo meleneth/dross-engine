@@ -1,0 +1,83 @@
+// {{ notice }}
+#pragma once
+
+{% for schema in catalog if schema.kind == "event" %}
+#include <dross/generated/{{ schema.name | snake_case }}.hpp>
+{% endfor %}
+#include <dross/identity/content_id.hpp>
+
+#include <godot_cpp/classes/ref.hpp>
+#include <godot_cpp/classes/ref_counted.hpp>
+#include <godot_cpp/variant/string.hpp>
+
+#include <cstdint>
+#include <optional>
+
+namespace dross::generated::godot_api {
+
+{% for schema in catalog if schema.kind == "event" %}
+class Dross{{ schema.name }}Event final : public godot::RefCounted {
+  GDCLASS(Dross{{ schema.name }}Event, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<Dross{{ schema.name }}Event>
+  from_core(const {{ schema.namespace | cpp_namespace }}::{{ schema.name }}& value);
+{% for field in schema.fields %}
+{% if field.type == "entity_ref" %}
+  [[nodiscard]] std::int64_t get_{{ field.name }}_world() const;
+  [[nodiscard]] std::int64_t get_{{ field.name }}_lineage() const;
+  [[nodiscard]] std::int64_t get_{{ field.name }}_sequence() const;
+{% elif field.type == "hex_pose" %}
+  [[nodiscard]] godot::String get_{{ field.name }}_region() const;
+  [[nodiscard]] std::int64_t get_{{ field.name }}_q() const;
+  [[nodiscard]] std::int64_t get_{{ field.name }}_r() const;
+  [[nodiscard]] std::int64_t get_{{ field.name }}_layer() const;
+  [[nodiscard]] std::int64_t get_{{ field.name }}_facing() const;
+{% endif %}
+{% endfor %}
+
+protected:
+  static void _bind_methods();
+
+private:
+{% for field in schema.fields %}
+{% if field.type == "entity_ref" %}
+  std::uint64_t {{ field.name }}_world_{0};
+  std::uint64_t {{ field.name }}_lineage_{0};
+  std::uint64_t {{ field.name }}_sequence_{0};
+{% elif field.type == "hex_pose" %}
+  godot::String {{ field.name }}_region_;
+  std::int32_t {{ field.name }}_q_{0};
+  std::int32_t {{ field.name }}_r_{0};
+  std::int32_t {{ field.name }}_layer_{0};
+  std::uint8_t {{ field.name }}_facing_{0};
+{% endif %}
+{% endfor %}
+};
+
+{% endfor %}
+{% for schema in catalog if schema.kind == "rule" %}
+class Dross{{ schema.name }}Query final : public godot::RefCounted {
+  GDCLASS(Dross{{ schema.name }}Query, godot::RefCounted)
+
+public:
+  void reject(const godot::String& reason);
+  [[nodiscard]] bool is_accepted() const noexcept { return accepted_; }
+  [[nodiscard]] godot::String get_reason() const { return reason_; }
+  [[nodiscard]] const std::optional<ContentId>& core_reason() const noexcept {
+    return core_reason_;
+  }
+
+protected:
+  static void _bind_methods();
+
+private:
+  bool accepted_{true};
+  godot::String reason_;
+  std::optional<ContentId> core_reason_;
+};
+
+{% endfor %}
+void register_generated_godot_types();
+
+} // namespace dross::generated::godot_api

@@ -34,7 +34,7 @@ class FieldSchema(BaseModel):
 class ApiSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: Literal["command", "event"]
+    kind: Literal["command", "event", "rule"]
     namespace: str
     name: str
     version: int = Field(ge=1)
@@ -66,7 +66,7 @@ class ApiSchema(BaseModel):
 def load_catalog(project_root: Path) -> list[ApiSchema]:
     schemas: list[ApiSchema] = []
     schema_root = project_root / "schemas"
-    for family in ("commands", "events"):
+    for family in ("commands", "events", "rules"):
         for path in sorted((schema_root / family).glob("*.yaml")):
             try:
                 document = yaml.safe_load(path.read_text(encoding="utf-8"))

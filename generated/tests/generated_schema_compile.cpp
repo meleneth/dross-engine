@@ -10,4 +10,4 @@ static_assert(std::is_standard_layout_v<
     dross::placement::EntityPlaced>);
 static_assert(std::is_standard_layout_v<
     dross::placement::PlaceEntity>);
-static_assert(dross::generated::schema_registry.size() == 2);
+static_assert(dross::generated::schema_registry.size() == 3);
