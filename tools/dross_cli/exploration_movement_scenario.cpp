@@ -126,7 +126,12 @@ ScenarioResult execute(const std::uint64_t seed) {
     static_cast<void>(movement.advance(dross::Tick{tick}));
     checkpoints.push_back(dross::canonical_checkpoint(
         dross::Tick{tick}, world, occupancy, random.snapshot(), lifecycle.snapshot(),
-        mode.snapshot(), std::span<const dross::PlaceEntityEnvelope>{}));
+        mode.snapshot(), std::span<const dross::PlaceEntityEnvelope>{},
+        {.movement = movement.snapshot(),
+         .combat = {},
+         .combat_actors = {},
+         .door = {},
+         .script = {}}));
     if (tick == 1) {
       const auto save = dross::SaveContainer{
           .header =
@@ -221,7 +226,12 @@ ScenarioResult execute(const std::uint64_t seed) {
     const auto resumed_checkpoint = dross::canonical_checkpoint(
         dross::Tick{tick}, **resumed_world, resumed_occupancy, resumed_random.snapshot(),
         resumed_lifecycle.snapshot(), resumed_mode.snapshot(),
-        std::span<const dross::PlaceEntityEnvelope>{});
+        std::span<const dross::PlaceEntityEnvelope>{},
+        {.movement = resumed_movement.snapshot(),
+         .combat = {},
+         .combat_actors = {},
+         .door = {},
+         .script = {}});
     if (resumed_checkpoint.overall != checkpoints[static_cast<std::size_t>(tick)].overall) {
       throw std::logic_error{"movement scenario resumed checkpoint diverged"};
     }

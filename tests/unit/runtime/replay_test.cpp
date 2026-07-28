@@ -66,6 +66,52 @@ TEST_CASE("machine state changes the canonical machine section") {
         pending.sections.at(dross::CheckpointSection::machines));
 }
 
+TEST_CASE("movement state changes the localized capability checkpoint") {
+  dross::WorldStorage world{
+      dross::WorldConfig{.lineage = 7, .instance_id = dross::WorldInstanceId{9}}};
+  dross::OccupancyIndex occupancy;
+  dross::RandomHub random{dross::MasterSeed{12345}};
+  dross::NullMachineTrace trace;
+  dross::WorldLifecycle lifecycle{trace};
+  dross::SimulationMode mode{trace};
+  REQUIRE(lifecycle.restore(
+      dross::WorldLifecycleSnapshot{.state = dross::WorldLifecycleState::running}));
+  const auto movement = dross::MovementSnapshot{
+      .state = dross::MovementLifecycleState::idle,
+      .pose =
+          dross::HexPose{
+              .anchor =
+                  dross::HexCellId{
+                      .region = dross::RegionId{content_id("demo:room")},
+                      .coord = {.q = 0, .r = 0},
+                      .layer = 0,
+                  },
+              .facing = dross::HexFacing::east,
+          },
+      .path = {},
+      .next_pose = 0,
+      .transition_ticks = 0,
+      .expected_occupancy_revision = 1,
+      .cancel_requested = false,
+      .combat_stop_requested = false,
+  };
+  const auto first = dross::canonical_checkpoint(
+      dross::Tick{0}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
+      {}, {.movement = movement, .combat = {}, .combat_actors = {}, .door = {}, .script = {}});
+  auto changed = movement;
+  changed.cancel_requested = true;
+  const auto second = dross::canonical_checkpoint(
+      dross::Tick{0}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
+      {}, {.movement = changed, .combat = {}, .combat_actors = {}, .door = {}, .script = {}});
+
+  const std::array first_values{first};
+  const std::array second_values{second};
+  const auto divergence = dross::first_divergence(first_values, second_values);
+  REQUIRE(divergence);
+  CHECK(divergence->section == dross::CheckpointSection::capabilities);
+  CHECK(divergence->detail == "movement");
+}
+
 TEST_CASE("replay DTO has a deterministic round trip") {
   dross::ReplayLog log{
       .header =

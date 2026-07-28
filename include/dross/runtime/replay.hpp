@@ -4,7 +4,10 @@
 #include <dross/foundation/version.hpp>
 #include <dross/hex/occupancy.hpp>
 #include <dross/random/random_hub.hpp>
+#include <dross/runtime/combat_runtime.hpp>
 #include <dross/runtime/command_event_kernel.hpp>
+#include <dross/runtime/door_runtime.hpp>
+#include <dross/runtime/script_runtime.hpp>
 #include <dross/runtime/simulation_mode.hpp>
 #include <dross/runtime/world_lifecycle.hpp>
 #include <dross/world/world_storage.hpp>
@@ -32,6 +35,15 @@ enum class CheckpointSection : std::uint8_t {
   random,
   machines,
   pending_commands,
+  capabilities,
+};
+
+struct CanonicalCapabilitySnapshot {
+  std::optional<MovementSnapshot> movement;
+  std::optional<CombatSessionSnapshot> combat;
+  std::optional<AbilityResolverSnapshot> combat_actors;
+  std::optional<DoorSnapshot> door;
+  std::optional<ScriptStateBag> script;
 };
 
 struct CanonicalCheckpoint {
@@ -47,7 +59,8 @@ struct CanonicalCheckpoint {
 canonical_checkpoint(Tick tick, const WorldStorage& world, const OccupancyIndex& occupancy,
                      const RandomHubSnapshot& random, WorldLifecycleSnapshot lifecycle,
                      SimulationModeSnapshot mode,
-                     std::span<const PlaceEntityEnvelope> pending_commands);
+                     std::span<const PlaceEntityEnvelope> pending_commands,
+                     const CanonicalCapabilitySnapshot& capabilities = {});
 
 struct ReplayHeader {
   SemanticVersion engine_version;

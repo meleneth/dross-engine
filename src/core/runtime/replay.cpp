@@ -156,7 +156,8 @@ CanonicalCheckpoint
 canonical_checkpoint(const Tick tick, const WorldStorage& world, const OccupancyIndex& occupancy,
                      const RandomHubSnapshot& random, const WorldLifecycleSnapshot lifecycle,
                      const SimulationModeSnapshot mode,
-                     const std::span<const PlaceEntityEnvelope> pending_commands) {
+                     const std::span<const PlaceEntityEnvelope> pending_commands,
+                     const CanonicalCapabilitySnapshot& capabilities) {
   std::map<CheckpointSection, CheckpointHash> sections;
   std::map<CheckpointSection, std::map<std::string, CheckpointHash>> details;
 
@@ -287,6 +288,41 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
         hash_bytes(command_state.bytes()));
   }
   sections.emplace(CheckpointSection::pending_commands, hash_bytes(pending.bytes()));
+
+  ByteWriter capability_state;
+  const auto add_capability = [&](const std::string& name, const std::span<const std::byte> bytes) {
+    const auto hash = hash_bytes(bytes);
+    capability_state.write_string(name);
+    write_hash(capability_state, hash);
+    details[CheckpointSection::capabilities].emplace(name, hash);
+  };
+  if (capabilities.movement) {
+    ByteWriter movement;
+    encode_movement_snapshot(movement, *capabilities.movement);
+    add_capability("movement", movement.bytes());
+  }
+  if (capabilities.combat) {
+    ByteWriter combat;
+    encode_combat_session_snapshot(combat, *capabilities.combat);
+    add_capability("combat/session", combat.bytes());
+  }
+  if (capabilities.combat_actors) {
+    ByteWriter actors;
+    encode_ability_resolver_snapshot(actors, *capabilities.combat_actors);
+    add_capability("combat/actors", actors.bytes());
+  }
+  if (capabilities.door) {
+    ByteWriter door;
+    encode_door_snapshot(door, *capabilities.door);
+    add_capability("door", door.bytes());
+  }
+  if (capabilities.script) {
+    const auto script = encode_script_state(*capabilities.script);
+    add_capability("script/state", script);
+  }
+  if (!capability_state.bytes().empty()) {
+    sections.emplace(CheckpointSection::capabilities, hash_bytes(capability_state.bytes()));
+  }
 
   ByteWriter combined;
   for (const auto& [section, hash] : sections) {
@@ -470,7 +506,7 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
       const auto section = reader.read_u16();
       const auto hash = read_hash(reader);
       if (!section || !hash ||
-          *section > static_cast<std::uint16_t>(CheckpointSection::pending_commands) ||
+          *section > static_cast<std::uint16_t>(CheckpointSection::capabilities) ||
           !checkpoint.sections.emplace(static_cast<CheckpointSection>(*section), *hash).second) {
         return tl::unexpected{ReplayDecodeError::invalid_format};
       }
@@ -484,7 +520,7 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
       const auto section = reader.read_u16();
       const auto detail_count = reader.read_u64();
       if (!section || !detail_count ||
-          *section > static_cast<std::uint16_t>(CheckpointSection::pending_commands)) {
+          *section > static_cast<std::uint16_t>(CheckpointSection::capabilities)) {
         return tl::unexpected{ReplayDecodeError::invalid_format};
       }
       auto& entries = checkpoint.details[static_cast<CheckpointSection>(*section)];
