@@ -449,6 +449,21 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
     }
     encode_door_snapshot(writer, container.door->runtime);
   }
+  writer.write_u16(container.script.has_value() ? 1U : 0U);
+  if (container.script) {
+    writer.write_u64(container.script->modules.size());
+    for (const auto& module : container.script->modules) {
+      writer.write(module.module_id);
+      writer.write_u16(static_cast<std::uint16_t>(module.scope.kind));
+      writer.write(module.scope.region);
+      writer.write_u16(module.scope.entity.has_value() ? 1U : 0U);
+      if (module.scope.entity) {
+        writer.write(*module.scope.entity);
+      }
+      writer.write_u32(module.state_schema_version);
+    }
+    writer.write_string(encode_bytes(encode_script_state(container.script->state)));
+  }
 
   auto records = container.components;
   std::ranges::sort(records, [](const ComponentRecord& left, const ComponentRecord& right) {
@@ -612,6 +627,62 @@ decode_save_container(const std::span<const std::byte> bytes) {
         .runtime = *door_runtime,
     };
   }
+  const auto has_script = reader.read_u16();
+  if (!has_script || *has_script > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  std::optional<ScriptBoundarySnapshot> script;
+  if (*has_script == 1U) {
+    const auto module_count = reader.read_u64();
+    if (!module_count || *module_count > reader.remaining()) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    std::vector<ScriptModule> modules;
+    modules.reserve(static_cast<std::size_t>(*module_count));
+    for (std::uint64_t module_index = 0; module_index < *module_count; ++module_index) {
+      auto module_id = reader.read_content_id();
+      auto scope_kind = reader.read_u16();
+      auto region = reader.read_content_id();
+      auto has_entity = reader.read_u16();
+      if (!module_id || !scope_kind || !region || !has_entity ||
+          *scope_kind > static_cast<std::uint16_t>(ScriptScopeKind::entity) || *has_entity > 1U) {
+        return tl::unexpected{SaveDecodeError::invalid_format};
+      }
+      std::optional<EntityId> entity;
+      if (*has_entity == 1U) {
+        auto decoded_entity = reader.read_entity_id();
+        if (!decoded_entity) {
+          return tl::unexpected{SaveDecodeError::invalid_format};
+        }
+        entity = *decoded_entity;
+      }
+      auto module_schema_version = reader.read_u32();
+      const auto kind = static_cast<ScriptScopeKind>(*scope_kind);
+      if (!module_schema_version || *module_schema_version == 0U ||
+          (kind == ScriptScopeKind::region && entity) ||
+          (kind == ScriptScopeKind::entity && !entity)) {
+        return tl::unexpected{SaveDecodeError::invalid_format};
+      }
+      modules.push_back(ScriptModule{
+          .module_id = *std::move(module_id),
+          .scope = ScriptScope{.kind = kind, .region = *std::move(region), .entity = entity},
+          .state_schema_version = *module_schema_version,
+      });
+    }
+    auto state_text = reader.read_string();
+    auto state_bytes = state_text ? decode_bytes(*state_text) : std::nullopt;
+    if (!state_bytes) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    auto state = decode_script_state(*state_bytes);
+    if (!state) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    script = ScriptBoundarySnapshot{
+        .modules = std::move(modules),
+        .state = *std::move(state),
+    };
+  }
 
   const auto component_count = reader.read_u64();
   if (!component_count) {
@@ -638,6 +709,7 @@ decode_save_container(const std::span<const std::byte> bytes) {
       .combat = std::move(combat),
       .movement = std::move(movement),
       .door = std::move(door),
+      .script = std::move(script),
       .components = {},
   };
   for (std::uint64_t index = 0; index < *component_count; ++index) {

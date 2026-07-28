@@ -111,6 +111,7 @@ ScenarioResult execute(const std::uint64_t seed, const bool resume_from_combat_b
             },
         .movement = {},
         .door = {},
+        .script = {},
         .components = dross::snapshot_world_components(world),
     };
     const auto decoded = dross::decode_save_container(dross::encode_save_container(save));

@@ -47,6 +47,7 @@ dross::SaveContainer container_with(std::vector<dross::ComponentRecord> records)
       .combat = {},
       .movement = {},
       .door = {},
+      .script = {},
       .components = std::move(records),
   };
 }
@@ -248,6 +249,31 @@ TEST_CASE("save container round trips movement and edge-anchored door boundaries
   REQUIRE(decoded);
   CHECK(decoded->movement == expected.movement);
   CHECK(decoded->door == expected.door);
+}
+
+TEST_CASE("save container round trips typed script modules and durable state") {
+  auto expected = container_with({});
+  const auto module = dross::ScriptModule{
+      .module_id = content_id("dross_demo:alarm"),
+      .scope = dross::ScriptScope::for_entity(content_id("dross_demo:room"), dross::EntityId{9, 3}),
+      .state_schema_version = 2,
+  };
+  dross::ScriptStateBag state;
+  state.apply({dross::ScriptStateWrite{
+      .address =
+          {
+              .module_id = module.module_id,
+              .scope = module.scope,
+              .key = dross::ScriptStateKey::parse("triggered").value(),
+          },
+      .value = true,
+  }});
+  expected.script = dross::ScriptBoundarySnapshot{.modules = {module}, .state = std::move(state)};
+
+  const auto decoded = dross::decode_save_container(dross::encode_save_container(expected));
+
+  REQUIRE(decoded);
+  CHECK(decoded->script == expected.script);
 }
 
 TEST_CASE("save decoder rejects truncated and malformed container bytes") {

@@ -7,6 +7,7 @@
 #include <dross/runtime/door_runtime.hpp>
 #include <dross/runtime/movement_runtime.hpp>
 #include <dross/runtime/replay.hpp>
+#include <dross/runtime/script_runtime.hpp>
 #include <dross/world/world_storage.hpp>
 
 #include <cstddef>
@@ -122,6 +123,15 @@ struct DoorBoundarySnapshot {
   [[nodiscard]] bool operator==(const DoorBoundarySnapshot&) const = default;
 };
 
+struct ScriptBoundarySnapshot {
+  std::vector<ScriptModule> modules;
+  ScriptStateBag state;
+
+  [[nodiscard]] bool operator==(const ScriptBoundarySnapshot& other) const {
+    return modules == other.modules && state.values() == other.state.values();
+  }
+};
+
 struct SaveContainer {
   SaveHeader header;
   SaveRuntimeSnapshot runtime;
@@ -129,6 +139,7 @@ struct SaveContainer {
   std::optional<CombatBoundarySnapshot> combat;
   std::optional<MovementBoundarySnapshot> movement;
   std::optional<DoorBoundarySnapshot> door;
+  std::optional<ScriptBoundarySnapshot> script;
   std::vector<ComponentRecord> components;
 
   [[nodiscard]] bool operator==(const SaveContainer&) const = default;
