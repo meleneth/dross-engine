@@ -3,8 +3,32 @@
 #include <godot_cpp/core/class_db.hpp>
 
 #include <algorithm>
+#include <utility>
 
 namespace dross::godot_adapter {
+
+void DrossMovementPreview::initialize(const bool accepted, const std::int64_t cost,
+                                      const std::int64_t duration_ticks,
+                                      godot::PackedInt32Array path_columns) {
+  accepted_ = accepted;
+  cost_ = cost;
+  duration_ticks_ = duration_ticks;
+  path_columns_ = std::move(path_columns);
+}
+
+bool DrossMovementPreview::is_accepted() const noexcept { return accepted_; }
+std::int64_t DrossMovementPreview::get_cost() const noexcept { return cost_; }
+std::int64_t DrossMovementPreview::get_duration_ticks() const noexcept { return duration_ticks_; }
+godot::PackedInt32Array DrossMovementPreview::get_path_columns() const { return path_columns_; }
+
+void DrossMovementPreview::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("is_accepted"), &DrossMovementPreview::is_accepted);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_cost"), &DrossMovementPreview::get_cost);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_duration_ticks"),
+                              &DrossMovementPreview::get_duration_ticks);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_path_columns"),
+                              &DrossMovementPreview::get_path_columns);
+}
 
 void DrossEntityView::set_entity_sequence(const std::int64_t value) {
   entity_sequence_ = std::max<std::int64_t>(value, 0);

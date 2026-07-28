@@ -23,6 +23,7 @@ void initialize_dross_module(godot::ModuleInitializationLevel level) {
   godot::ClassDB::register_class<dross::godot_adapter::DrossValidationError>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossFootprintDefinition>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossActorDefinition>();
+  godot::ClassDB::register_class<dross::godot_adapter::DrossMovementPreview>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossEntityView>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossViewRegistry>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossHexBakeProfile>();

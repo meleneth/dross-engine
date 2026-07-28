@@ -2,6 +2,7 @@
 
 #include "compiled_actor_definition.hpp"
 #include "dross_actor_definition.hpp"
+#include "dross_entity_view.hpp"
 #include "dross_script_runtime.hpp"
 
 #include <godot_cpp/classes/node.hpp>
@@ -44,6 +45,12 @@ public:
                                                   const godot::String& key) const;
   [[nodiscard]] godot::PackedByteArray save_script_state() const;
   [[nodiscard]] bool restore_script_state(const godot::PackedByteArray& bytes);
+  [[nodiscard]] bool start_movement_scenario();
+  [[nodiscard]] godot::Ref<DrossMovementPreview> preview_movement(std::int64_t destination_q) const;
+  [[nodiscard]] bool move_to(std::int64_t destination_q);
+  [[nodiscard]] bool advance_movement_tick();
+  [[nodiscard]] std::int64_t get_movement_column() const;
+  [[nodiscard]] godot::String get_movement_state() const;
 
 protected:
   static void _bind_methods();
@@ -51,8 +58,10 @@ protected:
 private:
   struct RuntimeState;
   struct ScriptScenarioState;
+  struct MovementScenarioState;
   std::unique_ptr<RuntimeState> state_;
   std::unique_ptr<ScriptScenarioState> script_state_;
+  std::unique_ptr<MovementScenarioState> movement_state_;
 };
 
 } // namespace dross::godot_adapter

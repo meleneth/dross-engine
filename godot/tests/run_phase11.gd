@@ -40,9 +40,37 @@ func _initialize() -> void:
 	check(recreated.position.is_equal_approx(Vector3(4.0, 0.0, 0.0)),
 			"recreated view did not reconstruct from its snapshot")
 
+	var first_host := DrossWorldHost.new()
+	var second_host := DrossWorldHost.new()
+	get_root().add_child(first_host)
+	get_root().add_child(second_host)
+	check(first_host.start_movement_scenario(), "first movement host did not start")
+	check(second_host.start_movement_scenario(), "second movement host did not start")
+	var preview: DrossMovementPreview = first_host.preview_movement(3)
+	check(preview.is_accepted(), "core movement preview rejected the reachable destination")
+	check(preview.get_cost() == 6, "preview returned the wrong authoritative cost")
+	check(preview.get_duration_ticks() == 6, "preview returned the wrong fixed-tick duration")
+	check(preview.get_path_columns() == PackedInt32Array([0, 1, 2, 3]),
+			"preview did not expose the authoritative path")
+	check(first_host.move_to(3), "first typed MoveTo request was rejected")
+	check(second_host.move_to(3), "second typed MoveTo request was rejected")
+
+	for tick in range(6):
+		check(first_host.advance_movement_tick(), "first movement tick failed")
+		# Presentation frames may vary; authoritative ticks do not.
+		for frame in range((tick % 3) + 1):
+			await process_frame
+		check(second_host.advance_movement_tick(), "second movement tick failed")
+	check(first_host.get_movement_column() == 3, "movement stopped before its destination")
+	check(second_host.get_movement_column() == first_host.get_movement_column(),
+			"frame cadence changed authoritative movement")
+	check(first_host.get_movement_state() == "idle", "completed movement did not return to idle")
+
 	registry.queue_free()
+	first_host.queue_free()
+	second_host.queue_free()
 	if failures.is_empty():
-		print("phase11 entity views ok")
+		print("phase11 movement boundary ok")
 		quit(0)
 	else:
 		for failure in failures:

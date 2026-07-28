@@ -6,6 +6,7 @@
 #include <dross/runtime/command_event_kernel.hpp>
 #include <dross/runtime/fixed_tick_runtime.hpp>
 #include <dross/runtime/machine_trace.hpp>
+#include <dross/runtime/movement_runtime.hpp>
 #include <dross/runtime/simulation_mode.hpp>
 #include <dross/runtime/world_lifecycle.hpp>
 #include <dross/world/world_storage.hpp>
@@ -16,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
 #include <utility>
 
 namespace dross::godot_adapter {
@@ -36,6 +38,38 @@ CompiledHexMap make_synthetic_map() {
       .traversable = true,
       .semantic_tags = {},
   }));
+  return std::move(builder).build().value();
+}
+
+HexCellId movement_cell(const std::int32_t q) {
+  return {.region = RegionId{ContentId::parse("dross:phase11").value()},
+          .coord = {.q = q, .r = 0},
+          .layer = 0};
+}
+
+HexPose movement_pose(const std::int32_t q) {
+  return {.anchor = movement_cell(q), .facing = HexFacing::east};
+}
+
+CompiledHexMap make_movement_map() {
+  CompiledHexMapBuilder builder;
+  for (std::int32_t q = 0; q < 4; ++q) {
+    static_cast<void>(builder.add_cell(CellFacts{
+        .id = movement_cell(q),
+        .surface_height = Millimeters{0},
+        .terrain = ContentId::parse("dross:floor").value(),
+        .base_cost = MovementCost{1},
+        .clearance = Clearance::open,
+        .traversable = true,
+        .semantic_tags = {},
+    }));
+    if (q > 0) {
+      static_cast<void>(
+          builder.add_edge(movement_cell(q - 1), movement_cell(q),
+                           DirectionalEdgeFacts{.traversable = true, .cost = MovementCost{1}},
+                           DirectionalEdgeFacts{.traversable = true, .cost = MovementCost{1}}));
+    }
+  }
   return std::move(builder).build().value();
 }
 
@@ -76,6 +110,39 @@ struct DrossWorldHost::ScriptScenarioState {
   TypedScriptRuntime runtime;
   NullMachineTrace machine_trace;
   SimulationMode mode;
+  Tick tick{0};
+};
+
+struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
+  MovementScenarioState()
+      : map{make_movement_map()},
+        footprint{
+            FootprintDefinition::create(
+                FootprintId{ContentId::parse("dross:phase11_actor").value()}, {{.q = 0, .r = 0}})
+                .value()},
+        movement{map,
+                 occupancy,
+                 planner,
+                 footprint,
+                 entity,
+                 movement_pose(0),
+                 MovementConfig{.ticks_per_transition = 2},
+                 this} {
+    if (!occupancy.place(entity.id(), {movement_cell(0)})) {
+      throw std::logic_error{"movement boundary occupancy setup failed"};
+    }
+  }
+
+  void publish(const movement::MovementStarted&) override {}
+  void publish(const movement::ActorEnteredCell&) override {}
+  void publish(const movement::MovementCompleted&) override {}
+
+  CompiledHexMap map;
+  OccupancyIndex occupancy;
+  WeightedAStarPathPlanner planner;
+  FootprintDefinition footprint;
+  EntityRef entity{WorldInstanceId{synthetic_instance}, EntityId{7, 1}};
+  MovementRuntime movement;
   Tick tick{0};
 };
 
@@ -283,6 +350,63 @@ bool DrossWorldHost::restore_script_state(const godot::PackedByteArray& bytes) {
   return true;
 }
 
+bool DrossWorldHost::start_movement_scenario() {
+  movement_state_ = std::make_unique<MovementScenarioState>();
+  return true;
+}
+
+godot::Ref<DrossMovementPreview>
+DrossWorldHost::preview_movement(const std::int64_t destination_q) const {
+  godot::Ref<DrossMovementPreview> output;
+  output.instantiate();
+  if (!movement_state_ || destination_q < 0 || destination_q > 3) {
+    output->initialize(false, 0, 0, {});
+    return output;
+  }
+  const auto preview =
+      movement_state_->movement.preview(movement_pose(static_cast<std::int32_t>(destination_q)));
+  godot::PackedInt32Array columns;
+  for (const auto& path_pose : preview.path) {
+    columns.push_back(path_pose.anchor.coord.q);
+  }
+  output->initialize(preview.accepted, static_cast<std::int64_t>(preview.cost.value()),
+                     static_cast<std::int64_t>(preview.duration_ticks), std::move(columns));
+  return output;
+}
+
+bool DrossWorldHost::move_to(const std::int64_t destination_q) {
+  return movement_state_ && destination_q >= 0 && destination_q <= 3 &&
+         movement_state_->movement.move_to(movement_pose(static_cast<std::int32_t>(destination_q)));
+}
+
+bool DrossWorldHost::advance_movement_tick() {
+  if (!movement_state_) {
+    return false;
+  }
+  static_cast<void>(movement_state_->movement.advance(movement_state_->tick));
+  movement_state_->tick = Tick{movement_state_->tick.value() + 1};
+  return true;
+}
+
+std::int64_t DrossWorldHost::get_movement_column() const {
+  return movement_state_ ? movement_state_->movement.pose().anchor.coord.q : -1;
+}
+
+godot::String DrossWorldHost::get_movement_state() const {
+  if (!movement_state_) {
+    return "none";
+  }
+  switch (movement_state_->movement.state()) {
+  case MovementLifecycleState::idle:
+    return "idle";
+  case MovementLifecycleState::traversing:
+    return "traversing";
+  case MovementLifecycleState::blocked:
+    return "blocked";
+  }
+  return "none";
+}
+
 void DrossWorldHost::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("start_synthetic_world", "actor"),
                               &DrossWorldHost::start_synthetic_world);
@@ -315,6 +439,18 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::save_script_state);
   godot::ClassDB::bind_method(godot::D_METHOD("restore_script_state", "bytes"),
                               &DrossWorldHost::restore_script_state);
+  godot::ClassDB::bind_method(godot::D_METHOD("start_movement_scenario"),
+                              &DrossWorldHost::start_movement_scenario);
+  godot::ClassDB::bind_method(godot::D_METHOD("preview_movement", "destination_q"),
+                              &DrossWorldHost::preview_movement);
+  godot::ClassDB::bind_method(godot::D_METHOD("move_to", "destination_q"),
+                              &DrossWorldHost::move_to);
+  godot::ClassDB::bind_method(godot::D_METHOD("advance_movement_tick"),
+                              &DrossWorldHost::advance_movement_tick);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_movement_column"),
+                              &DrossWorldHost::get_movement_column);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_movement_state"),
+                              &DrossWorldHost::get_movement_state);
 }
 
 } // namespace dross::godot_adapter
