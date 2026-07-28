@@ -1,6 +1,7 @@
 #pragma once
 
 #include "compiled_actor_definition.hpp"
+#include "dross_ability_definition.hpp"
 #include "dross_actor_definition.hpp"
 #include "dross_entity_view.hpp"
 #include "dross_script_runtime.hpp"
@@ -54,6 +55,12 @@ public:
   [[nodiscard]] std::int64_t get_movement_column() const;
   [[nodiscard]] godot::String get_movement_state() const;
   [[nodiscard]] godot::String get_movement_mode() const;
+  [[nodiscard]] bool
+  start_thump_scenario(const godot::Ref<DrossAbilityDefinition>& ability_definition);
+  [[nodiscard]] bool perform_thump();
+  [[nodiscard]] std::int64_t get_mouse_health() const;
+  [[nodiscard]] bool is_mouse_killed() const;
+  [[nodiscard]] godot::String get_last_presentation_cue() const;
 
 protected:
   static void _bind_methods();
@@ -62,9 +69,11 @@ private:
   struct RuntimeState;
   struct ScriptScenarioState;
   struct MovementScenarioState;
+  struct CombatScenarioState;
   std::unique_ptr<RuntimeState> state_;
   std::unique_ptr<ScriptScenarioState> script_state_;
   std::unique_ptr<MovementScenarioState> movement_state_;
+  std::unique_ptr<CombatScenarioState> combat_state_;
 };
 
 } // namespace dross::godot_adapter

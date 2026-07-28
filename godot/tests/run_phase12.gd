@@ -23,6 +23,18 @@ func _initialize() -> void:
 	thump.damage = 3
 	thump.ability_id = "Thump"
 	check(not thump.is_valid(), "non-canonical ability identity was accepted")
+	thump.ability_id = "dross_demo:thump"
+
+	var host := DrossWorldHost.new()
+	get_root().add_child(host)
+	check(host.start_thump_scenario(thump), "Godot combat host rejected typed Thump")
+	check(host.get_mouse_health() == 3, "mouse did not start with authoritative health")
+	check(host.perform_thump(), "generic PerformAbility rejected Thump")
+	check(host.get_mouse_health() == 0, "Thump presentation preceded committed damage")
+	check(host.is_mouse_killed(), "lethal Thump did not commit mouse death")
+	check(host.get_last_presentation_cue() == "dross_demo:thump",
+			"committed Thump did not expose its presentation cue")
+	host.queue_free()
 
 	if failures.is_empty():
 		print("phase12 ability resource ok")

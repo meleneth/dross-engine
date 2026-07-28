@@ -148,6 +148,32 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
   bool combat{false};
 };
 
+struct DrossWorldHost::CombatScenarioState {
+  explicit CombatScenarioState(AbilityDefinition definition)
+      : ability{std::move(definition)},
+        session{{
+            {.entity = player, .initiative = 10, .maximum_action_points = 3},
+            {.entity = mouse, .initiative = 5, .maximum_action_points = 2},
+        }},
+        resolver{session,
+                 {
+                     {.entity = player, .pose = movement_pose(0), .health = HitPoints{8}},
+                     {.entity = mouse, .pose = movement_pose(1), .health = HitPoints{3}},
+                 }} {
+    if (!session.start()) {
+      throw std::logic_error{"Godot Thump scenario combat start failed"};
+    }
+  }
+
+  EntityRef player{WorldInstanceId{synthetic_instance}, EntityId{8, 1}};
+  EntityRef mouse{WorldInstanceId{synthetic_instance}, EntityId{8, 2}};
+  AbilityDefinition ability;
+  CombatSession session;
+  AbilityResolver resolver;
+  bool killed{false};
+  godot::String last_cue;
+};
+
 DrossWorldHost::DrossWorldHost() = default;
 DrossWorldHost::~DrossWorldHost() = default;
 
@@ -438,6 +464,44 @@ godot::String DrossWorldHost::get_movement_mode() const {
   return movement_state_->combat_pending ? "combat_pending" : "exploration";
 }
 
+bool DrossWorldHost::start_thump_scenario(
+    const godot::Ref<DrossAbilityDefinition>& ability_definition) {
+  if (ability_definition.is_null()) {
+    return false;
+  }
+  auto ability = ability_definition->compile_core();
+  if (!ability) {
+    return false;
+  }
+  combat_state_ = std::make_unique<CombatScenarioState>(std::move(*ability));
+  return true;
+}
+
+bool DrossWorldHost::perform_thump() {
+  if (!combat_state_) {
+    return false;
+  }
+  const auto result = combat_state_->resolver.perform(
+      combat_state_->ability, combat_state_->player.id(), combat_state_->mouse.id());
+  if (!result.accepted) {
+    return false;
+  }
+  combat_state_->killed = result.killed;
+  combat_state_->last_cue =
+      godot::String{combat_state_->ability.presentation_cue.canonical().data()};
+  return true;
+}
+
+std::int64_t DrossWorldHost::get_mouse_health() const {
+  return combat_state_ ? combat_state_->resolver.health(combat_state_->mouse.id()).value() : -1;
+}
+
+bool DrossWorldHost::is_mouse_killed() const { return combat_state_ && combat_state_->killed; }
+
+godot::String DrossWorldHost::get_last_presentation_cue() const {
+  return combat_state_ ? combat_state_->last_cue : godot::String{};
+}
+
 void DrossWorldHost::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("start_synthetic_world", "actor"),
                               &DrossWorldHost::start_synthetic_world);
@@ -487,6 +551,14 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::get_movement_state);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_mode"),
                               &DrossWorldHost::get_movement_mode);
+  godot::ClassDB::bind_method(godot::D_METHOD("start_thump_scenario", "ability_definition"),
+                              &DrossWorldHost::start_thump_scenario);
+  godot::ClassDB::bind_method(godot::D_METHOD("perform_thump"), &DrossWorldHost::perform_thump);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_mouse_health"),
+                              &DrossWorldHost::get_mouse_health);
+  godot::ClassDB::bind_method(godot::D_METHOD("is_mouse_killed"), &DrossWorldHost::is_mouse_killed);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_last_presentation_cue"),
+                              &DrossWorldHost::get_last_presentation_cue);
 }
 
 } // namespace dross::godot_adapter
