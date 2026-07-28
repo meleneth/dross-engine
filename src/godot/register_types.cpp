@@ -1,5 +1,6 @@
 #include "dross_actor_definition.hpp"
 #include "dross_footprint_definition.hpp"
+#include "dross_grid_resources.hpp"
 #include "dross_script_runtime.hpp"
 #include "dross_validation_error.hpp"
 #include "dross_world_host.hpp"
@@ -19,6 +20,10 @@ void initialize_dross_module(godot::ModuleInitializationLevel level) {
   godot::ClassDB::register_class<dross::godot_adapter::DrossValidationError>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossFootprintDefinition>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossActorDefinition>();
+  godot::ClassDB::register_class<dross::godot_adapter::DrossHexBakeProfile>();
+  godot::ClassDB::register_class<dross::godot_adapter::DrossHexGridBake>();
+  godot::ClassDB::register_class<dross::godot_adapter::DrossHexGridOverrides>();
+  godot::ClassDB::register_class<dross::godot_adapter::DrossCompiledHexMap>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossScriptModuleDefinition>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossScriptStateApi>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossRandomApi>();
