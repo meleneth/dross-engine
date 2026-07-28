@@ -252,7 +252,10 @@ bool GodotScriptRuntime::discover_callbacks(const ScriptModule& module) {
   }
   installed->placement = installed->instance->has_method("contribute_placement_rules");
   installed->entity_placed = installed->instance->has_method("on_entity_placed");
-  return installed->placement || installed->entity_placed;
+  installed->damage_applied = installed->instance->has_method("on_damage_applied");
+  installed->actor_killed = installed->instance->has_method("on_actor_killed");
+  return installed->placement || installed->entity_placed || installed->damage_applied ||
+         installed->actor_killed;
 }
 
 Result<void, std::string> GodotScriptRuntime::invoke(const ScriptModule& module,
@@ -312,6 +315,30 @@ GodotScriptRuntime::on_entity_placed(const ScriptModule& module,
   godot::Array args;
   args.push_back(generated::godot_api::DrossEntityPlacedEvent::from_core(event));
   return invoke(module, "on_entity_placed", args, transaction, random);
+}
+
+Result<void, std::string> GodotScriptRuntime::on_damage_applied(
+    const ScriptModule& module, const combat::DamageApplied& event,
+    ScriptCallbackTransaction& transaction, RandomStream& random) {
+  auto* installed = find(module);
+  if (!installed || !installed->damage_applied) {
+    return {};
+  }
+  godot::Array args;
+  args.push_back(generated::godot_api::DrossDamageAppliedEvent::from_core(event));
+  return invoke(module, "on_damage_applied", args, transaction, random);
+}
+
+Result<void, std::string>
+GodotScriptRuntime::on_actor_killed(const ScriptModule& module, const combat::ActorKilled& event,
+                                    ScriptCallbackTransaction& transaction, RandomStream& random) {
+  auto* installed = find(module);
+  if (!installed || !installed->actor_killed) {
+    return {};
+  }
+  godot::Array args;
+  args.push_back(generated::godot_api::DrossActorKilledEvent::from_core(event));
+  return invoke(module, "on_actor_killed", args, transaction, random);
 }
 
 } // namespace dross::godot_adapter

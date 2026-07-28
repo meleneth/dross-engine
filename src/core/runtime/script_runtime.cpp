@@ -328,6 +328,46 @@ ScriptEventResult TypedScriptRuntime::on_entity_placed(const placement::EntityPl
   return result;
 }
 
+ScriptEventResult TypedScriptRuntime::on_damage_applied(const combat::DamageApplied& event,
+                                                        const Tick tick) {
+  ScriptEventResult result;
+  for (const auto& module : modules_) {
+    ScriptCallbackTransaction transaction{module, state_};
+    auto callback = port_->on_damage_applied(module, event, transaction, stream_for(module));
+    if (!callback) {
+      world_faulted_ = true;
+      result.fault = ScriptCallbackError{.module_id = module.module_id,
+                                         .scope = module.scope,
+                                         .callback = "on_damage_applied",
+                                         .tick = tick,
+                                         .message = callback.error()};
+      return result;
+    }
+    state_.apply(transaction.state_writes());
+  }
+  return result;
+}
+
+ScriptEventResult TypedScriptRuntime::on_actor_killed(const combat::ActorKilled& event,
+                                                      const Tick tick) {
+  ScriptEventResult result;
+  for (const auto& module : modules_) {
+    ScriptCallbackTransaction transaction{module, state_};
+    auto callback = port_->on_actor_killed(module, event, transaction, stream_for(module));
+    if (!callback) {
+      world_faulted_ = true;
+      result.fault = ScriptCallbackError{.module_id = module.module_id,
+                                         .scope = module.scope,
+                                         .callback = "on_actor_killed",
+                                         .tick = tick,
+                                         .message = callback.error()};
+      return result;
+    }
+    state_.apply(transaction.state_writes());
+  }
+  return result;
+}
+
 RandomStream& TypedScriptRuntime::stream_for(const ScriptModule& module) {
   return random_->stream(
       script_child_stream_id(module.module_id, module.scope.entity.value_or(EntityId{0, 0})));

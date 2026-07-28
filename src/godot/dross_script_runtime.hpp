@@ -163,6 +163,14 @@ public:
                                                            const placement::EntityPlaced& event,
                                                            ScriptCallbackTransaction& transaction,
                                                            RandomStream& random) override;
+  [[nodiscard]] Result<void, std::string> on_damage_applied(const ScriptModule& module,
+                                                            const combat::DamageApplied& event,
+                                                            ScriptCallbackTransaction& transaction,
+                                                            RandomStream& random) override;
+  [[nodiscard]] Result<void, std::string> on_actor_killed(const ScriptModule& module,
+                                                          const combat::ActorKilled& event,
+                                                          ScriptCallbackTransaction& transaction,
+                                                          RandomStream& random) override;
   void set_tick(Tick tick) { tick_ = tick; }
   [[nodiscard]] const std::vector<std::string>& calls() const noexcept { return calls_; }
 
@@ -171,6 +179,8 @@ private:
     godot::Ref<godot::RefCounted> instance;
     bool placement{false};
     bool entity_placed{false};
+    bool damage_applied{false};
+    bool actor_killed{false};
   };
   [[nodiscard]] Installed* find(const ScriptModule& module);
   [[nodiscard]] Result<void, std::string>

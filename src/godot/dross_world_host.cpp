@@ -148,9 +148,9 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
   bool combat{false};
 };
 
-struct DrossWorldHost::CombatScenarioState {
-  explicit CombatScenarioState(AbilityDefinition definition)
-      : ability{std::move(definition)},
+struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink {
+  CombatScenarioState(AbilityDefinition definition, ScriptScenarioState* script_scenario)
+      : ability{std::move(definition)}, scripts{script_scenario},
         session{{
             {.entity = player, .initiative = 10, .maximum_action_points = 3},
             {.entity = mouse, .initiative = 5, .maximum_action_points = 2},
@@ -159,18 +159,36 @@ struct DrossWorldHost::CombatScenarioState {
                  {
                      {.entity = player, .pose = movement_pose(0), .health = HitPoints{8}},
                      {.entity = mouse, .pose = movement_pose(1), .health = HitPoints{3}},
-                 }} {
+                 },
+                 this} {
     if (!session.start()) {
       throw std::logic_error{"Godot Thump scenario combat start failed"};
     }
   }
 
-  EntityRef player{WorldInstanceId{synthetic_instance}, EntityId{8, 1}};
-  EntityRef mouse{WorldInstanceId{synthetic_instance}, EntityId{8, 2}};
+  void publish(const combat::DamageApplied& event) override {
+    if (scripts != nullptr) {
+      scripts->port.set_tick(scripts->tick);
+      script_fault = scripts->runtime.on_damage_applied(event, scripts->tick).fault.has_value();
+    }
+  }
+
+  void publish(const combat::ActorKilled& event) override {
+    if (scripts != nullptr) {
+      scripts->port.set_tick(scripts->tick);
+      script_fault =
+          script_fault || scripts->runtime.on_actor_killed(event, scripts->tick).fault.has_value();
+    }
+  }
+
+  EntityRef player{WorldInstanceId{synthetic_instance}, EntityId{7, 1}};
+  EntityRef mouse{WorldInstanceId{synthetic_instance}, EntityId{7, 2}};
   AbilityDefinition ability;
+  ScriptScenarioState* scripts;
   CombatSession session;
   AbilityResolver resolver;
   bool killed{false};
+  bool script_fault{false};
   godot::String last_cue;
 };
 
@@ -473,7 +491,7 @@ bool DrossWorldHost::start_thump_scenario(
   if (!ability) {
     return false;
   }
-  combat_state_ = std::make_unique<CombatScenarioState>(std::move(*ability));
+  combat_state_ = std::make_unique<CombatScenarioState>(std::move(*ability), script_state_.get());
   return true;
 }
 
@@ -489,7 +507,7 @@ bool DrossWorldHost::perform_thump() {
   combat_state_->killed = result.killed;
   combat_state_->last_cue =
       godot::String{combat_state_->ability.presentation_cue.canonical().data()};
-  return true;
+  return !combat_state_->script_fault;
 }
 
 std::int64_t DrossWorldHost::get_mouse_health() const {

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <dross/foundation/result.hpp>
+#include <dross/generated/actor_killed.hpp>
+#include <dross/generated/damage_applied.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/place_entity.hpp>
 #include <dross/identity/content_id.hpp>
@@ -161,6 +163,18 @@ public:
   [[nodiscard]] virtual Result<void, std::string>
   on_entity_placed(const ScriptModule& module, const placement::EntityPlaced& event,
                    ScriptCallbackTransaction& transaction, RandomStream& random) = 0;
+  [[nodiscard]] virtual Result<void, std::string> on_damage_applied(const ScriptModule&,
+                                                                    const combat::DamageApplied&,
+                                                                    ScriptCallbackTransaction&,
+                                                                    RandomStream&) {
+    return {};
+  }
+  [[nodiscard]] virtual Result<void, std::string> on_actor_killed(const ScriptModule&,
+                                                                  const combat::ActorKilled&,
+                                                                  ScriptCallbackTransaction&,
+                                                                  RandomStream&) {
+    return {};
+  }
 };
 
 struct ScriptRuleResult {
@@ -185,6 +199,8 @@ public:
   [[nodiscard]] ScriptRuleResult contribute_placement(const placement::PlaceEntity& query,
                                                       Tick tick);
   [[nodiscard]] ScriptEventResult on_entity_placed(const placement::EntityPlaced& event, Tick tick);
+  [[nodiscard]] ScriptEventResult on_damage_applied(const combat::DamageApplied& event, Tick tick);
+  [[nodiscard]] ScriptEventResult on_actor_killed(const combat::ActorKilled& event, Tick tick);
 
   [[nodiscard]] const std::vector<ScriptModule>& modules() const noexcept { return modules_; }
   [[nodiscard]] const ScriptStateBag& state() const noexcept { return state_; }
