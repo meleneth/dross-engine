@@ -4,6 +4,8 @@
 #include <dross/foundation/result.hpp>
 #include <dross/foundation/version.hpp>
 #include <dross/runtime/combat_runtime.hpp>
+#include <dross/runtime/door_runtime.hpp>
+#include <dross/runtime/movement_runtime.hpp>
 #include <dross/runtime/replay.hpp>
 #include <dross/world/world_storage.hpp>
 
@@ -103,11 +105,30 @@ struct CombatBoundarySnapshot {
   [[nodiscard]] bool operator==(const CombatBoundarySnapshot&) const = default;
 };
 
+struct MovementBoundarySnapshot {
+  EntityId actor;
+  ContentId footprint;
+  MovementSnapshot runtime;
+
+  [[nodiscard]] bool operator==(const MovementBoundarySnapshot&) const = default;
+};
+
+struct DoorBoundarySnapshot {
+  EntityId door;
+  ContentId definition;
+  std::vector<EdgeKey> edges;
+  DoorSnapshot runtime;
+
+  [[nodiscard]] bool operator==(const DoorBoundarySnapshot&) const = default;
+};
+
 struct SaveContainer {
   SaveHeader header;
   SaveRuntimeSnapshot runtime;
   ContentManifest content_manifest;
   std::optional<CombatBoundarySnapshot> combat;
+  std::optional<MovementBoundarySnapshot> movement;
+  std::optional<DoorBoundarySnapshot> door;
   std::vector<ComponentRecord> components;
 
   [[nodiscard]] bool operator==(const SaveContainer&) const = default;

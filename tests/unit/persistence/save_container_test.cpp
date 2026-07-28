@@ -45,6 +45,8 @@ dross::SaveContainer container_with(std::vector<dross::ComponentRecord> records)
           },
       .content_manifest = dross::first_slice_content_manifest(),
       .combat = {},
+      .movement = {},
+      .door = {},
       .components = std::move(records),
   };
 }
@@ -210,6 +212,42 @@ TEST_CASE("save container round trips a typed combat actor-turn boundary") {
   REQUIRE(decoded);
   REQUIRE(decoded->combat);
   CHECK(decoded->combat == expected.combat);
+}
+
+TEST_CASE("save container round trips movement and edge-anchored door boundaries") {
+  auto expected = container_with({});
+  const auto cell = [](const std::int32_t q) {
+    return dross::HexCellId{
+        .region = dross::RegionId{content_id("demo:room")},
+        .coord = {.q = q, .r = 0},
+        .layer = 0,
+    };
+  };
+  expected.movement = dross::MovementBoundarySnapshot{
+      .actor = dross::EntityId{9, 1},
+      .footprint = content_id("dross_demo:single"),
+      .runtime = {.state = dross::MovementLifecycleState::traversing,
+                  .pose = {.anchor = cell(0), .facing = dross::HexFacing::east},
+                  .path = {{.anchor = cell(0), .facing = dross::HexFacing::east},
+                           {.anchor = cell(1), .facing = dross::HexFacing::east}},
+                  .next_pose = 1,
+                  .transition_ticks = 1,
+                  .expected_occupancy_revision = 4,
+                  .cancel_requested = false,
+                  .combat_stop_requested = true},
+  };
+  expected.door = dross::DoorBoundarySnapshot{
+      .door = dross::EntityId{9, 3},
+      .definition = content_id("dross_demo:side_door"),
+      .edges = {dross::EdgeKey::between(cell(0), cell(1)).value()},
+      .runtime = {.state = dross::DoorState::open},
+  };
+
+  const auto decoded = dross::decode_save_container(dross::encode_save_container(expected));
+
+  REQUIRE(decoded);
+  CHECK(decoded->movement == expected.movement);
+  CHECK(decoded->door == expected.door);
 }
 
 TEST_CASE("save decoder rejects truncated and malformed container bytes") {

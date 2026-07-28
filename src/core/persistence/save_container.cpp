@@ -19,6 +19,28 @@ constexpr std::size_t hexadecimal_characters_per_byte = 2U;
 constexpr std::uint8_t low_nibble_mask = 0x0FU;
 constexpr std::uint8_t hexadecimal_alpha_offset = 10U;
 
+void encode_hex_cell(ByteWriter& writer, const HexCellId& cell) {
+  writer.write(cell.region.content_id());
+  writer.write_u32(static_cast<std::uint32_t>(cell.coord.q));
+  writer.write_u32(static_cast<std::uint32_t>(cell.coord.r));
+  writer.write_u32(static_cast<std::uint32_t>(cell.layer));
+}
+
+Result<HexCellId, SaveDecodeError> decode_hex_cell(ByteReader& reader) {
+  auto region = reader.read_content_id();
+  auto q = reader.read_u32();
+  auto r = reader.read_u32();
+  auto layer = reader.read_u32();
+  if (!region || !q || !r || !layer) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  return HexCellId{
+      .region = RegionId{*region},
+      .coord = {.q = static_cast<std::int32_t>(*q), .r = static_cast<std::int32_t>(*r)},
+      .layer = static_cast<std::int32_t>(*layer),
+  };
+}
+
 Result<void, ComponentCodecError> validate_identity(const ComponentRecord& record) {
   if (record.version != 1) {
     return tl::unexpected{ComponentCodecError::unsupported_version};
@@ -410,6 +432,23 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
     encode_combat_session_snapshot(writer, container.combat->session);
     encode_ability_resolver_snapshot(writer, container.combat->actors);
   }
+  writer.write_u16(container.movement.has_value() ? 1U : 0U);
+  if (container.movement) {
+    writer.write(container.movement->actor);
+    writer.write(container.movement->footprint);
+    encode_movement_snapshot(writer, container.movement->runtime);
+  }
+  writer.write_u16(container.door.has_value() ? 1U : 0U);
+  if (container.door) {
+    writer.write(container.door->door);
+    writer.write(container.door->definition);
+    writer.write_u64(container.door->edges.size());
+    for (const auto& edge : container.door->edges) {
+      encode_hex_cell(writer, edge.first());
+      encode_hex_cell(writer, edge.second());
+    }
+    encode_door_snapshot(writer, container.door->runtime);
+  }
 
   auto records = container.components;
   std::ranges::sort(records, [](const ComponentRecord& left, const ComponentRecord& right) {
@@ -517,6 +556,62 @@ decode_save_container(const std::span<const std::byte> bytes) {
         .actors = *std::move(actors),
     };
   }
+  const auto has_movement = reader.read_u16();
+  if (!has_movement || *has_movement > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  std::optional<MovementBoundarySnapshot> movement;
+  if (*has_movement == 1U) {
+    auto actor = reader.read_entity_id();
+    auto footprint = reader.read_content_id();
+    auto movement_runtime = decode_movement_snapshot(reader);
+    if (!actor || !footprint || !movement_runtime) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    movement = MovementBoundarySnapshot{
+        .actor = *actor,
+        .footprint = *footprint,
+        .runtime = *std::move(movement_runtime),
+    };
+  }
+  const auto has_door = reader.read_u16();
+  if (!has_door || *has_door > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  std::optional<DoorBoundarySnapshot> door;
+  if (*has_door == 1U) {
+    auto door_entity = reader.read_entity_id();
+    auto definition = reader.read_content_id();
+    auto edge_count = reader.read_u64();
+    if (!door_entity || !definition || !edge_count || *edge_count > reader.remaining()) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    std::vector<EdgeKey> edges;
+    edges.reserve(static_cast<std::size_t>(*edge_count));
+    for (std::uint64_t edge_index = 0; edge_index < *edge_count; ++edge_index) {
+      auto first = decode_hex_cell(reader);
+      auto second = decode_hex_cell(reader);
+      if (!first || !second) {
+        return tl::unexpected{SaveDecodeError::invalid_format};
+      }
+      auto edge = EdgeKey::between(*std::move(first), *std::move(second));
+      if (!edge) {
+        return tl::unexpected{SaveDecodeError::invalid_format};
+      }
+      edges.push_back(*std::move(edge));
+    }
+    auto footprint = EdgeFootprint::create(std::move(edges));
+    auto door_runtime = decode_door_snapshot(reader);
+    if (!footprint || !door_runtime) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    door = DoorBoundarySnapshot{
+        .door = *door_entity,
+        .definition = *definition,
+        .edges = footprint->edges(),
+        .runtime = *door_runtime,
+    };
+  }
 
   const auto component_count = reader.read_u64();
   if (!component_count) {
@@ -541,6 +636,8 @@ decode_save_container(const std::span<const std::byte> bytes) {
       .runtime = *std::move(runtime),
       .content_manifest = std::move(manifest),
       .combat = std::move(combat),
+      .movement = std::move(movement),
+      .door = std::move(door),
       .components = {},
   };
   for (std::uint64_t index = 0; index < *component_count; ++index) {
