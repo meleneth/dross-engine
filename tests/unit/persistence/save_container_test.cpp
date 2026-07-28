@@ -5,6 +5,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <array>
 #include <fstream>
 #include <string>
@@ -42,6 +43,7 @@ dross::SaveContainer container_with(std::vector<dross::ComponentRecord> records)
               .mode =
                   dross::SimulationModeSnapshot{.state = dross::SimulationModeState::exploration},
           },
+      .content_manifest = dross::first_slice_content_manifest(),
       .components = std::move(records),
   };
 }
@@ -131,6 +133,26 @@ TEST_CASE("equivalent save records encode to byte-identical canonical containers
   const auto second = dross::encode_save_container(container_with({pose, identity}));
 
   CHECK(first == second);
+}
+
+TEST_CASE("content manifest enforces package version dependency order and hash") {
+  const auto required = container_with({}).content_manifest;
+  REQUIRE(dross::validate_content_manifest(required, required));
+
+  auto missing = required;
+  missing.pop_back();
+  CHECK(dross::validate_content_manifest(missing, required).error() ==
+        dross::ContentManifestError::missing_package);
+
+  auto changed_hash = required;
+  changed_hash[1].content_hash.front() ^= 0xFFU;
+  CHECK(dross::validate_content_manifest(changed_hash, required).error() ==
+        dross::ContentManifestError::content_hash_mismatch);
+
+  auto wrong_order = required;
+  std::ranges::reverse(wrong_order);
+  CHECK(dross::validate_content_manifest(wrong_order, required).error() ==
+        dross::ContentManifestError::dependency_order_mismatch);
 }
 
 TEST_CASE("save container round trip preserves required header and component records") {

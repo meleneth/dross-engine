@@ -93,9 +93,34 @@ struct SaveRuntimeSnapshot {
   [[nodiscard]] bool operator==(const SaveRuntimeSnapshot&) const = default;
 };
 
+struct ContentPackageRecord {
+  ContentId package_id;
+  SemanticVersion version;
+  std::vector<ContentId> dependencies;
+  CheckpointHash content_hash;
+
+  [[nodiscard]] bool operator==(const ContentPackageRecord&) const = default;
+};
+
+using ContentManifest = std::vector<ContentPackageRecord>;
+
+[[nodiscard]] ContentManifest first_slice_content_manifest();
+
+enum class ContentManifestError : std::uint8_t {
+  missing_package,
+  unexpected_package,
+  version_mismatch,
+  dependency_order_mismatch,
+  content_hash_mismatch,
+};
+
+[[nodiscard]] Result<void, ContentManifestError>
+validate_content_manifest(const ContentManifest& saved, const ContentManifest& required);
+
 struct SaveContainer {
   SaveHeader header;
   SaveRuntimeSnapshot runtime;
+  ContentManifest content_manifest;
   std::vector<ComponentRecord> components;
 
   [[nodiscard]] bool operator==(const SaveContainer&) const = default;

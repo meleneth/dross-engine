@@ -320,6 +320,62 @@ register_current_component_codecs(ComponentCodecRegistry& registry) {
       &validate_identity, &migrate_identity);
 }
 
+Result<void, ContentManifestError> validate_content_manifest(const ContentManifest& saved,
+                                                             const ContentManifest& required) {
+  if (saved.size() < required.size()) {
+    return tl::unexpected{ContentManifestError::missing_package};
+  }
+  if (saved.size() > required.size()) {
+    return tl::unexpected{ContentManifestError::unexpected_package};
+  }
+  for (std::size_t index = 0; index < required.size(); ++index) {
+    if (saved[index].package_id != required[index].package_id) {
+      const bool same_packages = std::ranges::all_of(required, [&saved](const auto& package) {
+        return std::ranges::any_of(saved, [&package](const auto& candidate) {
+          return candidate.package_id == package.package_id;
+        });
+      });
+      return tl::unexpected{same_packages ? ContentManifestError::dependency_order_mismatch
+                                          : ContentManifestError::missing_package};
+    }
+    if (saved[index].version != required[index].version) {
+      return tl::unexpected{ContentManifestError::version_mismatch};
+    }
+    if (saved[index].dependencies != required[index].dependencies) {
+      return tl::unexpected{ContentManifestError::dependency_order_mismatch};
+    }
+    if (saved[index].content_hash != required[index].content_hash) {
+      return tl::unexpected{ContentManifestError::content_hash_mismatch};
+    }
+  }
+  return {};
+}
+
+ContentManifest first_slice_content_manifest() {
+  const auto package_hash = [](const std::string_view release_id) {
+    const auto stable = ContentId::parse(release_id).value().stable_hash();
+    CheckpointHash result{};
+    std::ranges::transform(stable, result.begin(), [](const std::byte value) {
+      return std::to_integer<std::uint8_t>(value);
+    });
+    return result;
+  };
+  return {
+      ContentPackageRecord{
+          .package_id = ContentId::parse("dross:base").value(),
+          .version = {.major = 1, .minor = 0, .patch = 0},
+          .dependencies = {},
+          .content_hash = package_hash("dross:base_content_v1"),
+      },
+      ContentPackageRecord{
+          .package_id = ContentId::parse("dross_demo:demo").value(),
+          .version = {.major = 1, .minor = 0, .patch = 0},
+          .dependencies = {ContentId::parse("dross:base").value()},
+          .content_hash = package_hash("dross_demo:demo_content_v1"),
+      },
+  };
+}
+
 std::vector<std::byte> encode_save_container(const SaveContainer& container) {
   ByteWriter writer;
   writer.write_string(save_magic);
@@ -335,6 +391,19 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
   writer.write(container.header.map_id);
   writer.write_string(encode_bytes(std::as_bytes(std::span{container.header.map_hash})));
   encode_runtime_snapshot(writer, container.runtime);
+
+  writer.write_u64(container.content_manifest.size());
+  for (const auto& package : container.content_manifest) {
+    writer.write(package.package_id);
+    writer.write_u16(package.version.major);
+    writer.write_u16(package.version.minor);
+    writer.write_u16(package.version.patch);
+    writer.write_u64(package.dependencies.size());
+    for (const auto& dependency : package.dependencies) {
+      writer.write(dependency);
+    }
+    writer.write_string(encode_bytes(std::as_bytes(std::span{package.content_hash})));
+  }
 
   auto records = container.components;
   std::ranges::sort(records, [](const ComponentRecord& left, const ComponentRecord& right) {
@@ -383,6 +452,48 @@ decode_save_container(const std::span<const std::byte> bytes) {
     return tl::unexpected{runtime.error()};
   }
 
+  const auto package_count = reader.read_u64();
+  if (!package_count || *package_count > reader.remaining()) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  ContentManifest manifest;
+  manifest.reserve(static_cast<std::size_t>(*package_count));
+  for (std::uint64_t index = 0; index < *package_count; ++index) {
+    const auto package_id = reader.read_content_id();
+    const auto major = reader.read_u16();
+    const auto minor = reader.read_u16();
+    const auto patch = reader.read_u16();
+    const auto dependency_count = reader.read_u64();
+    if (!package_id || !major || !minor || !patch || !dependency_count ||
+        *dependency_count > reader.remaining()) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    std::vector<ContentId> dependencies;
+    dependencies.reserve(static_cast<std::size_t>(*dependency_count));
+    for (std::uint64_t dependency = 0; dependency < *dependency_count; ++dependency) {
+      auto dependency_id = reader.read_content_id();
+      if (!dependency_id) {
+        return tl::unexpected{SaveDecodeError::invalid_format};
+      }
+      dependencies.push_back(*std::move(dependency_id));
+    }
+    const auto hash_text = reader.read_string();
+    const auto hash_bytes = hash_text ? decode_bytes(*hash_text) : std::nullopt;
+    if (!hash_bytes || hash_bytes->size() != CheckpointHash{}.size()) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    CheckpointHash content_hash{};
+    std::ranges::transform(*hash_bytes, content_hash.begin(), [](const std::byte value) {
+      return std::to_integer<std::uint8_t>(value);
+    });
+    manifest.push_back(ContentPackageRecord{
+        .package_id = *package_id,
+        .version = {.major = *major, .minor = *minor, .patch = *patch},
+        .dependencies = std::move(dependencies),
+        .content_hash = content_hash,
+    });
+  }
+
   const auto component_count = reader.read_u64();
   if (!component_count) {
     return tl::unexpected{SaveDecodeError::invalid_format};
@@ -404,6 +515,7 @@ decode_save_container(const std::span<const std::byte> bytes) {
               .map_hash = map_hash,
           },
       .runtime = *std::move(runtime),
+      .content_manifest = std::move(manifest),
       .components = {},
   };
   for (std::uint64_t index = 0; index < *component_count; ++index) {
