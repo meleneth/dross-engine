@@ -3,6 +3,7 @@
 #include <godot_cpp/core/class_db.hpp>
 
 #include <algorithm>
+#include <string>
 #include <utility>
 
 namespace dross::godot_adapter {
@@ -14,12 +15,20 @@ void DrossMovementPreview::initialize(const bool accepted, const std::int64_t co
   cost_ = cost;
   duration_ticks_ = duration_ticks;
   path_columns_ = std::move(path_columns);
+  path_cell_keys_.clear();
+  for (const auto column : path_columns_) {
+    const auto key = std::string{"dross:phase11:"} + std::to_string(column) + ",0,0";
+    path_cell_keys_.push_back(godot::String{key.c_str()});
+  }
 }
 
 bool DrossMovementPreview::is_accepted() const noexcept { return accepted_; }
 std::int64_t DrossMovementPreview::get_cost() const noexcept { return cost_; }
 std::int64_t DrossMovementPreview::get_duration_ticks() const noexcept { return duration_ticks_; }
 godot::PackedInt32Array DrossMovementPreview::get_path_columns() const { return path_columns_; }
+godot::PackedStringArray DrossMovementPreview::get_path_cell_keys() const {
+  return path_cell_keys_;
+}
 
 void DrossMovementPreview::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("is_accepted"), &DrossMovementPreview::is_accepted);
@@ -28,6 +37,8 @@ void DrossMovementPreview::_bind_methods() {
                               &DrossMovementPreview::get_duration_ticks);
   godot::ClassDB::bind_method(godot::D_METHOD("get_path_columns"),
                               &DrossMovementPreview::get_path_columns);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_path_cell_keys"),
+                              &DrossMovementPreview::get_path_cell_keys);
 }
 
 void DrossEntityView::set_entity_sequence(const std::int64_t value) {

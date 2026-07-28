@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cmath>
+#include <string>
 
 namespace dross::godot_adapter {
 namespace {
@@ -20,6 +21,13 @@ godot::Vector3 center_for(const HexCellId& cell, const double radius) {
           (static_cast<double>(cell.coord.q) + static_cast<double>(cell.coord.r) / 2.0)),
       static_cast<godot::real_t>(static_cast<double>(cell.layer) * 0.02),
       static_cast<godot::real_t>(1.5 * radius * static_cast<double>(cell.coord.r))};
+}
+
+godot::String key_for(const HexCellId& cell) {
+  const auto key = std::string{cell.region.content_id().canonical()} + ":" +
+                   std::to_string(cell.coord.q) + "," + std::to_string(cell.coord.r) + "," +
+                   std::to_string(cell.layer);
+  return godot::String{key.c_str()};
 }
 
 } // namespace
@@ -50,8 +58,10 @@ void DrossHexGridOverlay3D::rebuild() {
   for (const auto& cell : compiled_->core()->map.cell_ids()) {
     const auto center = center_for(cell, cell_radius_);
     const auto facts = compiled_->core()->map.cell(cell).value();
-    const auto color = facts.traversable ? godot::Color{0.2F, 0.9F, 0.4F, 1.0F}
-                                         : godot::Color{0.9F, 0.2F, 0.2F, 1.0F};
+    const auto on_path = path_cell_keys_.has(key_for(cell));
+    const auto color = on_path ? godot::Color{1.0F, 0.8F, 0.1F, 1.0F}
+                               : (facts.traversable ? godot::Color{0.2F, 0.9F, 0.4F, 1.0F}
+                                                    : godot::Color{0.9F, 0.2F, 0.2F, 1.0F});
     std::array<godot::Vector3, 6> corners{};
     for (std::size_t index = 0; index < corners.size(); ++index) {
       const auto angle = pi / 6.0 + pi / 3.0 * static_cast<double>(index);
@@ -73,6 +83,15 @@ godot::PackedStringArray DrossHexGridOverlay3D::get_cell_keys() const {
   return compiled_.is_valid() ? compiled_->get_cell_keys() : godot::PackedStringArray{};
 }
 
+void DrossHexGridOverlay3D::set_path_cell_keys(const godot::PackedStringArray& value) {
+  path_cell_keys_ = value;
+  rebuild();
+}
+
+godot::PackedStringArray DrossHexGridOverlay3D::get_path_cell_keys() const {
+  return path_cell_keys_;
+}
+
 void DrossHexGridOverlay3D::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("set_compiled_map", "value"),
                               &DrossHexGridOverlay3D::set_compiled_map);
@@ -85,6 +104,10 @@ void DrossHexGridOverlay3D::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("rebuild"), &DrossHexGridOverlay3D::rebuild);
   godot::ClassDB::bind_method(godot::D_METHOD("get_cell_keys"),
                               &DrossHexGridOverlay3D::get_cell_keys);
+  godot::ClassDB::bind_method(godot::D_METHOD("set_path_cell_keys", "value"),
+                              &DrossHexGridOverlay3D::set_path_cell_keys);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_path_cell_keys"),
+                              &DrossHexGridOverlay3D::get_path_cell_keys);
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::OBJECT, "compiled_map",
                                    godot::PROPERTY_HINT_RESOURCE_TYPE, "DrossCompiledHexMap"),
                "set_compiled_map", "get_compiled_map");
@@ -92,6 +115,8 @@ void DrossHexGridOverlay3D::_bind_methods() {
                "get_cell_radius");
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::PACKED_STRING_ARRAY, "cell_keys"), "",
                "get_cell_keys");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::PACKED_STRING_ARRAY, "path_cell_keys"),
+               "set_path_cell_keys", "get_path_cell_keys");
 }
 
 } // namespace dross::godot_adapter

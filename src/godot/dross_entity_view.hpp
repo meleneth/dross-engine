@@ -4,6 +4,7 @@
 #include <godot_cpp/classes/node3d.hpp>
 #include <godot_cpp/classes/ref_counted.hpp>
 #include <godot_cpp/variant/packed_int32_array.hpp>
+#include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/vector3.hpp>
 
 #include <cstdint>
@@ -21,6 +22,7 @@ public:
   [[nodiscard]] std::int64_t get_cost() const noexcept;
   [[nodiscard]] std::int64_t get_duration_ticks() const noexcept;
   [[nodiscard]] godot::PackedInt32Array get_path_columns() const;
+  [[nodiscard]] godot::PackedStringArray get_path_cell_keys() const;
 
 protected:
   static void _bind_methods();
@@ -30,6 +32,7 @@ private:
   std::int64_t cost_{0};
   std::int64_t duration_ticks_{0};
   godot::PackedInt32Array path_columns_;
+  godot::PackedStringArray path_cell_keys_;
 };
 
 class DrossEntityView final : public godot::Node3D {

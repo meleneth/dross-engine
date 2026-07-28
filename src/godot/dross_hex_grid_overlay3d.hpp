@@ -18,6 +18,8 @@ public:
   [[nodiscard]] double get_cell_radius() const { return cell_radius_; }
   void rebuild();
   [[nodiscard]] godot::PackedStringArray get_cell_keys() const;
+  void set_path_cell_keys(const godot::PackedStringArray& value);
+  [[nodiscard]] godot::PackedStringArray get_path_cell_keys() const;
 
 protected:
   static void _bind_methods();
@@ -25,6 +27,7 @@ protected:
 private:
   godot::Ref<DrossCompiledHexMap> compiled_;
   godot::Ref<godot::ImmediateMesh> mesh_;
+  godot::PackedStringArray path_cell_keys_;
   double cell_radius_{1.0};
 };
 

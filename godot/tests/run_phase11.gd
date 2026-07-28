@@ -52,6 +52,11 @@ func _initialize() -> void:
 	check(preview.get_duration_ticks() == 6, "preview returned the wrong fixed-tick duration")
 	check(preview.get_path_columns() == PackedInt32Array([0, 1, 2, 3]),
 			"preview did not expose the authoritative path")
+	var path_overlay := DrossHexGridOverlay3D.new()
+	path_overlay.path_cell_keys = preview.get_path_cell_keys()
+	get_root().add_child(path_overlay)
+	check(path_overlay.path_cell_keys == preview.get_path_cell_keys(),
+			"path overlay did not consume the core preview")
 	check(first_host.move_to(3), "first typed MoveTo request was rejected")
 	check(second_host.move_to(3), "second typed MoveTo request was rejected")
 
@@ -96,6 +101,7 @@ func _initialize() -> void:
 	second_host.queue_free()
 	cancelled_host.queue_free()
 	combat_host.queue_free()
+	path_overlay.queue_free()
 	if failures.is_empty():
 		print("phase11 movement boundary ok")
 		quit(0)
