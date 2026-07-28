@@ -85,7 +85,12 @@ ScenarioResult execute(const std::uint64_t seed, const bool resume_from_combat_b
   std::vector<dross::CanonicalCheckpoint> checkpoints;
   checkpoints.push_back(dross::canonical_checkpoint(
       dross::Tick{0}, world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
-      std::span<const dross::PlaceEntityEnvelope>{}));
+      std::span<const dross::PlaceEntityEnvelope>{},
+      {.movement = {},
+       .combat = combat->snapshot(),
+       .combat_actors = resolver->snapshot(),
+       .door = {},
+       .script = {}}));
 
   if (resume_from_combat_boundary) {
     dross::CheckpointHash map_hash{};
@@ -143,7 +148,12 @@ ScenarioResult execute(const std::uint64_t seed, const bool resume_from_combat_b
   }
   checkpoints.push_back(dross::canonical_checkpoint(
       dross::Tick{1}, world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
-      std::span<const dross::PlaceEntityEnvelope>{}));
+      std::span<const dross::PlaceEntityEnvelope>{},
+      {.movement = {},
+       .combat = combat->snapshot(),
+       .combat_actors = resolver->snapshot(),
+       .door = {},
+       .script = {}}));
   return {
       .replay =
           dross::ReplayLog{
