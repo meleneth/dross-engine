@@ -70,6 +70,7 @@ if(DROSS_BUILD_GODOT)
     src/godot/dross_actor_definition.cpp
     src/godot/dross_footprint_definition.cpp
     src/godot/dross_grid_resources.cpp
+    src/godot/dross_hex_grid_region3d.cpp
     src/godot/dross_script_runtime.cpp
     src/godot/dross_validation_error.cpp
     src/godot/dross_world_host.cpp
