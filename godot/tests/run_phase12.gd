@@ -36,6 +36,15 @@ func _initialize() -> void:
 			"committed Thump did not expose its presentation cue")
 	host.queue_free()
 
+	var demo: Node3D = load("res://demo/phase12_thump.tscn").instantiate()
+	get_root().add_child(demo)
+	await process_frame
+	check(demo.get_node("FieldMouse").visible, "field mouse view did not start visible")
+	demo.get_node("DrossWorldHost").perform_thump()
+	check(demo.get_node("DrossWorldHost").is_mouse_killed(),
+			"viewable demo did not use committed combat state")
+	demo.queue_free()
+
 	if failures.is_empty():
 		print("phase12 ability resource ok")
 		quit(0)
