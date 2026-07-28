@@ -10,6 +10,16 @@
   - `entity`: `entity_ref`
   - `pose`: `hex_pose`
 
+## `dross:actor_killed`
+
+- Kind: `event`
+- C++ type: `dross::combat::ActorKilled`
+- Version: 1
+- Fields:
+  - `killer`: `entity_ref`
+  - `target`: `entity_ref`
+  - `ability`: `content_id`
+
 ## `dross:cancel_movement`
 
 - Kind: `command`
@@ -17,6 +27,17 @@
 - Version: 1
 - Fields:
   - `entity`: `entity_ref`
+
+## `dross:damage_applied`
+
+- Kind: `event`
+- C++ type: `dross::combat::DamageApplied`
+- Version: 1
+- Fields:
+  - `source`: `entity_ref`
+  - `target`: `entity_ref`
+  - `amount`: `hit_points`
+  - `damage_type`: `content_id`
 
 ## `dross:entity_placed`
 
@@ -54,6 +75,16 @@
   - `entity`: `entity_ref`
   - `origin`: `hex_pose`
   - `destination`: `hex_pose`
+
+## `dross:perform_ability`
+
+- Kind: `command`
+- C++ type: `dross::combat::PerformAbility`
+- Version: 1
+- Fields:
+  - `actor`: `entity_ref`
+  - `target`: `entity_ref`
+  - `ability`: `content_id`
 
 ## `dross:place_entity`
 

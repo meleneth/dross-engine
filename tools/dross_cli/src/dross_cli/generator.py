@@ -28,8 +28,10 @@ def cpp_namespace(namespace: str) -> str:
 
 def cpp_type(field_type: str) -> str:
     return {
+        "content_id": "dross::ContentId",
         "entity_ref": "dross::EntityRef",
         "hex_pose": "dross::HexPose",
+        "hit_points": "dross::HitPoints",
     }[field_type]
 
 

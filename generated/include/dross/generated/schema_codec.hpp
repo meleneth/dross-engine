@@ -2,6 +2,7 @@
 #pragma once
 
 #include <dross/foundation/byte_codec.hpp>
+#include <dross/foundation/quantities.hpp>
 #include <dross/hex/hex_topology.hpp>
 #include <dross/identity/entity_ref.hpp>
 
@@ -9,6 +10,28 @@
 #include <utility>
 
 namespace dross::generated {
+
+inline void encode_content_id(ByteWriter& writer, const ContentId& value) {
+  writer.write(value);
+}
+
+[[nodiscard]] inline Result<ContentId, DecodeError>
+decode_content_id(ByteReader& reader) {
+  return reader.read_content_id();
+}
+
+inline void encode_hit_points(ByteWriter& writer, const HitPoints value) {
+  writer.write_u32(static_cast<std::uint32_t>(value.value()));
+}
+
+[[nodiscard]] inline Result<HitPoints, DecodeError>
+decode_hit_points(ByteReader& reader) {
+  auto value = reader.read_u32();
+  if (!value) {
+    return tl::unexpected{value.error()};
+  }
+  return HitPoints{static_cast<std::int32_t>(*value)};
+}
 
 inline void encode_entity_ref(ByteWriter& writer, const EntityRef& value) {
   writer.write_u64(value.world_instance().value());

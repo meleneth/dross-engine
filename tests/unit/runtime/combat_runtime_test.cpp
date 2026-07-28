@@ -2,6 +2,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <string>
 #include <vector>
 
 namespace {
@@ -38,6 +39,22 @@ dross::AbilityDefinition thump() {
       .presentation_cue = id("dross_demo:thump"),
   };
 }
+
+class RecordingCombatEvents final : public dross::AbilityResolver::EventSink {
+public:
+  void publish(const dross::combat::DamageApplied& event) override {
+    calls.emplace_back("damage");
+    damage = event;
+  }
+  void publish(const dross::combat::ActorKilled& event) override {
+    calls.emplace_back("killed");
+    killed = event;
+  }
+
+  std::vector<std::string> calls;
+  std::optional<dross::combat::DamageApplied> damage;
+  std::optional<dross::combat::ActorKilled> killed;
+};
 
 } // namespace
 
@@ -123,12 +140,14 @@ TEST_CASE("rejected ability leaves AP and health unchanged") {
 TEST_CASE("lethal generic ability marks the target dead and completes combat") {
   dross::CombatSession session{{combatant(1, 10, 3), combatant(2, 5, 2)}};
   REQUIRE(session.start());
+  RecordingCombatEvents events;
   dross::AbilityResolver resolver{
       session,
       {
           {.entity = combatant(1, 10, 3).entity, .pose = pose(0), .health = dross::HitPoints{8}},
           {.entity = combatant(2, 5, 2).entity, .pose = pose(1), .health = dross::HitPoints{3}},
       },
+      &events,
   };
 
   const auto result = resolver.perform(thump(), dross::EntityId{7, 1}, dross::EntityId{7, 2});
@@ -136,4 +155,10 @@ TEST_CASE("lethal generic ability marks the target dead and completes combat") {
   CHECK(result.killed);
   CHECK(result.remaining_health == dross::HitPoints{0});
   CHECK(session.state() == dross::CombatSessionState::completed);
+  CHECK(events.calls == std::vector<std::string>{"damage", "killed"});
+  REQUIRE(events.damage);
+  CHECK(events.damage->amount == dross::HitPoints{3});
+  CHECK(events.damage->target == combatant(2, 5, 2).entity);
+  REQUIRE(events.killed);
+  CHECK(events.killed->ability == id("dross_demo:thump"));
 }

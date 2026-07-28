@@ -1,0 +1,14 @@
+kind: event
+namespace: dross.combat
+name: DamageApplied
+version: 1
+id: dross:damage_applied
+fields:
+  - name: source
+    type: entity_ref
+  - name: target
+    type: entity_ref
+  - name: amount
+    type: hit_points
+  - name: damage_type
+    type: content_id

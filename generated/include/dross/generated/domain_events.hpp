@@ -2,6 +2,8 @@
 #pragma once
 
 #include <dross/generated/actor_entered_cell.hpp>
+#include <dross/generated/actor_killed.hpp>
+#include <dross/generated/damage_applied.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/movement_completed.hpp>
 #include <dross/generated/movement_started.hpp>
@@ -12,6 +14,8 @@ namespace dross::generated {
 
 using DomainEventPayload = std::variant<
     dross::movement::ActorEnteredCell,
+    dross::combat::ActorKilled,
+    dross::combat::DamageApplied,
     dross::placement::EntityPlaced,
     dross::movement::MovementCompleted,
     dross::movement::MovementStarted

@@ -1,0 +1,12 @@
+kind: event
+namespace: dross.combat
+name: ActorKilled
+version: 1
+id: dross:actor_killed
+fields:
+  - name: killer
+    type: entity_ref
+  - name: target
+    type: entity_ref
+  - name: ability
+    type: content_id

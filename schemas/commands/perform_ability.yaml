@@ -1,0 +1,12 @@
+kind: command
+namespace: dross.combat
+name: PerformAbility
+version: 1
+id: dross:perform_ability
+fields:
+  - name: actor
+    type: entity_ref
+  - name: target
+    type: entity_ref
+  - name: ability
+    type: content_id

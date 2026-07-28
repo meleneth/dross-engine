@@ -2,6 +2,8 @@
 #pragma once
 
 #include <dross/generated/actor_entered_cell.hpp>
+#include <dross/generated/actor_killed.hpp>
+#include <dross/generated/damage_applied.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/movement_completed.hpp>
 #include <dross/generated/movement_started.hpp>
@@ -43,6 +45,62 @@ private:
   std::int32_t pose_r_{0};
   std::int32_t pose_layer_{0};
   std::uint8_t pose_facing_{0};
+};
+
+class DrossActorKilledEvent final : public godot::RefCounted {
+  GDCLASS(DrossActorKilledEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossActorKilledEvent>
+  from_core(const dross::combat::ActorKilled& value);
+  [[nodiscard]] std::int64_t get_killer_world() const;
+  [[nodiscard]] std::int64_t get_killer_lineage() const;
+  [[nodiscard]] std::int64_t get_killer_sequence() const;
+  [[nodiscard]] std::int64_t get_target_world() const;
+  [[nodiscard]] std::int64_t get_target_lineage() const;
+  [[nodiscard]] std::int64_t get_target_sequence() const;
+  [[nodiscard]] godot::String get_ability() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  std::uint64_t killer_world_{0};
+  std::uint64_t killer_lineage_{0};
+  std::uint64_t killer_sequence_{0};
+  std::uint64_t target_world_{0};
+  std::uint64_t target_lineage_{0};
+  std::uint64_t target_sequence_{0};
+  godot::String ability_;
+};
+
+class DrossDamageAppliedEvent final : public godot::RefCounted {
+  GDCLASS(DrossDamageAppliedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossDamageAppliedEvent>
+  from_core(const dross::combat::DamageApplied& value);
+  [[nodiscard]] std::int64_t get_source_world() const;
+  [[nodiscard]] std::int64_t get_source_lineage() const;
+  [[nodiscard]] std::int64_t get_source_sequence() const;
+  [[nodiscard]] std::int64_t get_target_world() const;
+  [[nodiscard]] std::int64_t get_target_lineage() const;
+  [[nodiscard]] std::int64_t get_target_sequence() const;
+  [[nodiscard]] std::int64_t get_amount() const;
+  [[nodiscard]] godot::String get_damage_type() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  std::uint64_t source_world_{0};
+  std::uint64_t source_lineage_{0};
+  std::uint64_t source_sequence_{0};
+  std::uint64_t target_world_{0};
+  std::uint64_t target_lineage_{0};
+  std::uint64_t target_sequence_{0};
+  std::int32_t amount_{0};
+  godot::String damage_type_;
 };
 
 class DrossEntityPlacedEvent final : public godot::RefCounted {

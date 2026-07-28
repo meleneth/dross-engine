@@ -27,6 +27,10 @@ fields:
     type: entity_ref
   - name: target
     type: hex_pose
+  - name: ability
+    type: content_id
+  - name: damage
+    type: hit_points
 """.lstrip(),
     )
 
@@ -36,6 +40,8 @@ fields:
     assert [field.type for field in catalog[0].fields] == [
         "entity_ref",
         "hex_pose",
+        "content_id",
+        "hit_points",
     ]
 
 

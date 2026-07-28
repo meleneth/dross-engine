@@ -1,6 +1,8 @@
 #pragma once
 
 #include <dross/foundation/quantities.hpp>
+#include <dross/generated/actor_killed.hpp>
+#include <dross/generated/damage_applied.hpp>
 #include <dross/hex/hex_topology.hpp>
 #include <dross/identity/content_id.hpp>
 #include <dross/identity/entity_ref.hpp>
@@ -83,7 +85,15 @@ struct AbilityResult {
 
 class AbilityResolver {
 public:
-  AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors);
+  class EventSink {
+  public:
+    virtual ~EventSink() = default;
+    virtual void publish(const combat::DamageApplied& event) = 0;
+    virtual void publish(const combat::ActorKilled& event) = 0;
+  };
+
+  AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors,
+                  EventSink* events = nullptr);
 
   [[nodiscard]] AbilityResult perform(const AbilityDefinition& ability, EntityId actor,
                                       EntityId target);
@@ -92,6 +102,7 @@ public:
 private:
   CombatSession* session_;
   std::vector<AbilityActorState> actors_;
+  EventSink* events_;
 };
 
 } // namespace dross

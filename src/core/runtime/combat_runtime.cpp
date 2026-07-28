@@ -169,8 +169,9 @@ CombatSessionState CombatSession::state() const {
   return CombatSessionState::completed;
 }
 
-AbilityResolver::AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors)
-    : session_{&session}, actors_{std::move(actors)} {
+AbilityResolver::AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors,
+                                 EventSink* events)
+    : session_{&session}, actors_{std::move(actors)}, events_{events} {
   std::ranges::sort(actors_, {}, [](const AbilityActorState& value) { return value.entity.id(); });
 }
 
@@ -222,8 +223,23 @@ AbilityResult AbilityResolver::perform(const AbilityDefinition& ability, const E
   destination->health =
       HitPoints{static_cast<std::int32_t>(destination->health.value() - applied.value())};
   const bool killed = destination->health.value() == 0;
+  if (events_ != nullptr) {
+    events_->publish(combat::DamageApplied{
+        .source = source->entity,
+        .target = destination->entity,
+        .amount = applied,
+        .damage_type = ability.id,
+    });
+  }
   if (killed) {
     static_cast<void>(session_->set_alive(target, false));
+    if (events_ != nullptr) {
+      events_->publish(combat::ActorKilled{
+          .killer = source->entity,
+          .target = destination->entity,
+          .ability = ability.id,
+      });
+    }
   }
   return AbilityResult{
       .accepted = true,

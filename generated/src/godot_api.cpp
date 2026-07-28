@@ -86,6 +86,150 @@ void DrossActorEnteredCellEvent::_bind_methods() {
                "get_pose_facing");
 }
 
+godot::Ref<DrossActorKilledEvent>
+DrossActorKilledEvent::from_core(
+    const dross::combat::ActorKilled& value) {
+  godot::Ref<DrossActorKilledEvent> event;
+  event.instantiate();
+  event->killer_world_ = value.killer.world_instance().value();
+  event->killer_lineage_ = value.killer.id().lineage();
+  event->killer_sequence_ = value.killer.id().sequence();
+  event->target_world_ = value.target.world_instance().value();
+  event->target_lineage_ = value.target.id().lineage();
+  event->target_sequence_ = value.target.id().sequence();
+  event->ability_ = godot::String{value.ability.canonical().data()};
+  return event;
+}
+
+std::int64_t DrossActorKilledEvent::get_killer_world() const {
+  return static_cast<std::int64_t>(killer_world_);
+}
+std::int64_t DrossActorKilledEvent::get_killer_lineage() const {
+  return static_cast<std::int64_t>(killer_lineage_);
+}
+std::int64_t DrossActorKilledEvent::get_killer_sequence() const {
+  return static_cast<std::int64_t>(killer_sequence_);
+}
+std::int64_t DrossActorKilledEvent::get_target_world() const {
+  return static_cast<std::int64_t>(target_world_);
+}
+std::int64_t DrossActorKilledEvent::get_target_lineage() const {
+  return static_cast<std::int64_t>(target_lineage_);
+}
+std::int64_t DrossActorKilledEvent::get_target_sequence() const {
+  return static_cast<std::int64_t>(target_sequence_);
+}
+godot::String DrossActorKilledEvent::get_ability() const {
+  return ability_;
+}
+
+void DrossActorKilledEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_killer_world"),
+                              &DrossActorKilledEvent::get_killer_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_killer_lineage"),
+                              &DrossActorKilledEvent::get_killer_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_killer_sequence"),
+                              &DrossActorKilledEvent::get_killer_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "killer_world"), "",
+               "get_killer_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "killer_lineage"), "",
+               "get_killer_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "killer_sequence"), "",
+               "get_killer_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_target_world"),
+                              &DrossActorKilledEvent::get_target_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_target_lineage"),
+                              &DrossActorKilledEvent::get_target_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_target_sequence"),
+                              &DrossActorKilledEvent::get_target_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "target_world"), "",
+               "get_target_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "target_lineage"), "",
+               "get_target_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "target_sequence"), "",
+               "get_target_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_ability"),
+                              &DrossActorKilledEvent::get_ability);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "ability"), "",
+               "get_ability");
+}
+
+godot::Ref<DrossDamageAppliedEvent>
+DrossDamageAppliedEvent::from_core(
+    const dross::combat::DamageApplied& value) {
+  godot::Ref<DrossDamageAppliedEvent> event;
+  event.instantiate();
+  event->source_world_ = value.source.world_instance().value();
+  event->source_lineage_ = value.source.id().lineage();
+  event->source_sequence_ = value.source.id().sequence();
+  event->target_world_ = value.target.world_instance().value();
+  event->target_lineage_ = value.target.id().lineage();
+  event->target_sequence_ = value.target.id().sequence();
+  event->amount_ = value.amount.value();
+  event->damage_type_ = godot::String{value.damage_type.canonical().data()};
+  return event;
+}
+
+std::int64_t DrossDamageAppliedEvent::get_source_world() const {
+  return static_cast<std::int64_t>(source_world_);
+}
+std::int64_t DrossDamageAppliedEvent::get_source_lineage() const {
+  return static_cast<std::int64_t>(source_lineage_);
+}
+std::int64_t DrossDamageAppliedEvent::get_source_sequence() const {
+  return static_cast<std::int64_t>(source_sequence_);
+}
+std::int64_t DrossDamageAppliedEvent::get_target_world() const {
+  return static_cast<std::int64_t>(target_world_);
+}
+std::int64_t DrossDamageAppliedEvent::get_target_lineage() const {
+  return static_cast<std::int64_t>(target_lineage_);
+}
+std::int64_t DrossDamageAppliedEvent::get_target_sequence() const {
+  return static_cast<std::int64_t>(target_sequence_);
+}
+std::int64_t DrossDamageAppliedEvent::get_amount() const {
+  return amount_;
+}
+godot::String DrossDamageAppliedEvent::get_damage_type() const {
+  return damage_type_;
+}
+
+void DrossDamageAppliedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_source_world"),
+                              &DrossDamageAppliedEvent::get_source_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_source_lineage"),
+                              &DrossDamageAppliedEvent::get_source_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_source_sequence"),
+                              &DrossDamageAppliedEvent::get_source_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "source_world"), "",
+               "get_source_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "source_lineage"), "",
+               "get_source_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "source_sequence"), "",
+               "get_source_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_target_world"),
+                              &DrossDamageAppliedEvent::get_target_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_target_lineage"),
+                              &DrossDamageAppliedEvent::get_target_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_target_sequence"),
+                              &DrossDamageAppliedEvent::get_target_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "target_world"), "",
+               "get_target_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "target_lineage"), "",
+               "get_target_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "target_sequence"), "",
+               "get_target_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_amount"),
+                              &DrossDamageAppliedEvent::get_amount);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "amount"), "",
+               "get_amount");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_damage_type"),
+                              &DrossDamageAppliedEvent::get_damage_type);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "damage_type"), "",
+               "get_damage_type");
+}
+
 godot::Ref<DrossEntityPlacedEvent>
 DrossEntityPlacedEvent::from_core(
     const dross::placement::EntityPlaced& value) {
@@ -383,6 +527,8 @@ void DrossPlacementRuleQuery::_bind_methods() {
 
 void register_generated_godot_types() {
   godot::ClassDB::register_class<DrossActorEnteredCellEvent>();
+  godot::ClassDB::register_class<DrossActorKilledEvent>();
+  godot::ClassDB::register_class<DrossDamageAppliedEvent>();
   godot::ClassDB::register_class<DrossEntityPlacedEvent>();
   godot::ClassDB::register_class<DrossMovementCompletedEvent>();
   godot::ClassDB::register_class<DrossMovementStartedEvent>();

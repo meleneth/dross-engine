@@ -33,6 +33,10 @@ public:
   [[nodiscard]] std::int64_t get_{{ field.name }}_r() const;
   [[nodiscard]] std::int64_t get_{{ field.name }}_layer() const;
   [[nodiscard]] std::int64_t get_{{ field.name }}_facing() const;
+{% elif field.type == "content_id" %}
+  [[nodiscard]] godot::String get_{{ field.name }}() const;
+{% elif field.type == "hit_points" %}
+  [[nodiscard]] std::int64_t get_{{ field.name }}() const;
 {% endif %}
 {% endfor %}
 
@@ -51,6 +55,10 @@ private:
   std::int32_t {{ field.name }}_r_{0};
   std::int32_t {{ field.name }}_layer_{0};
   std::uint8_t {{ field.name }}_facing_{0};
+{% elif field.type == "content_id" %}
+  godot::String {{ field.name }}_;
+{% elif field.type == "hit_points" %}
+  std::int32_t {{ field.name }}_{0};
 {% endif %}
 {% endfor %}
 };

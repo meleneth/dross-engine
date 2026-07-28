@@ -27,6 +27,10 @@ Dross{{ schema.name }}Event::from_core(
   event->{{ field.name }}_r_ = value.{{ field.name }}.anchor.coord.r;
   event->{{ field.name }}_layer_ = value.{{ field.name }}.anchor.layer;
   event->{{ field.name }}_facing_ = static_cast<std::uint8_t>(value.{{ field.name }}.facing);
+{% elif field.type == "content_id" %}
+  event->{{ field.name }}_ = godot::String{value.{{ field.name }}.canonical().data()};
+{% elif field.type == "hit_points" %}
+  event->{{ field.name }}_ = value.{{ field.name }}.value();
 {% endif %}
 {% endfor %}
   return event;
@@ -59,6 +63,14 @@ std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}_layer() const {
 std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}_facing() const {
   return {{ field.name }}_facing_;
 }
+{% elif field.type == "content_id" %}
+godot::String Dross{{ schema.name }}Event::get_{{ field.name }}() const {
+  return {{ field.name }}_;
+}
+{% elif field.type == "hit_points" %}
+std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}() const {
+  return {{ field.name }}_;
+}
 {% endif %}
 {% endfor %}
 
@@ -84,6 +96,16 @@ void Dross{{ schema.name }}Event::_bind_methods() {
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::{{ type }}, "{{ field.name }}_{{ suffix }}"), "",
                "get_{{ field.name }}_{{ suffix }}");
 {% endfor %}
+{% elif field.type == "content_id" %}
+  godot::ClassDB::bind_method(godot::D_METHOD("get_{{ field.name }}"),
+                              &Dross{{ schema.name }}Event::get_{{ field.name }});
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "{{ field.name }}"), "",
+               "get_{{ field.name }}");
+{% elif field.type == "hit_points" %}
+  godot::ClassDB::bind_method(godot::D_METHOD("get_{{ field.name }}"),
+                              &Dross{{ schema.name }}Event::get_{{ field.name }});
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "{{ field.name }}"), "",
+               "get_{{ field.name }}");
 {% endif %}
 {% endfor %}
 }
