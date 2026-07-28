@@ -1,4 +1,5 @@
 #include "dross_actor_definition.hpp"
+#include "dross_entity_view.hpp"
 #include "dross_footprint_definition.hpp"
 #include "dross_grid_resources.hpp"
 #include "dross_hex_grid_overlay3d.hpp"
@@ -22,6 +23,8 @@ void initialize_dross_module(godot::ModuleInitializationLevel level) {
   godot::ClassDB::register_class<dross::godot_adapter::DrossValidationError>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossFootprintDefinition>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossActorDefinition>();
+  godot::ClassDB::register_class<dross::godot_adapter::DrossEntityView>();
+  godot::ClassDB::register_class<dross::godot_adapter::DrossViewRegistry>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossHexBakeProfile>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossHexGridBake>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossHexGridOverrides>();

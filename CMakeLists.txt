@@ -69,6 +69,7 @@ if(DROSS_BUILD_GODOT)
   add_library(dross_godot SHARED
     generated/src/godot_api.cpp
     src/godot/dross_actor_definition.cpp
+    src/godot/dross_entity_view.cpp
     src/godot/dross_footprint_definition.cpp
     src/godot/dross_grid_resources.cpp
     src/godot/dross_hex_grid_region3d.cpp
