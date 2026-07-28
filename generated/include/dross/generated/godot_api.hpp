@@ -4,6 +4,8 @@
 #include <dross/generated/actor_entered_cell.hpp>
 #include <dross/generated/actor_killed.hpp>
 #include <dross/generated/damage_applied.hpp>
+#include <dross/generated/door_closed.hpp>
+#include <dross/generated/door_opened.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/movement_completed.hpp>
 #include <dross/generated/movement_started.hpp>
@@ -101,6 +103,44 @@ private:
   std::uint64_t target_sequence_{0};
   std::int32_t amount_{0};
   godot::String damage_type_;
+};
+
+class DrossDoorClosedEvent final : public godot::RefCounted {
+  GDCLASS(DrossDoorClosedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossDoorClosedEvent>
+  from_core(const dross::door::DoorClosed& value);
+  [[nodiscard]] std::int64_t get_door_world() const;
+  [[nodiscard]] std::int64_t get_door_lineage() const;
+  [[nodiscard]] std::int64_t get_door_sequence() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  std::uint64_t door_world_{0};
+  std::uint64_t door_lineage_{0};
+  std::uint64_t door_sequence_{0};
+};
+
+class DrossDoorOpenedEvent final : public godot::RefCounted {
+  GDCLASS(DrossDoorOpenedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossDoorOpenedEvent>
+  from_core(const dross::door::DoorOpened& value);
+  [[nodiscard]] std::int64_t get_door_world() const;
+  [[nodiscard]] std::int64_t get_door_lineage() const;
+  [[nodiscard]] std::int64_t get_door_sequence() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  std::uint64_t door_world_{0};
+  std::uint64_t door_lineage_{0};
+  std::uint64_t door_sequence_{0};
 };
 
 class DrossEntityPlacedEvent final : public godot::RefCounted {

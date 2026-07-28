@@ -230,6 +230,78 @@ void DrossDamageAppliedEvent::_bind_methods() {
                "get_damage_type");
 }
 
+godot::Ref<DrossDoorClosedEvent>
+DrossDoorClosedEvent::from_core(
+    const dross::door::DoorClosed& value) {
+  godot::Ref<DrossDoorClosedEvent> event;
+  event.instantiate();
+  event->door_world_ = value.door.world_instance().value();
+  event->door_lineage_ = value.door.id().lineage();
+  event->door_sequence_ = value.door.id().sequence();
+  return event;
+}
+
+std::int64_t DrossDoorClosedEvent::get_door_world() const {
+  return static_cast<std::int64_t>(door_world_);
+}
+std::int64_t DrossDoorClosedEvent::get_door_lineage() const {
+  return static_cast<std::int64_t>(door_lineage_);
+}
+std::int64_t DrossDoorClosedEvent::get_door_sequence() const {
+  return static_cast<std::int64_t>(door_sequence_);
+}
+
+void DrossDoorClosedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_door_world"),
+                              &DrossDoorClosedEvent::get_door_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_door_lineage"),
+                              &DrossDoorClosedEvent::get_door_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_door_sequence"),
+                              &DrossDoorClosedEvent::get_door_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "door_world"), "",
+               "get_door_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "door_lineage"), "",
+               "get_door_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "door_sequence"), "",
+               "get_door_sequence");
+}
+
+godot::Ref<DrossDoorOpenedEvent>
+DrossDoorOpenedEvent::from_core(
+    const dross::door::DoorOpened& value) {
+  godot::Ref<DrossDoorOpenedEvent> event;
+  event.instantiate();
+  event->door_world_ = value.door.world_instance().value();
+  event->door_lineage_ = value.door.id().lineage();
+  event->door_sequence_ = value.door.id().sequence();
+  return event;
+}
+
+std::int64_t DrossDoorOpenedEvent::get_door_world() const {
+  return static_cast<std::int64_t>(door_world_);
+}
+std::int64_t DrossDoorOpenedEvent::get_door_lineage() const {
+  return static_cast<std::int64_t>(door_lineage_);
+}
+std::int64_t DrossDoorOpenedEvent::get_door_sequence() const {
+  return static_cast<std::int64_t>(door_sequence_);
+}
+
+void DrossDoorOpenedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_door_world"),
+                              &DrossDoorOpenedEvent::get_door_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_door_lineage"),
+                              &DrossDoorOpenedEvent::get_door_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_door_sequence"),
+                              &DrossDoorOpenedEvent::get_door_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "door_world"), "",
+               "get_door_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "door_lineage"), "",
+               "get_door_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "door_sequence"), "",
+               "get_door_sequence");
+}
+
 godot::Ref<DrossEntityPlacedEvent>
 DrossEntityPlacedEvent::from_core(
     const dross::placement::EntityPlaced& value) {
@@ -529,6 +601,8 @@ void register_generated_godot_types() {
   godot::ClassDB::register_class<DrossActorEnteredCellEvent>();
   godot::ClassDB::register_class<DrossActorKilledEvent>();
   godot::ClassDB::register_class<DrossDamageAppliedEvent>();
+  godot::ClassDB::register_class<DrossDoorClosedEvent>();
+  godot::ClassDB::register_class<DrossDoorOpenedEvent>();
   godot::ClassDB::register_class<DrossEntityPlacedEvent>();
   godot::ClassDB::register_class<DrossMovementCompletedEvent>();
   godot::ClassDB::register_class<DrossMovementStartedEvent>();

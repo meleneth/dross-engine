@@ -2,11 +2,15 @@
 #include <dross/generated/actor_entered_cell.hpp>
 #include <dross/generated/actor_killed.hpp>
 #include <dross/generated/cancel_movement.hpp>
+#include <dross/generated/close_door.hpp>
 #include <dross/generated/damage_applied.hpp>
+#include <dross/generated/door_closed.hpp>
+#include <dross/generated/door_opened.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/move_to.hpp>
 #include <dross/generated/movement_completed.hpp>
 #include <dross/generated/movement_started.hpp>
+#include <dross/generated/open_door.hpp>
 #include <dross/generated/perform_ability.hpp>
 #include <dross/generated/place_entity.hpp>
 #include <dross/generated/domain_events.hpp>
@@ -21,7 +25,13 @@ static_assert(std::is_standard_layout_v<
 static_assert(std::is_standard_layout_v<
     dross::movement::CancelMovement>);
 static_assert(std::is_standard_layout_v<
+    dross::door::CloseDoor>);
+static_assert(std::is_standard_layout_v<
     dross::combat::DamageApplied>);
+static_assert(std::is_standard_layout_v<
+    dross::door::DoorClosed>);
+static_assert(std::is_standard_layout_v<
+    dross::door::DoorOpened>);
 static_assert(std::is_standard_layout_v<
     dross::placement::EntityPlaced>);
 static_assert(std::is_standard_layout_v<
@@ -31,7 +41,9 @@ static_assert(std::is_standard_layout_v<
 static_assert(std::is_standard_layout_v<
     dross::movement::MovementStarted>);
 static_assert(std::is_standard_layout_v<
+    dross::door::OpenDoor>);
+static_assert(std::is_standard_layout_v<
     dross::combat::PerformAbility>);
 static_assert(std::is_standard_layout_v<
     dross::placement::PlaceEntity>);
-static_assert(dross::generated::schema_registry.size() == 11);
+static_assert(dross::generated::schema_registry.size() == 15);

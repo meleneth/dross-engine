@@ -4,6 +4,8 @@
 #include <dross/generated/actor_entered_cell.hpp>
 #include <dross/generated/actor_killed.hpp>
 #include <dross/generated/damage_applied.hpp>
+#include <dross/generated/door_closed.hpp>
+#include <dross/generated/door_opened.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/movement_completed.hpp>
 #include <dross/generated/movement_started.hpp>
@@ -16,6 +18,8 @@ using DomainEventPayload = std::variant<
     dross::movement::ActorEnteredCell,
     dross::combat::ActorKilled,
     dross::combat::DamageApplied,
+    dross::door::DoorClosed,
+    dross::door::DoorOpened,
     dross::placement::EntityPlaced,
     dross::movement::MovementCompleted,
     dross::movement::MovementStarted

@@ -2,6 +2,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <string>
+#include <vector>
+
 namespace {
 
 dross::ContentId id(const char* value) { return dross::ContentId::parse(value).value(); }
@@ -13,6 +16,17 @@ dross::HexCellId cell(const std::int32_t q, const std::int32_t r = 0) {
 dross::EdgeKey edge(const std::int32_t first, const std::int32_t second) {
   return dross::EdgeKey::between(cell(first), cell(second)).value();
 }
+
+constexpr dross::EntityRef door_entity() {
+  return {dross::WorldInstanceId{1}, dross::EntityId{7, 9}};
+}
+
+class RecordingDoorEvents final : public dross::DoorRuntime::EventSink {
+public:
+  void publish(const dross::door::DoorOpened&) override { calls.emplace_back("opened"); }
+  void publish(const dross::door::DoorClosed&) override { calls.emplace_back("closed"); }
+  std::vector<std::string> calls;
+};
 
 } // namespace
 
@@ -29,22 +43,25 @@ TEST_CASE("edge footprint requires unique adjacent edges") {
 
 TEST_CASE("door lifecycle commits open and closed traversal state through SML") {
   auto footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
-  dross::DoorRuntime door{std::move(footprint), dross::DoorState::closed};
+  RecordingDoorEvents events;
+  dross::DoorRuntime door{door_entity(), std::move(footprint), dross::DoorState::closed, &events};
 
   CHECK_FALSE(door.allows(edge(0, 1)));
   REQUIRE(door.open());
   CHECK(door.state() == dross::DoorState::open);
+  CHECK(events.calls == std::vector<std::string>{"opened"});
   CHECK(door.allows(edge(1, 0)));
   CHECK_FALSE(door.open());
   REQUIRE(door.close());
   CHECK(door.state() == dross::DoorState::closed);
+  CHECK(events.calls == std::vector<std::string>{"opened", "closed"});
   CHECK_FALSE(door.allows(edge(0, 1)));
   CHECK_FALSE(door.close());
 }
 
 TEST_CASE("presentation acknowledgement cannot change committed door state") {
   auto footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
-  dross::DoorRuntime door{std::move(footprint), dross::DoorState::closed};
+  dross::DoorRuntime door{door_entity(), std::move(footprint), dross::DoorState::closed};
   REQUIRE(door.open());
   const auto committed = door.state();
 

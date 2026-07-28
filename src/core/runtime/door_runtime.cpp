@@ -58,27 +58,49 @@ bool EdgeFootprint::contains(const EdgeKey& edge) const {
 }
 
 struct DoorRuntime::Impl {
-  Impl(EdgeFootprint owned_edges, const DoorState initial_state)
-      : footprint{std::move(owned_edges)}, machine{logger} {
+  Impl(const EntityRef door_entity, EdgeFootprint owned_edges, const DoorState initial_state,
+       EventSink* event_sink)
+      : entity{door_entity}, footprint{std::move(owned_edges)}, machine{logger},
+        events{event_sink} {
     if (initial_state == DoorState::open) {
       static_cast<void>(machine.process_event(Open{}));
     }
   }
 
+  EntityRef entity;
   EdgeFootprint footprint;
   DoorLogger logger;
   boost::sml::sm<DoorTable, boost::sml::logger<DoorLogger>> machine;
   std::set<std::uint64_t> acknowledgements;
+  EventSink* events;
 };
 
-DoorRuntime::DoorRuntime(EdgeFootprint footprint, const DoorState initial_state)
-    : impl_{std::make_unique<Impl>(std::move(footprint), initial_state)} {}
+DoorRuntime::DoorRuntime(const EntityRef entity, EdgeFootprint footprint,
+                         const DoorState initial_state, EventSink* events)
+    : impl_{std::make_unique<Impl>(entity, std::move(footprint), initial_state, events)} {}
 DoorRuntime::~DoorRuntime() = default;
 DoorRuntime::DoorRuntime(DoorRuntime&&) noexcept = default;
 DoorRuntime& DoorRuntime::operator=(DoorRuntime&&) noexcept = default;
 
-bool DoorRuntime::open() { return impl_->machine.process_event(Open{}); }
-bool DoorRuntime::close() { return impl_->machine.process_event(Close{}); }
+bool DoorRuntime::open() {
+  if (!impl_->machine.process_event(Open{})) {
+    return false;
+  }
+  if (impl_->events != nullptr) {
+    impl_->events->publish(door::DoorOpened{.door = impl_->entity});
+  }
+  return true;
+}
+
+bool DoorRuntime::close() {
+  if (!impl_->machine.process_event(Close{})) {
+    return false;
+  }
+  if (impl_->events != nullptr) {
+    impl_->events->publish(door::DoorClosed{.door = impl_->entity});
+  }
+  return true;
+}
 
 DoorState DoorRuntime::state() const {
   return impl_->machine.is(boost::sml::state<Opened>) ? DoorState::open : DoorState::closed;

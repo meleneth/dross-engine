@@ -28,6 +28,14 @@
 - Fields:
   - `entity`: `entity_ref`
 
+## `dross:close_door`
+
+- Kind: `command`
+- C++ type: `dross::door::CloseDoor`
+- Version: 1
+- Fields:
+  - `door`: `entity_ref`
+
 ## `dross:damage_applied`
 
 - Kind: `event`
@@ -38,6 +46,22 @@
   - `target`: `entity_ref`
   - `amount`: `hit_points`
   - `damage_type`: `content_id`
+
+## `dross:door_closed`
+
+- Kind: `event`
+- C++ type: `dross::door::DoorClosed`
+- Version: 1
+- Fields:
+  - `door`: `entity_ref`
+
+## `dross:door_opened`
+
+- Kind: `event`
+- C++ type: `dross::door::DoorOpened`
+- Version: 1
+- Fields:
+  - `door`: `entity_ref`
 
 ## `dross:entity_placed`
 
@@ -75,6 +99,14 @@
   - `entity`: `entity_ref`
   - `origin`: `hex_pose`
   - `destination`: `hex_pose`
+
+## `dross:open_door`
+
+- Kind: `command`
+- C++ type: `dross::door::OpenDoor`
+- Version: 1
+- Fields:
+  - `door`: `entity_ref`
 
 ## `dross:perform_ability`
 

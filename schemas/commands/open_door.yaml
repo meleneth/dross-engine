@@ -1,0 +1,8 @@
+kind: command
+namespace: dross.door
+name: OpenDoor
+version: 1
+id: dross:open_door
+fields:
+  - name: door
+    type: entity_ref

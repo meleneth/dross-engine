@@ -1,0 +1,8 @@
+kind: event
+namespace: dross.door
+name: DoorOpened
+version: 1
+id: dross:door_opened
+fields:
+  - name: door
+    type: entity_ref

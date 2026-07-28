@@ -1,7 +1,10 @@
 #pragma once
 
 #include <dross/foundation/result.hpp>
+#include <dross/generated/door_closed.hpp>
+#include <dross/generated/door_opened.hpp>
 #include <dross/hex/hex_topology.hpp>
+#include <dross/identity/entity_ref.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -35,7 +38,15 @@ enum class DoorState : std::uint8_t {
 
 class DoorRuntime {
 public:
-  DoorRuntime(EdgeFootprint footprint, DoorState initial_state);
+  class EventSink {
+  public:
+    virtual ~EventSink() = default;
+    virtual void publish(const door::DoorOpened& event) = 0;
+    virtual void publish(const door::DoorClosed& event) = 0;
+  };
+
+  DoorRuntime(EntityRef entity, EdgeFootprint footprint, DoorState initial_state,
+              EventSink* events = nullptr);
   ~DoorRuntime();
   DoorRuntime(DoorRuntime&&) noexcept;
   DoorRuntime& operator=(DoorRuntime&&) noexcept;
