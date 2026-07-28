@@ -427,7 +427,7 @@ TEST_CASE("replay checkpoints can begin from a freshly loaded save snapshot") {
               .engine_version = dross::engine_version(),
               .schema_version = 1,
               .scenario = content_id("dross:loaded_snapshot"),
-              .base_package = content_id("dross:base"),
+              .content_manifest = dross::first_slice_content_manifest(),
               .master_seed = save.runtime.random.master_seed,
               .random_algorithm_version = save.runtime.random.algorithm_version,
           },

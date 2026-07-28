@@ -135,7 +135,7 @@ ScenarioResult execute(const std::uint64_t seed) {
                       .engine_version = dross::engine_version(),
                       .schema_version = 1,
                       .scenario = content_id("dross:exploration_movement"),
-                      .base_package = content_id("dross:base"),
+                      .content_manifest = dross::first_slice_content_manifest(),
                       .master_seed = dross::MasterSeed{seed},
                       .random_algorithm_version = dross::random_algorithm_version,
                   },

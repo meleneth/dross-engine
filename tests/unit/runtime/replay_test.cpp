@@ -73,7 +73,7 @@ TEST_CASE("replay DTO has a deterministic round trip") {
               .engine_version = dross::SemanticVersion{.major = 0, .minor = 1, .patch = 0},
               .schema_version = 1,
               .scenario = content_id("dross:command_event_kernel"),
-              .base_package = content_id("dross:base"),
+              .content_manifest = dross::first_slice_content_manifest(),
               .master_seed = dross::MasterSeed{12345},
               .random_algorithm_version = dross::random_algorithm_version,
           },
@@ -87,6 +87,12 @@ TEST_CASE("replay DTO has a deterministic round trip") {
   REQUIRE(decoded);
   CHECK(*decoded == log);
   CHECK(dross::encode_replay(*decoded) == encoded);
+  auto changed_content = decoded->header.content_manifest;
+  changed_content.back().content_hash.front() ^= 0xFFU;
+  const auto compatibility =
+      dross::validate_content_manifest(changed_content, dross::first_slice_content_manifest());
+  REQUIRE_FALSE(compatibility);
+  CHECK(compatibility.error() == dross::ContentManifestError::content_hash_mismatch);
 }
 
 TEST_CASE("first replay divergence reports its tick and canonical section") {

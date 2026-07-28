@@ -309,7 +309,18 @@ std::vector<std::byte> encode_replay(const ReplayLog& replay) {
   writer.write_u16(replay.header.engine_version.patch);
   writer.write_u32(replay.header.schema_version);
   writer.write(replay.header.scenario);
-  writer.write(replay.header.base_package);
+  writer.write_u64(replay.header.content_manifest.size());
+  for (const auto& package : replay.header.content_manifest) {
+    writer.write(package.package_id);
+    writer.write_u16(package.version.major);
+    writer.write_u16(package.version.minor);
+    writer.write_u16(package.version.patch);
+    writer.write_u64(package.dependencies.size());
+    for (const auto& dependency : package.dependencies) {
+      writer.write(dependency);
+    }
+    write_hash(writer, package.content_hash);
+  }
   writer.write_u64(replay.header.master_seed.value());
   writer.write_u32(replay.header.random_algorithm_version);
   writer.write_u64(replay.external_commands.size());
@@ -354,13 +365,47 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
   const auto engine_patch = reader.read_u16();
   const auto schema_version = reader.read_u32();
   const auto scenario = reader.read_content_id();
-  const auto base_package = reader.read_content_id();
+  const auto package_count = reader.read_u64();
+  if (!package_count || *package_count > reader.remaining()) {
+    return tl::unexpected{ReplayDecodeError::invalid_format};
+  }
+  ContentManifest content_manifest;
+  content_manifest.reserve(static_cast<std::size_t>(*package_count));
+  for (std::uint64_t package = 0; package < *package_count; ++package) {
+    const auto package_id = reader.read_content_id();
+    const auto major = reader.read_u16();
+    const auto minor = reader.read_u16();
+    const auto patch = reader.read_u16();
+    const auto dependency_count = reader.read_u64();
+    if (!package_id || !major || !minor || !patch || !dependency_count ||
+        *dependency_count > reader.remaining()) {
+      return tl::unexpected{ReplayDecodeError::invalid_format};
+    }
+    std::vector<ContentId> dependencies;
+    dependencies.reserve(static_cast<std::size_t>(*dependency_count));
+    for (std::uint64_t dependency = 0; dependency < *dependency_count; ++dependency) {
+      auto dependency_id = reader.read_content_id();
+      if (!dependency_id) {
+        return tl::unexpected{ReplayDecodeError::invalid_format};
+      }
+      dependencies.push_back(*std::move(dependency_id));
+    }
+    const auto content_hash = read_hash(reader);
+    if (!content_hash) {
+      return tl::unexpected{ReplayDecodeError::invalid_format};
+    }
+    content_manifest.push_back(ContentPackageRecord{
+        .package_id = *package_id,
+        .version = {.major = *major, .minor = *minor, .patch = *patch},
+        .dependencies = std::move(dependencies),
+        .content_hash = *content_hash,
+    });
+  }
   const auto master_seed = reader.read_u64();
   const auto algorithm_version = reader.read_u32();
   const auto command_count = reader.read_u64();
   if (!magic || *magic != replay_magic || !engine_major || !engine_minor || !engine_patch ||
-      !schema_version || !scenario || !base_package || !master_seed || !algorithm_version ||
-      !command_count) {
+      !schema_version || !scenario || !master_seed || !algorithm_version || !command_count) {
     return tl::unexpected{ReplayDecodeError::invalid_format};
   }
   ReplayLog result{
@@ -369,7 +414,7 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
                                                                .patch = *engine_patch},
                              .schema_version = *schema_version,
                              .scenario = *scenario,
-                             .base_package = *base_package,
+                             .content_manifest = std::move(content_manifest),
                              .master_seed = MasterSeed{*master_seed},
                              .random_algorithm_version = *algorithm_version},
       .external_commands = {},

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <dross/content/content_manifest.hpp>
 #include <dross/foundation/version.hpp>
 #include <dross/hex/occupancy.hpp>
 #include <dross/random/random_hub.hpp>
@@ -52,7 +53,7 @@ struct ReplayHeader {
   SemanticVersion engine_version;
   std::uint32_t schema_version;
   ContentId scenario;
-  ContentId base_package;
+  ContentManifest content_manifest;
   MasterSeed master_seed;
   std::uint32_t random_algorithm_version;
 
