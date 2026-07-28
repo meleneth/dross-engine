@@ -1,0 +1,8 @@
+kind: command
+namespace: dross.movement
+name: CancelMovement
+version: 1
+id: dross:cancel_movement
+fields:
+  - name: entity
+    type: entity_ref

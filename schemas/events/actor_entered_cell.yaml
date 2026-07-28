@@ -1,0 +1,10 @@
+kind: event
+namespace: dross.movement
+name: ActorEnteredCell
+version: 1
+id: dross:actor_entered_cell
+fields:
+  - name: entity
+    type: entity_ref
+  - name: pose
+    type: hex_pose

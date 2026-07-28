@@ -1,0 +1,10 @@
+kind: command
+namespace: dross.movement
+name: MoveTo
+version: 1
+id: dross:move_to
+fields:
+  - name: entity
+    type: entity_ref
+  - name: destination
+    type: hex_pose

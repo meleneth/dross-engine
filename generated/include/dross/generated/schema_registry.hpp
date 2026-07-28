@@ -20,8 +20,28 @@ struct SchemaRegistryEntry {
 };
 
 inline constexpr std::array schema_registry{
+    SchemaRegistryEntry{.stable_id = "dross:actor_entered_cell",
+                        .name = "ActorEnteredCell",
+                        .kind = SchemaKind::event,
+                        .version = 1U},
+    SchemaRegistryEntry{.stable_id = "dross:cancel_movement",
+                        .name = "CancelMovement",
+                        .kind = SchemaKind::command,
+                        .version = 1U},
     SchemaRegistryEntry{.stable_id = "dross:entity_placed",
                         .name = "EntityPlaced",
+                        .kind = SchemaKind::event,
+                        .version = 1U},
+    SchemaRegistryEntry{.stable_id = "dross:move_to",
+                        .name = "MoveTo",
+                        .kind = SchemaKind::command,
+                        .version = 1U},
+    SchemaRegistryEntry{.stable_id = "dross:movement_completed",
+                        .name = "MovementCompleted",
+                        .kind = SchemaKind::event,
+                        .version = 1U},
+    SchemaRegistryEntry{.stable_id = "dross:movement_started",
+                        .name = "MovementStarted",
                         .kind = SchemaKind::event,
                         .version = 1U},
     SchemaRegistryEntry{.stable_id = "dross:place_entity",
@@ -35,6 +55,8 @@ inline constexpr std::array schema_registry{
 };
 
 inline constexpr std::array command_registry{
+    std::string_view{"dross:cancel_movement"},
+    std::string_view{"dross:move_to"},
     std::string_view{"dross:place_entity"},
 };
 

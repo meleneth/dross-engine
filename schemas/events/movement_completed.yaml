@@ -1,0 +1,10 @@
+kind: event
+namespace: dross.movement
+name: MovementCompleted
+version: 1
+id: dross:movement_completed
+fields:
+  - name: entity
+    type: entity_ref
+  - name: pose
+    type: hex_pose

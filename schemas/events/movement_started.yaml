@@ -1,0 +1,12 @@
+kind: event
+namespace: dross.movement
+name: MovementStarted
+version: 1
+id: dross:movement_started
+fields:
+  - name: entity
+    type: entity_ref
+  - name: origin
+    type: hex_pose
+  - name: destination
+    type: hex_pose

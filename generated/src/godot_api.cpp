@@ -9,6 +9,83 @@
 
 namespace dross::generated::godot_api {
 
+godot::Ref<DrossActorEnteredCellEvent>
+DrossActorEnteredCellEvent::from_core(
+    const dross::movement::ActorEnteredCell& value) {
+  godot::Ref<DrossActorEnteredCellEvent> event;
+  event.instantiate();
+  event->entity_world_ = value.entity.world_instance().value();
+  event->entity_lineage_ = value.entity.id().lineage();
+  event->entity_sequence_ = value.entity.id().sequence();
+  event->pose_region_ =
+      godot::String{value.pose.anchor.region.content_id().canonical().data()};
+  event->pose_q_ = value.pose.anchor.coord.q;
+  event->pose_r_ = value.pose.anchor.coord.r;
+  event->pose_layer_ = value.pose.anchor.layer;
+  event->pose_facing_ = static_cast<std::uint8_t>(value.pose.facing);
+  return event;
+}
+
+std::int64_t DrossActorEnteredCellEvent::get_entity_world() const {
+  return static_cast<std::int64_t>(entity_world_);
+}
+std::int64_t DrossActorEnteredCellEvent::get_entity_lineage() const {
+  return static_cast<std::int64_t>(entity_lineage_);
+}
+std::int64_t DrossActorEnteredCellEvent::get_entity_sequence() const {
+  return static_cast<std::int64_t>(entity_sequence_);
+}
+godot::String DrossActorEnteredCellEvent::get_pose_region() const {
+  return pose_region_;
+}
+std::int64_t DrossActorEnteredCellEvent::get_pose_q() const {
+  return pose_q_;
+}
+std::int64_t DrossActorEnteredCellEvent::get_pose_r() const {
+  return pose_r_;
+}
+std::int64_t DrossActorEnteredCellEvent::get_pose_layer() const {
+  return pose_layer_;
+}
+std::int64_t DrossActorEnteredCellEvent::get_pose_facing() const {
+  return pose_facing_;
+}
+
+void DrossActorEnteredCellEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_entity_world"),
+                              &DrossActorEnteredCellEvent::get_entity_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_entity_lineage"),
+                              &DrossActorEnteredCellEvent::get_entity_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_entity_sequence"),
+                              &DrossActorEnteredCellEvent::get_entity_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "entity_world"), "",
+               "get_entity_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "entity_lineage"), "",
+               "get_entity_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "entity_sequence"), "",
+               "get_entity_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_pose_region"),
+                              &DrossActorEnteredCellEvent::get_pose_region);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "pose_region"), "",
+               "get_pose_region");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_pose_q"),
+                              &DrossActorEnteredCellEvent::get_pose_q);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "pose_q"), "",
+               "get_pose_q");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_pose_r"),
+                              &DrossActorEnteredCellEvent::get_pose_r);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "pose_r"), "",
+               "get_pose_r");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_pose_layer"),
+                              &DrossActorEnteredCellEvent::get_pose_layer);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "pose_layer"), "",
+               "get_pose_layer");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_pose_facing"),
+                              &DrossActorEnteredCellEvent::get_pose_facing);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "pose_facing"), "",
+               "get_pose_facing");
+}
+
 godot::Ref<DrossEntityPlacedEvent>
 DrossEntityPlacedEvent::from_core(
     const dross::placement::EntityPlaced& value) {
@@ -86,6 +163,201 @@ void DrossEntityPlacedEvent::_bind_methods() {
                "get_pose_facing");
 }
 
+godot::Ref<DrossMovementCompletedEvent>
+DrossMovementCompletedEvent::from_core(
+    const dross::movement::MovementCompleted& value) {
+  godot::Ref<DrossMovementCompletedEvent> event;
+  event.instantiate();
+  event->entity_world_ = value.entity.world_instance().value();
+  event->entity_lineage_ = value.entity.id().lineage();
+  event->entity_sequence_ = value.entity.id().sequence();
+  event->pose_region_ =
+      godot::String{value.pose.anchor.region.content_id().canonical().data()};
+  event->pose_q_ = value.pose.anchor.coord.q;
+  event->pose_r_ = value.pose.anchor.coord.r;
+  event->pose_layer_ = value.pose.anchor.layer;
+  event->pose_facing_ = static_cast<std::uint8_t>(value.pose.facing);
+  return event;
+}
+
+std::int64_t DrossMovementCompletedEvent::get_entity_world() const {
+  return static_cast<std::int64_t>(entity_world_);
+}
+std::int64_t DrossMovementCompletedEvent::get_entity_lineage() const {
+  return static_cast<std::int64_t>(entity_lineage_);
+}
+std::int64_t DrossMovementCompletedEvent::get_entity_sequence() const {
+  return static_cast<std::int64_t>(entity_sequence_);
+}
+godot::String DrossMovementCompletedEvent::get_pose_region() const {
+  return pose_region_;
+}
+std::int64_t DrossMovementCompletedEvent::get_pose_q() const {
+  return pose_q_;
+}
+std::int64_t DrossMovementCompletedEvent::get_pose_r() const {
+  return pose_r_;
+}
+std::int64_t DrossMovementCompletedEvent::get_pose_layer() const {
+  return pose_layer_;
+}
+std::int64_t DrossMovementCompletedEvent::get_pose_facing() const {
+  return pose_facing_;
+}
+
+void DrossMovementCompletedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_entity_world"),
+                              &DrossMovementCompletedEvent::get_entity_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_entity_lineage"),
+                              &DrossMovementCompletedEvent::get_entity_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_entity_sequence"),
+                              &DrossMovementCompletedEvent::get_entity_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "entity_world"), "",
+               "get_entity_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "entity_lineage"), "",
+               "get_entity_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "entity_sequence"), "",
+               "get_entity_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_pose_region"),
+                              &DrossMovementCompletedEvent::get_pose_region);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "pose_region"), "",
+               "get_pose_region");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_pose_q"),
+                              &DrossMovementCompletedEvent::get_pose_q);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "pose_q"), "",
+               "get_pose_q");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_pose_r"),
+                              &DrossMovementCompletedEvent::get_pose_r);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "pose_r"), "",
+               "get_pose_r");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_pose_layer"),
+                              &DrossMovementCompletedEvent::get_pose_layer);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "pose_layer"), "",
+               "get_pose_layer");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_pose_facing"),
+                              &DrossMovementCompletedEvent::get_pose_facing);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "pose_facing"), "",
+               "get_pose_facing");
+}
+
+godot::Ref<DrossMovementStartedEvent>
+DrossMovementStartedEvent::from_core(
+    const dross::movement::MovementStarted& value) {
+  godot::Ref<DrossMovementStartedEvent> event;
+  event.instantiate();
+  event->entity_world_ = value.entity.world_instance().value();
+  event->entity_lineage_ = value.entity.id().lineage();
+  event->entity_sequence_ = value.entity.id().sequence();
+  event->origin_region_ =
+      godot::String{value.origin.anchor.region.content_id().canonical().data()};
+  event->origin_q_ = value.origin.anchor.coord.q;
+  event->origin_r_ = value.origin.anchor.coord.r;
+  event->origin_layer_ = value.origin.anchor.layer;
+  event->origin_facing_ = static_cast<std::uint8_t>(value.origin.facing);
+  event->destination_region_ =
+      godot::String{value.destination.anchor.region.content_id().canonical().data()};
+  event->destination_q_ = value.destination.anchor.coord.q;
+  event->destination_r_ = value.destination.anchor.coord.r;
+  event->destination_layer_ = value.destination.anchor.layer;
+  event->destination_facing_ = static_cast<std::uint8_t>(value.destination.facing);
+  return event;
+}
+
+std::int64_t DrossMovementStartedEvent::get_entity_world() const {
+  return static_cast<std::int64_t>(entity_world_);
+}
+std::int64_t DrossMovementStartedEvent::get_entity_lineage() const {
+  return static_cast<std::int64_t>(entity_lineage_);
+}
+std::int64_t DrossMovementStartedEvent::get_entity_sequence() const {
+  return static_cast<std::int64_t>(entity_sequence_);
+}
+godot::String DrossMovementStartedEvent::get_origin_region() const {
+  return origin_region_;
+}
+std::int64_t DrossMovementStartedEvent::get_origin_q() const {
+  return origin_q_;
+}
+std::int64_t DrossMovementStartedEvent::get_origin_r() const {
+  return origin_r_;
+}
+std::int64_t DrossMovementStartedEvent::get_origin_layer() const {
+  return origin_layer_;
+}
+std::int64_t DrossMovementStartedEvent::get_origin_facing() const {
+  return origin_facing_;
+}
+godot::String DrossMovementStartedEvent::get_destination_region() const {
+  return destination_region_;
+}
+std::int64_t DrossMovementStartedEvent::get_destination_q() const {
+  return destination_q_;
+}
+std::int64_t DrossMovementStartedEvent::get_destination_r() const {
+  return destination_r_;
+}
+std::int64_t DrossMovementStartedEvent::get_destination_layer() const {
+  return destination_layer_;
+}
+std::int64_t DrossMovementStartedEvent::get_destination_facing() const {
+  return destination_facing_;
+}
+
+void DrossMovementStartedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_entity_world"),
+                              &DrossMovementStartedEvent::get_entity_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_entity_lineage"),
+                              &DrossMovementStartedEvent::get_entity_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_entity_sequence"),
+                              &DrossMovementStartedEvent::get_entity_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "entity_world"), "",
+               "get_entity_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "entity_lineage"), "",
+               "get_entity_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "entity_sequence"), "",
+               "get_entity_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_origin_region"),
+                              &DrossMovementStartedEvent::get_origin_region);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "origin_region"), "",
+               "get_origin_region");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_origin_q"),
+                              &DrossMovementStartedEvent::get_origin_q);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "origin_q"), "",
+               "get_origin_q");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_origin_r"),
+                              &DrossMovementStartedEvent::get_origin_r);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "origin_r"), "",
+               "get_origin_r");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_origin_layer"),
+                              &DrossMovementStartedEvent::get_origin_layer);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "origin_layer"), "",
+               "get_origin_layer");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_origin_facing"),
+                              &DrossMovementStartedEvent::get_origin_facing);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "origin_facing"), "",
+               "get_origin_facing");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_destination_region"),
+                              &DrossMovementStartedEvent::get_destination_region);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "destination_region"), "",
+               "get_destination_region");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_destination_q"),
+                              &DrossMovementStartedEvent::get_destination_q);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "destination_q"), "",
+               "get_destination_q");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_destination_r"),
+                              &DrossMovementStartedEvent::get_destination_r);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "destination_r"), "",
+               "get_destination_r");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_destination_layer"),
+                              &DrossMovementStartedEvent::get_destination_layer);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "destination_layer"), "",
+               "get_destination_layer");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_destination_facing"),
+                              &DrossMovementStartedEvent::get_destination_facing);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "destination_facing"), "",
+               "get_destination_facing");
+}
+
 void DrossPlacementRuleQuery::reject(const godot::String& reason) {
   const auto utf8 = reason.utf8();
   auto parsed = ContentId::parse(
@@ -110,7 +382,10 @@ void DrossPlacementRuleQuery::_bind_methods() {
 }
 
 void register_generated_godot_types() {
+  godot::ClassDB::register_class<DrossActorEnteredCellEvent>();
   godot::ClassDB::register_class<DrossEntityPlacedEvent>();
+  godot::ClassDB::register_class<DrossMovementCompletedEvent>();
+  godot::ClassDB::register_class<DrossMovementStartedEvent>();
   godot::ClassDB::register_class<DrossPlacementRuleQuery>();
 }
 
