@@ -53,6 +53,21 @@ Result<EdgeFootprint, EdgeFootprintError> EdgeFootprint::create(std::vector<Edge
   return EdgeFootprint{std::move(edges)};
 }
 
+void encode_door_snapshot(ByteWriter& writer, const DoorSnapshot snapshot) {
+  writer.write_u16(static_cast<std::uint16_t>(snapshot.state));
+}
+
+Result<DoorSnapshot, DecodeError> decode_door_snapshot(ByteReader& reader) {
+  auto state = reader.read_u16();
+  if (!state) {
+    return tl::unexpected{state.error()};
+  }
+  if (*state > static_cast<std::uint16_t>(DoorState::open)) {
+    return tl::unexpected{DecodeError{.position = 0, .reason = DecodeErrorReason::invalid_length}};
+  }
+  return DoorSnapshot{.state = static_cast<DoorState>(*state)};
+}
+
 bool EdgeFootprint::contains(const EdgeKey& edge) const {
   return std::ranges::binary_search(edges_, edge);
 }
@@ -108,6 +123,16 @@ DoorState DoorRuntime::state() const {
 
 bool DoorRuntime::allows(const EdgeKey& edge) const {
   return !impl_->footprint.contains(edge) || state() == DoorState::open;
+}
+
+DoorSnapshot DoorRuntime::snapshot() const { return DoorSnapshot{.state = state()}; }
+
+bool DoorRuntime::restore(const DoorSnapshot snapshot) {
+  if (snapshot.state == state()) {
+    return true;
+  }
+  return snapshot.state == DoorState::open ? impl_->machine.process_event(Open{})
+                                           : impl_->machine.process_event(Close{});
 }
 
 void DoorRuntime::acknowledge_presentation(const std::uint64_t acknowledgement_id) {

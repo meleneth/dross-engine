@@ -1,5 +1,6 @@
 #pragma once
 
+#include <dross/foundation/byte_codec.hpp>
 #include <dross/foundation/result.hpp>
 #include <dross/generated/door_closed.hpp>
 #include <dross/generated/door_opened.hpp>
@@ -36,6 +37,15 @@ enum class DoorState : std::uint8_t {
   open,
 };
 
+struct DoorSnapshot {
+  DoorState state;
+
+  [[nodiscard]] auto operator<=>(const DoorSnapshot&) const = default;
+};
+
+void encode_door_snapshot(ByteWriter& writer, DoorSnapshot snapshot);
+[[nodiscard]] Result<DoorSnapshot, DecodeError> decode_door_snapshot(ByteReader& reader);
+
 class DoorRuntime {
 public:
   class EventSink {
@@ -57,6 +67,8 @@ public:
   [[nodiscard]] bool close();
   [[nodiscard]] DoorState state() const;
   [[nodiscard]] bool allows(const EdgeKey& edge) const;
+  [[nodiscard]] DoorSnapshot snapshot() const;
+  [[nodiscard]] bool restore(DoorSnapshot snapshot);
   void acknowledge_presentation(std::uint64_t acknowledgement_id);
 
 private:

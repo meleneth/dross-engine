@@ -71,3 +71,24 @@ TEST_CASE("presentation acknowledgement cannot change committed door state") {
   CHECK(door.state() == committed);
   CHECK(door.allows(edge(0, 1)));
 }
+
+TEST_CASE("door snapshot codec restores authoritative state without presentation data") {
+  auto footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
+  dross::DoorRuntime original{door_entity(), std::move(footprint), dross::DoorState::closed};
+  REQUIRE(original.open());
+  original.acknowledge_presentation(99);
+
+  dross::ByteWriter writer;
+  dross::encode_door_snapshot(writer, original.snapshot());
+  dross::ByteReader reader{writer.bytes()};
+  const auto decoded = dross::decode_door_snapshot(reader);
+  REQUIRE(decoded);
+  CHECK(reader.remaining() == 0);
+
+  auto restored_footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
+  dross::DoorRuntime restored{door_entity(), std::move(restored_footprint),
+                              dross::DoorState::closed};
+  REQUIRE(restored.restore(*decoded));
+  CHECK(restored.snapshot() == original.snapshot());
+  CHECK(restored.allows(edge(0, 1)));
+}
