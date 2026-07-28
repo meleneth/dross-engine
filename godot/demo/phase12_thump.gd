@@ -38,6 +38,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var committed := host.close_door() if host.is_door_open() else host.open_door()
 		if committed:
 			door_view.rotation_degrees.y = 90.0 if host.is_door_open() else 0.0
+			host.acknowledge_door_presentation(
+					host.get_door_presentation_acknowledgement_id())
 			status.text = "Door %s — edge %s" % [
 				"open" if host.is_door_open() else "closed",
 				"traversable" if host.is_door_edge_traversable() else "blocked"

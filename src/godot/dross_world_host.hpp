@@ -67,6 +67,10 @@ public:
   [[nodiscard]] bool close_door();
   [[nodiscard]] bool is_door_open() const;
   [[nodiscard]] bool is_door_edge_traversable() const;
+  [[nodiscard]] bool is_door_presentation_pending() const;
+  [[nodiscard]] std::int64_t get_door_presentation_acknowledgement_id() const;
+  [[nodiscard]] bool acknowledge_door_presentation(std::int64_t acknowledgement_id);
+  [[nodiscard]] bool advance_door_presentation();
 
 protected:
   static void _bind_methods();

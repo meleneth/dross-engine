@@ -5,7 +5,6 @@
 #include <boost/sml.hpp>
 
 #include <algorithm>
-#include <set>
 #include <utility>
 
 namespace dross {
@@ -74,9 +73,9 @@ bool EdgeFootprint::contains(const EdgeKey& edge) const {
 
 struct DoorRuntime::Impl {
   Impl(const EntityRef door_entity, EdgeFootprint owned_edges, const DoorState initial_state,
-       EventSink* event_sink)
-      : entity{door_entity}, footprint{std::move(owned_edges)}, machine{logger},
-        events{event_sink} {
+       EventSink* event_sink, const std::uint32_t timeout_ticks)
+      : entity{door_entity}, footprint{std::move(owned_edges)}, machine{logger}, events{event_sink},
+        presentation_timeout_ticks{timeout_ticks} {
     if (initial_state == DoorState::open) {
       static_cast<void>(machine.process_event(Open{}));
     }
@@ -86,13 +85,18 @@ struct DoorRuntime::Impl {
   EdgeFootprint footprint;
   DoorLogger logger;
   boost::sml::sm<DoorTable, boost::sml::logger<DoorLogger>> machine;
-  std::set<std::uint64_t> acknowledgements;
   EventSink* events;
+  std::uint32_t presentation_timeout_ticks;
+  std::uint32_t presentation_ticks{0};
+  std::uint64_t next_acknowledgement{1};
+  std::uint64_t pending_acknowledgement{0};
 };
 
 DoorRuntime::DoorRuntime(const EntityRef entity, EdgeFootprint footprint,
-                         const DoorState initial_state, EventSink* events)
-    : impl_{std::make_unique<Impl>(entity, std::move(footprint), initial_state, events)} {}
+                         const DoorState initial_state, EventSink* events,
+                         const std::uint32_t presentation_timeout_ticks)
+    : impl_{std::make_unique<Impl>(entity, std::move(footprint), initial_state, events,
+                                   presentation_timeout_ticks)} {}
 DoorRuntime::~DoorRuntime() = default;
 DoorRuntime::DoorRuntime(DoorRuntime&&) noexcept = default;
 DoorRuntime& DoorRuntime::operator=(DoorRuntime&&) noexcept = default;
@@ -104,6 +108,8 @@ bool DoorRuntime::open() {
   if (impl_->events != nullptr) {
     impl_->events->publish(door::DoorOpened{.door = impl_->entity});
   }
+  impl_->presentation_ticks = 0;
+  impl_->pending_acknowledgement = impl_->next_acknowledgement++;
   return true;
 }
 
@@ -114,6 +120,8 @@ bool DoorRuntime::close() {
   if (impl_->events != nullptr) {
     impl_->events->publish(door::DoorClosed{.door = impl_->entity});
   }
+  impl_->presentation_ticks = 0;
+  impl_->pending_acknowledgement = impl_->next_acknowledgement++;
   return true;
 }
 
@@ -135,8 +143,30 @@ bool DoorRuntime::restore(const DoorSnapshot snapshot) {
                                            : impl_->machine.process_event(Close{});
 }
 
-void DoorRuntime::acknowledge_presentation(const std::uint64_t acknowledgement_id) {
-  impl_->acknowledgements.insert(acknowledgement_id);
+bool DoorRuntime::presentation_pending() const { return impl_->pending_acknowledgement != 0; }
+
+std::uint64_t DoorRuntime::presentation_acknowledgement_id() const {
+  return impl_->pending_acknowledgement;
+}
+
+bool DoorRuntime::acknowledge_presentation(const std::uint64_t acknowledgement_id) {
+  if (acknowledgement_id == 0 || acknowledgement_id != impl_->pending_acknowledgement) {
+    return false;
+  }
+  impl_->pending_acknowledgement = 0;
+  return true;
+}
+
+bool DoorRuntime::advance_presentation() {
+  if (!presentation_pending()) {
+    return false;
+  }
+  ++impl_->presentation_ticks;
+  if (impl_->presentation_ticks < impl_->presentation_timeout_ticks) {
+    return false;
+  }
+  impl_->pending_acknowledgement = 0;
+  return true;
 }
 
 } // namespace dross

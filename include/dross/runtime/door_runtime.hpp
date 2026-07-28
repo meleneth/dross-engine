@@ -56,7 +56,7 @@ public:
   };
 
   DoorRuntime(EntityRef entity, EdgeFootprint footprint, DoorState initial_state,
-              EventSink* events = nullptr);
+              EventSink* events = nullptr, std::uint32_t presentation_timeout_ticks = 30);
   ~DoorRuntime();
   DoorRuntime(DoorRuntime&&) noexcept;
   DoorRuntime& operator=(DoorRuntime&&) noexcept;
@@ -69,7 +69,10 @@ public:
   [[nodiscard]] bool allows(const EdgeKey& edge) const override;
   [[nodiscard]] DoorSnapshot snapshot() const;
   [[nodiscard]] bool restore(DoorSnapshot snapshot);
-  void acknowledge_presentation(std::uint64_t acknowledgement_id);
+  [[nodiscard]] bool presentation_pending() const;
+  [[nodiscard]] std::uint64_t presentation_acknowledgement_id() const;
+  [[nodiscard]] bool acknowledge_presentation(std::uint64_t acknowledgement_id);
+  [[nodiscard]] bool advance_presentation();
 
 private:
   struct Impl;

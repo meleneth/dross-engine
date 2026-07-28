@@ -201,7 +201,7 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink {
 struct DrossWorldHost::DoorScenarioState final : DoorRuntime::EventSink {
   explicit DoorScenarioState(CompiledDoorDefinition definition)
       : edge{definition.footprint.edges().front()},
-        runtime{entity, std::move(definition.footprint), DoorState::closed, this} {}
+        runtime{entity, std::move(definition.footprint), DoorState::closed, this, 2} {}
 
   void publish(const door::DoorOpened&) override { last_event = "dross:door_opened"; }
   void publish(const door::DoorClosed&) override { last_event = "dross:door_closed"; }
@@ -558,6 +558,22 @@ bool DrossWorldHost::is_door_open() const {
 bool DrossWorldHost::is_door_edge_traversable() const {
   return door_state_ && door_state_->runtime.allows(door_state_->edge);
 }
+bool DrossWorldHost::is_door_presentation_pending() const {
+  return door_state_ && door_state_->runtime.presentation_pending();
+}
+std::int64_t DrossWorldHost::get_door_presentation_acknowledgement_id() const {
+  return door_state_
+             ? static_cast<std::int64_t>(door_state_->runtime.presentation_acknowledgement_id())
+             : 0;
+}
+bool DrossWorldHost::acknowledge_door_presentation(const std::int64_t acknowledgement_id) {
+  return door_state_ && acknowledgement_id > 0 &&
+         door_state_->runtime.acknowledge_presentation(
+             static_cast<std::uint64_t>(acknowledgement_id));
+}
+bool DrossWorldHost::advance_door_presentation() {
+  return door_state_ && door_state_->runtime.advance_presentation();
+}
 
 void DrossWorldHost::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("start_synthetic_world", "actor"),
@@ -623,6 +639,15 @@ void DrossWorldHost::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("is_door_open"), &DrossWorldHost::is_door_open);
   godot::ClassDB::bind_method(godot::D_METHOD("is_door_edge_traversable"),
                               &DrossWorldHost::is_door_edge_traversable);
+  godot::ClassDB::bind_method(godot::D_METHOD("is_door_presentation_pending"),
+                              &DrossWorldHost::is_door_presentation_pending);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_door_presentation_acknowledgement_id"),
+                              &DrossWorldHost::get_door_presentation_acknowledgement_id);
+  godot::ClassDB::bind_method(
+      godot::D_METHOD("acknowledge_door_presentation", "acknowledgement_id"),
+      &DrossWorldHost::acknowledge_door_presentation);
+  godot::ClassDB::bind_method(godot::D_METHOD("advance_door_presentation"),
+                              &DrossWorldHost::advance_door_presentation);
 }
 
 } // namespace dross::godot_adapter

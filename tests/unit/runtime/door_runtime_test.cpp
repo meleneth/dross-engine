@@ -111,14 +111,36 @@ TEST_CASE("authoritative planner consumes committed door traversal state") {
 
 TEST_CASE("presentation acknowledgement cannot change committed door state") {
   auto footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
-  dross::DoorRuntime door{door_entity(), std::move(footprint), dross::DoorState::closed};
+  dross::DoorRuntime door{door_entity(), std::move(footprint), dross::DoorState::closed, nullptr,
+                          2};
   REQUIRE(door.open());
   const auto committed = door.state();
+  const auto acknowledgement = door.presentation_acknowledgement_id();
+  REQUIRE(acknowledgement != 0);
+  CHECK(door.presentation_pending());
 
-  door.acknowledge_presentation(41);
-  door.acknowledge_presentation(41);
-  door.acknowledge_presentation(7);
+  CHECK_FALSE(door.acknowledge_presentation(acknowledgement + 1));
+  CHECK(door.presentation_pending());
+  REQUIRE(door.acknowledge_presentation(acknowledgement));
+  CHECK_FALSE(door.presentation_pending());
+  CHECK_FALSE(door.acknowledge_presentation(acknowledgement));
   CHECK(door.state() == committed);
+  CHECK(door.allows(edge(0, 1)));
+}
+
+TEST_CASE("missing presentation acknowledgement times out without changing door truth") {
+  auto footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
+  dross::DoorRuntime door{door_entity(), std::move(footprint), dross::DoorState::closed, nullptr,
+                          2};
+  REQUIRE(door.open());
+  const auto acknowledgement = door.presentation_acknowledgement_id();
+
+  CHECK_FALSE(door.advance_presentation());
+  CHECK(door.presentation_pending());
+  REQUIRE(door.advance_presentation());
+  CHECK_FALSE(door.presentation_pending());
+  CHECK_FALSE(door.acknowledge_presentation(acknowledgement));
+  CHECK(door.state() == dross::DoorState::open);
   CHECK(door.allows(edge(0, 1)));
 }
 
@@ -126,7 +148,7 @@ TEST_CASE("door snapshot codec restores authoritative state without presentation
   auto footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
   dross::DoorRuntime original{door_entity(), std::move(footprint), dross::DoorState::closed};
   REQUIRE(original.open());
-  original.acknowledge_presentation(99);
+  static_cast<void>(original.acknowledge_presentation(99));
 
   dross::ByteWriter writer;
   dross::encode_door_snapshot(writer, original.snapshot());

@@ -65,6 +65,17 @@ func _initialize() -> void:
 	check(door_host.open_door(), "OpenDoor was rejected")
 	check(door_host.is_door_open(), "OpenDoor did not commit state")
 	check(door_host.is_door_edge_traversable(), "open door still blocked traversal")
+	var door_ack := door_host.get_door_presentation_acknowledgement_id()
+	check(door_host.is_door_presentation_pending(), "door presentation gate was not opened")
+	check(not door_host.acknowledge_door_presentation(door_ack + 1),
+			"wrong door presentation acknowledgement was accepted")
+	check(door_host.is_door_open(), "wrong acknowledgement changed committed door state")
+	check(not door_host.advance_door_presentation(), "door presentation timed out too early")
+	check(door_host.advance_door_presentation(), "missing door animation did not time out")
+	check(not door_host.is_door_presentation_pending(), "timeout did not release presentation gate")
+	check(door_host.is_door_open(), "presentation timeout changed committed door state")
+	check(not door_host.acknowledge_door_presentation(door_ack),
+			"late door presentation acknowledgement was accepted")
 	check(door_host.close_door(), "CloseDoor was rejected")
 	check(not door_host.is_door_edge_traversable(), "closed door lost traversal contribution")
 	door_host.queue_free()
