@@ -5,6 +5,7 @@
 #include <dross/hex/hex_topology.hpp>
 #include <dross/identity/content_id.hpp>
 
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -69,6 +70,7 @@ public:
                                               const HexCellId& second) const;
   [[nodiscard]] std::vector<HexCellId> neighbors(const HexCellId& id) const;
   [[nodiscard]] std::vector<HexCellId> cell_ids() const;
+  [[nodiscard]] std::size_t edge_count() const noexcept { return edges_.size(); }
 
 private:
   friend class CompiledHexMapBuilder;

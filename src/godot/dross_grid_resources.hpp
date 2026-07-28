@@ -57,6 +57,10 @@ public:
   [[nodiscard]] godot::PackedByteArray get_standing_clearance() const {
     return standing_clearance_;
   }
+  void set_edge_coordinates(const godot::PackedInt32Array& value) { edge_coordinates_ = value; }
+  [[nodiscard]] godot::PackedInt32Array get_edge_coordinates() const { return edge_coordinates_; }
+  void set_edge_clearance(const godot::PackedByteArray& value) { edge_clearance_ = value; }
+  [[nodiscard]] godot::PackedByteArray get_edge_clearance() const { return edge_clearance_; }
   [[nodiscard]] std::int64_t get_cell_count() const;
   [[nodiscard]] std::optional<GridBake> compile_core(std::uint32_t sample_count) const;
 
@@ -69,6 +73,8 @@ private:
   godot::PackedInt32Array cell_coordinates_;
   godot::PackedInt32Array surface_samples_mm_;
   godot::PackedByteArray standing_clearance_;
+  godot::PackedInt32Array edge_coordinates_;
+  godot::PackedByteArray edge_clearance_;
 };
 
 class DrossHexGridOverrides final : public godot::Resource {
@@ -107,6 +113,7 @@ public:
                                   const godot::Ref<DrossHexBakeProfile>& profile);
   void set_from_core(CompiledGridBake value);
   [[nodiscard]] std::int64_t get_cell_count() const;
+  [[nodiscard]] std::int64_t get_edge_count() const;
   [[nodiscard]] godot::PackedStringArray get_cell_keys() const;
   [[nodiscard]] godot::PackedByteArray get_traversability() const;
   [[nodiscard]] godot::PackedByteArray get_provenance() const;

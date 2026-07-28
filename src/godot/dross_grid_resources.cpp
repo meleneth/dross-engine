@@ -104,10 +104,31 @@ std::optional<GridBake> DrossHexGridBake::compile_core(const std::uint32_t sampl
         .source = ContentId::parse("godot:physics_geometry").value(),
     });
   }
+  if (edge_coordinates_.size() % 6 != 0 || edge_clearance_.size() != edge_coordinates_.size() / 3) {
+    return std::nullopt;
+  }
+  std::vector<EdgeBakeEvidence> edges;
+  const auto edge_count = edge_coordinates_.size() / 6;
+  edges.reserve(static_cast<std::size_t>(edge_count));
+  for (std::int64_t index = 0; index < edge_count; ++index) {
+    const auto offset = index * 6;
+    edges.push_back(EdgeBakeEvidence{
+        .from =
+            HexCellId{.region = identity->region,
+                      .coord = {.q = edge_coordinates_[offset], .r = edge_coordinates_[offset + 1]},
+                      .layer = edge_coordinates_[offset + 2]},
+        .to = HexCellId{.region = identity->region,
+                        .coord = {.q = edge_coordinates_[offset + 3],
+                                  .r = edge_coordinates_[offset + 4]},
+                        .layer = edge_coordinates_[offset + 5]},
+        .from_to_clear = edge_clearance_[index * 2] != 0,
+        .to_from_clear = edge_clearance_[index * 2 + 1] != 0,
+    });
+  }
   return GridBake{.identity = std::move(*identity),
                   .profile_version = 1,
                   .cells = std::move(cells),
-                  .edges = {}};
+                  .edges = std::move(edges)};
 }
 
 void DrossHexGridBake::_bind_methods() {
@@ -129,6 +150,14 @@ void DrossHexGridBake::_bind_methods() {
                               &DrossHexGridBake::set_standing_clearance);
   godot::ClassDB::bind_method(godot::D_METHOD("get_standing_clearance"),
                               &DrossHexGridBake::get_standing_clearance);
+  godot::ClassDB::bind_method(godot::D_METHOD("set_edge_coordinates", "value"),
+                              &DrossHexGridBake::set_edge_coordinates);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_edge_coordinates"),
+                              &DrossHexGridBake::get_edge_coordinates);
+  godot::ClassDB::bind_method(godot::D_METHOD("set_edge_clearance", "value"),
+                              &DrossHexGridBake::set_edge_clearance);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_edge_clearance"),
+                              &DrossHexGridBake::get_edge_clearance);
   godot::ClassDB::bind_method(godot::D_METHOD("get_cell_count"), &DrossHexGridBake::get_cell_count);
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "region_id"), "set_region_id",
                "get_region_id");
@@ -140,6 +169,10 @@ void DrossHexGridBake::_bind_methods() {
                "set_surface_samples_mm", "get_surface_samples_mm");
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::PACKED_BYTE_ARRAY, "standing_clearance"),
                "set_standing_clearance", "get_standing_clearance");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::PACKED_INT32_ARRAY, "edge_coordinates"),
+               "set_edge_coordinates", "get_edge_coordinates");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::PACKED_BYTE_ARRAY, "edge_clearance"),
+               "set_edge_clearance", "get_edge_clearance");
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "cell_count"), "", "get_cell_count");
 }
 
@@ -259,6 +292,10 @@ std::int64_t DrossCompiledHexMap::get_cell_count() const {
   return core_ ? static_cast<std::int64_t>(core_->map.cell_ids().size()) : 0;
 }
 
+std::int64_t DrossCompiledHexMap::get_edge_count() const {
+  return core_ ? static_cast<std::int64_t>(core_->map.edge_count()) : 0;
+}
+
 godot::PackedStringArray DrossCompiledHexMap::get_cell_keys() const {
   godot::PackedStringArray result;
   if (!core_) {
@@ -298,6 +335,8 @@ void DrossCompiledHexMap::_bind_methods() {
                               &DrossCompiledHexMap::compile_from);
   godot::ClassDB::bind_method(godot::D_METHOD("get_cell_count"),
                               &DrossCompiledHexMap::get_cell_count);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_edge_count"),
+                              &DrossCompiledHexMap::get_edge_count);
   godot::ClassDB::bind_method(godot::D_METHOD("get_cell_keys"),
                               &DrossCompiledHexMap::get_cell_keys);
   godot::ClassDB::bind_method(godot::D_METHOD("get_traversability"),
@@ -311,6 +350,7 @@ void DrossCompiledHexMap::_bind_methods() {
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::PACKED_BYTE_ARRAY, "provenance"), "",
                "get_provenance");
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "cell_count"), "", "get_cell_count");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "edge_count"), "", "get_edge_count");
 }
 
 } // namespace dross::godot_adapter

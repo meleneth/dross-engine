@@ -51,6 +51,7 @@ func _initialize() -> void:
 	check(region.overrides.set_cell_override(0, 0, 0, 1), "manual override was rejected")
 	var compiled: DrossCompiledHexMap = region.compile_map()
 	check(compiled.cell_count == 2, "geometry bake did not compile")
+	check(compiled.edge_count == 1, "analyzer did not compile the neighboring transition")
 	check(compiled.traversability == PackedByteArray([1, 1]),
 			"manual override did not correct the geometric obstruction")
 	check(compiled.provenance == PackedByteArray([1, 0]),

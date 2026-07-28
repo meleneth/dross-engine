@@ -7,9 +7,11 @@
 #include <godot_cpp/variant/dictionary.hpp>
 #include <godot_cpp/variant/vector3.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <map>
 
 namespace dross::godot_adapter {
 namespace {
@@ -46,6 +48,12 @@ godot::Ref<DrossHexGridBake> RaycastGeometryAnalyzer::bake(DrossHexGridRegion3D&
   godot::PackedInt32Array coordinates;
   godot::PackedInt32Array samples;
   godot::PackedByteArray clearance;
+  struct AnalyzedCell {
+    godot::Vector3 center;
+    std::int32_t height_mm;
+    bool traversable;
+  };
+  std::map<std::pair<std::int64_t, std::int64_t>, AnalyzedCell> analyzed;
   for (auto r = region.r_min_; r <= region.r_max_; ++r) {
     for (auto q = region.q_min_; q <= region.q_max_; ++q) {
       const auto center = axial_center(q, r, region.cell_radius_);
@@ -101,11 +109,67 @@ godot::Ref<DrossHexGridBake> RaycastGeometryAnalyzer::bake(DrossHexGridRegion3D&
         samples.push_back(sample);
       }
       clearance.push_back(standing_clearance ? 1U : 0U);
+      const auto [minimum, maximum] = std::ranges::minmax_element(cell_samples);
+      analyzed.emplace(
+          std::pair{q, r},
+          AnalyzedCell{
+              .center = center,
+              .height_mm = cell_samples[0],
+              .traversable = standing_clearance && static_cast<std::int64_t>(*maximum - *minimum) <=
+                                                       profile->maximum_height_variance_mm,
+          });
+    }
+  }
+  godot::PackedInt32Array edge_coordinates;
+  godot::PackedByteArray edge_clearance;
+  constexpr std::array<std::pair<std::int64_t, std::int64_t>, 3> forward_neighbors{
+      std::pair{1, 0}, std::pair{0, 1}, std::pair{-1, 1}};
+  for (const auto& [coordinate, from] : analyzed) {
+    for (const auto& offset : forward_neighbors) {
+      const auto destination =
+          std::pair{coordinate.first + offset.first, coordinate.second + offset.second};
+      const auto found = analyzed.find(destination);
+      if (found == analyzed.end()) {
+        continue;
+      }
+      const auto& to = found->second;
+      const auto step = std::abs(static_cast<std::int64_t>(from.height_mm) -
+                                 static_cast<std::int64_t>(to.height_mm));
+      bool clear =
+          from.traversable && to.traversable && step <= profile->maximum_height_variance_mm;
+      if (clear) {
+        const auto from_point = region.to_global(
+            from.center +
+            godot::Vector3{0.0F,
+                           static_cast<godot::real_t>(static_cast<double>(from.height_mm + 100) /
+                                                      millimeters_per_meter),
+                           0.0F});
+        const auto to_point = region.to_global(
+            to.center +
+            godot::Vector3{0.0F,
+                           static_cast<godot::real_t>(static_cast<double>(to.height_mm + 100) /
+                                                      millimeters_per_meter),
+                           0.0F});
+        auto edge_query = godot::PhysicsRayQueryParameters3D::create(
+            from_point, to_point, static_cast<std::uint32_t>(region.collision_mask_));
+        edge_query->set_hit_from_inside(true);
+        clear = state->intersect_ray(edge_query).is_empty();
+      }
+      edge_coordinates.push_back(static_cast<std::int32_t>(coordinate.first));
+      edge_coordinates.push_back(static_cast<std::int32_t>(coordinate.second));
+      edge_coordinates.push_back(0);
+      edge_coordinates.push_back(static_cast<std::int32_t>(destination.first));
+      edge_coordinates.push_back(static_cast<std::int32_t>(destination.second));
+      edge_coordinates.push_back(0);
+      edge_clearance.push_back(clear ? 1U : 0U);
+      edge_clearance.push_back(clear ? 1U : 0U);
     }
   }
   output->set_cell_coordinates(coordinates);
   output->set_surface_samples_mm(samples);
   output->set_standing_clearance(clearance);
+  output->set_edge_coordinates(edge_coordinates);
+  output->set_edge_clearance(edge_clearance);
   return output;
 }
 

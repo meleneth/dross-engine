@@ -26,6 +26,8 @@ func _initialize() -> void:
 		1001, 1000, 999, 1000, 1001, 999, 1000,
 	])
 	bake.standing_clearance = PackedByteArray([1, 0])
+	bake.edge_coordinates = PackedInt32Array([0, 0, 0, 1, 0, 0])
+	bake.edge_clearance = PackedByteArray([1, 0])
 	check(bake.cell_count == 2, "bake resource rejected its typed evidence")
 
 	var overrides := DrossHexGridOverrides.new()
@@ -35,6 +37,7 @@ func _initialize() -> void:
 	var compiled := DrossCompiledHexMap.new()
 	check(compiled.compile_from(bake, overrides, profile), "typed resources did not compile")
 	check(compiled.cell_count == 2, "compiled map lost cells")
+	check(compiled.edge_count == 1, "compiled map lost directional edge evidence")
 	check(compiled.cell_keys == PackedStringArray(["demo:room:0,0,0", "demo:room:1,0,0"]),
 			"compiled map order was not canonical")
 	check(compiled.traversability == PackedByteArray([1, 1]),
