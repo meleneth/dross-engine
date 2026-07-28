@@ -159,6 +159,10 @@ public:
   [[nodiscard]] Result<void, std::string>
   contribute_placement(const ScriptModule& module, const placement::PlaceEntity& query,
                        ScriptCallbackTransaction& transaction, RandomStream& random) override;
+  [[nodiscard]] Result<void, std::string> contribute_ability(const ScriptModule& module,
+                                                             const combat::PerformAbility& query,
+                                                             ScriptCallbackTransaction& transaction,
+                                                             RandomStream& random) override;
   [[nodiscard]] Result<void, std::string> on_entity_placed(const ScriptModule& module,
                                                            const placement::EntityPlaced& event,
                                                            ScriptCallbackTransaction& transaction,
@@ -178,6 +182,7 @@ private:
   struct Installed {
     godot::Ref<godot::RefCounted> instance;
     bool placement{false};
+    bool ability{false};
     bool entity_placed{false};
     bool damage_applied{false};
     bool actor_killed{false};

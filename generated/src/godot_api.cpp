@@ -774,6 +774,29 @@ void DrossTurnStartedEvent::_bind_methods() {
                "get_action_points");
 }
 
+void DrossAbilityRuleQuery::reject(const godot::String& reason) {
+  const auto utf8 = reason.utf8();
+  auto parsed = ContentId::parse(
+      std::string_view{utf8.get_data(), static_cast<std::size_t>(utf8.length())});
+  if (!parsed) {
+    return;
+  }
+  accepted_ = false;
+  reason_ = reason;
+  core_reason_ = std::move(*parsed);
+}
+
+void DrossAbilityRuleQuery::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("reject", "reason"),
+                              &DrossAbilityRuleQuery::reject);
+  godot::ClassDB::bind_method(godot::D_METHOD("is_accepted"),
+                              &DrossAbilityRuleQuery::is_accepted);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_reason"),
+                              &DrossAbilityRuleQuery::get_reason);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::BOOL, "accepted"), "", "is_accepted");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "reason"), "", "get_reason");
+}
+
 void DrossPlacementRuleQuery::reject(const godot::String& reason) {
   const auto utf8 = reason.utf8();
   auto parsed = ContentId::parse(
@@ -810,6 +833,7 @@ void register_generated_godot_types() {
   godot::ClassDB::register_class<DrossMovementCompletedEvent>();
   godot::ClassDB::register_class<DrossMovementStartedEvent>();
   godot::ClassDB::register_class<DrossTurnStartedEvent>();
+  godot::ClassDB::register_class<DrossAbilityRuleQuery>();
   godot::ClassDB::register_class<DrossPlacementRuleQuery>();
 }
 

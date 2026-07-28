@@ -4,6 +4,7 @@
 #include <dross/generated/actor_killed.hpp>
 #include <dross/generated/damage_applied.hpp>
 #include <dross/generated/entity_placed.hpp>
+#include <dross/generated/perform_ability.hpp>
 #include <dross/generated/place_entity.hpp>
 #include <dross/identity/content_id.hpp>
 #include <dross/identity/ids.hpp>
@@ -160,6 +161,12 @@ public:
   [[nodiscard]] virtual Result<void, std::string>
   contribute_placement(const ScriptModule& module, const placement::PlaceEntity& query,
                        ScriptCallbackTransaction& transaction, RandomStream& random) = 0;
+  [[nodiscard]] virtual Result<void, std::string> contribute_ability(const ScriptModule&,
+                                                                     const combat::PerformAbility&,
+                                                                     ScriptCallbackTransaction&,
+                                                                     RandomStream&) {
+    return {};
+  }
   [[nodiscard]] virtual Result<void, std::string>
   on_entity_placed(const ScriptModule& module, const placement::EntityPlaced& event,
                    ScriptCallbackTransaction& transaction, RandomStream& random) = 0;
@@ -198,6 +205,7 @@ public:
   [[nodiscard]] Result<void, ScriptModuleError> install(ScriptModule module);
   [[nodiscard]] ScriptRuleResult contribute_placement(const placement::PlaceEntity& query,
                                                       Tick tick);
+  [[nodiscard]] ScriptRuleResult contribute_ability(const combat::PerformAbility& query, Tick tick);
   [[nodiscard]] ScriptEventResult on_entity_placed(const placement::EntityPlaced& event, Tick tick);
   [[nodiscard]] ScriptEventResult on_damage_applied(const combat::DamageApplied& event, Tick tick);
   [[nodiscard]] ScriptEventResult on_actor_killed(const combat::ActorKilled& event, Tick tick);

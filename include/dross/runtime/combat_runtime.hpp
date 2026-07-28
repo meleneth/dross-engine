@@ -110,6 +110,7 @@ enum class AbilityRejection : std::uint8_t {
   invalid_target,
   target_dead,
   out_of_range,
+  rule_rejected,
   insufficient_action_points,
 };
 
@@ -125,6 +126,13 @@ struct AbilityResult {
 
 class AbilityResolver {
 public:
+  class RuleSource {
+  public:
+    virtual ~RuleSource() = default;
+    [[nodiscard]] virtual bool allows(const AbilityDefinition& ability, const EntityRef& actor,
+                                      const EntityRef& target) = 0;
+  };
+
   class EventSink {
   public:
     virtual ~EventSink() = default;
@@ -134,7 +142,8 @@ public:
   };
 
   AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors,
-                  EventSink* events = nullptr, RandomStream* random = nullptr);
+                  EventSink* events = nullptr, RandomStream* random = nullptr,
+                  RuleSource* rules = nullptr);
 
   [[nodiscard]] AbilityResult perform(const AbilityDefinition& ability, EntityId actor,
                                       EntityId target);
@@ -145,6 +154,7 @@ private:
   std::vector<AbilityActorState> actors_;
   EventSink* events_;
   RandomStream* random_;
+  RuleSource* rules_;
 };
 
 } // namespace dross

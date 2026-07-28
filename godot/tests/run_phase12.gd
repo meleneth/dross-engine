@@ -38,6 +38,8 @@ func _initialize() -> void:
 	check(host.start_thump_scenario(thump), "Godot combat host rejected typed Thump")
 	check(host.get_mouse_health() == 3, "mouse did not start with authoritative health")
 	check(host.perform_thump(), "generic PerformAbility rejected Thump")
+	check(host.get_script_state_bool("demo:field_mouse", 2, "rule_checked"),
+			"field mouse did not contribute a typed pre-resolution ability rule")
 	check(host.get_mouse_health() == 0, "Thump presentation preceded committed damage")
 	check(host.is_mouse_killed(), "lethal Thump did not commit mouse death")
 	check(host.get_last_presentation_cue() == "dross_demo:thump",

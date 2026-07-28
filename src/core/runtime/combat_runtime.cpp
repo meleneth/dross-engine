@@ -308,8 +308,9 @@ bool CombatSession::spend(const EntityId actor, const MovementCost cost) {
 }
 
 AbilityResolver::AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors,
-                                 EventSink* events, RandomStream* random)
-    : session_{&session}, actors_{std::move(actors)}, events_{events}, random_{random} {
+                                 EventSink* events, RandomStream* random, RuleSource* rules)
+    : session_{&session}, actors_{std::move(actors)}, events_{events}, random_{random},
+      rules_{rules} {
   std::ranges::sort(actors_, {}, [](const AbilityActorState& value) { return value.entity.id(); });
 }
 
@@ -351,6 +352,9 @@ AbilityResult AbilityResolver::perform(const AbilityDefinition& ability, const E
       source->pose.anchor.layer != destination->pose.anchor.layer ||
       hex_distance(source->pose.anchor.coord, destination->pose.anchor.coord) > ability.range) {
     return rejected(AbilityRejection::out_of_range);
+  }
+  if (rules_ != nullptr && !rules_->allows(ability, source->entity, destination->entity)) {
+    return rejected(AbilityRejection::rule_rejected);
   }
   if (session_->action_points(actor) < ability.action_point_cost) {
     return rejected(AbilityRejection::insufficient_action_points);

@@ -78,6 +78,17 @@ public:
   std::vector<std::string> calls;
 };
 
+class RejectingAbilityRule final : public dross::AbilityResolver::RuleSource {
+public:
+  bool allows(const dross::AbilityDefinition&, const dross::EntityRef&,
+              const dross::EntityRef&) override {
+    ++calls;
+    return false;
+  }
+
+  std::uint32_t calls{0};
+};
+
 } // namespace
 
 TEST_CASE("combat initiative is descending with a stable entity tie breaker") {
@@ -198,6 +209,31 @@ TEST_CASE("rejected ability leaves AP and health unchanged") {
   CHECK(result.rejection == dross::AbilityRejection::out_of_range);
   CHECK(session.action_points(dross::EntityId{7, 1}) == 3);
   CHECK(resolver.health(dross::EntityId{7, 2}) == dross::HitPoints{5});
+}
+
+TEST_CASE("pre-resolution ability rule rejects before AP damage or events") {
+  dross::CombatSession session{{combatant(1, 10, 3), combatant(2, 5, 2)}};
+  REQUIRE(session.start());
+  RecordingCombatEvents events;
+  RejectingAbilityRule rules;
+  dross::AbilityResolver resolver{
+      session,
+      {
+          {.entity = combatant(1, 10, 3).entity, .pose = pose(0), .health = dross::HitPoints{8}},
+          {.entity = combatant(2, 5, 2).entity, .pose = pose(1), .health = dross::HitPoints{5}},
+      },
+      &events,
+      nullptr,
+      &rules,
+  };
+
+  const auto result = resolver.perform(thump(), dross::EntityId{7, 1}, dross::EntityId{7, 2});
+  CHECK_FALSE(result.accepted);
+  CHECK(result.rejection == dross::AbilityRejection::rule_rejected);
+  CHECK(rules.calls == 1);
+  CHECK(session.action_points(dross::EntityId{7, 1}) == 3);
+  CHECK(resolver.health(dross::EntityId{7, 2}) == dross::HitPoints{5});
+  CHECK(events.calls.empty());
 }
 
 TEST_CASE("lethal generic ability marks the target dead and completes combat") {

@@ -303,6 +303,50 @@ ScriptRuleResult TypedScriptRuntime::contribute_placement(const placement::Place
   return result;
 }
 
+ScriptRuleResult TypedScriptRuntime::contribute_ability(const combat::PerformAbility& query,
+                                                        const Tick tick) {
+  ScriptRuleResult result{.accepted = true,
+                          .reason = {},
+                          .deferred_commands = {},
+                          .deferred_mode_commands = {},
+                          .fault = {}};
+  std::vector<ScriptStateWrite> pending_state;
+  std::vector<PlaceEntityEnvelope> pending_commands;
+  std::vector<ScriptModeCommand> pending_mode_commands;
+  for (const auto& module : modules_) {
+    ScriptCallbackTransaction transaction{module, state_};
+    auto callback = port_->contribute_ability(module, query, transaction, stream_for(module));
+    if (!callback) {
+      result.accepted = false;
+      result.fault = ScriptCallbackError{.module_id = module.module_id,
+                                         .scope = module.scope,
+                                         .callback = "contribute_ability",
+                                         .tick = tick,
+                                         .message = callback.error()};
+      return result;
+    }
+    for (const auto& contribution : transaction.rules()) {
+      if (!contribution.accepted) {
+        result.accepted = false;
+        result.reason = contribution.reason;
+      }
+    }
+    pending_state.insert(pending_state.end(), transaction.state_writes().begin(),
+                         transaction.state_writes().end());
+    pending_commands.insert(pending_commands.end(), transaction.commands().begin(),
+                            transaction.commands().end());
+    pending_mode_commands.insert(pending_mode_commands.end(), transaction.mode_commands().begin(),
+                                 transaction.mode_commands().end());
+    if (!result.accepted) {
+      return result;
+    }
+  }
+  state_.apply(pending_state);
+  result.deferred_commands = std::move(pending_commands);
+  result.deferred_mode_commands = std::move(pending_mode_commands);
+  return result;
+}
+
 ScriptEventResult TypedScriptRuntime::on_entity_placed(const placement::EntityPlaced& event,
                                                        const Tick tick) {
   ScriptEventResult result;

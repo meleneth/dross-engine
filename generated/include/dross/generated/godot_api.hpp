@@ -334,6 +334,26 @@ private:
   std::uint32_t action_points_{0};
 };
 
+class DrossAbilityRuleQuery final : public godot::RefCounted {
+  GDCLASS(DrossAbilityRuleQuery, godot::RefCounted)
+
+public:
+  void reject(const godot::String& reason);
+  [[nodiscard]] bool is_accepted() const noexcept { return accepted_; }
+  [[nodiscard]] godot::String get_reason() const { return reason_; }
+  [[nodiscard]] const std::optional<ContentId>& core_reason() const noexcept {
+    return core_reason_;
+  }
+
+protected:
+  static void _bind_methods();
+
+private:
+  bool accepted_{true};
+  godot::String reason_;
+  std::optional<ContentId> core_reason_;
+};
+
 class DrossPlacementRuleQuery final : public godot::RefCounted {
   GDCLASS(DrossPlacementRuleQuery, godot::RefCounted)
 

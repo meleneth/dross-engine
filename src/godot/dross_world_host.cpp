@@ -148,7 +148,8 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
   bool combat{false};
 };
 
-struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink {
+struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
+                                                   AbilityResolver::RuleSource {
   CombatScenarioState(AbilityDefinition definition, ScriptScenarioState* script_scenario)
       : ability{std::move(definition)}, scripts{script_scenario},
         session{{
@@ -160,10 +161,25 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink {
                      {.entity = player, .pose = movement_pose(0), .health = HitPoints{8}},
                      {.entity = mouse, .pose = movement_pose(1), .health = HitPoints{3}},
                  },
+                 this,
+                 nullptr,
                  this} {
     if (!session.start()) {
       throw std::logic_error{"Godot Thump scenario combat start failed"};
     }
+  }
+
+  bool allows(const AbilityDefinition& definition, const EntityRef& actor,
+              const EntityRef& target) override {
+    if (scripts == nullptr) {
+      return true;
+    }
+    scripts->port.set_tick(scripts->tick);
+    const auto result = scripts->runtime.contribute_ability(
+        combat::PerformAbility{.actor = actor, .target = target, .ability = definition.id},
+        scripts->tick);
+    script_fault = result.fault.has_value();
+    return result.accepted;
   }
 
   void publish(const combat::AbilityCommitted& event) override {

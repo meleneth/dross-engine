@@ -59,6 +59,16 @@ public:
     return {};
   }
 
+  dross::Result<void, std::string> contribute_ability(const dross::ScriptModule& module,
+                                                      const dross::combat::PerformAbility&,
+                                                      dross::ScriptCallbackTransaction& transaction,
+                                                      dross::RandomStream&) override {
+    calls.push_back("ability:" + std::string{module.module_id.canonical()});
+    transaction.set_state(dross::ScriptStateKey::parse("ability_checked").value(), true);
+    transaction.add_rule(dross::ScriptRuleContribution{.accepted = true, .reason = {}});
+    return {};
+  }
+
   dross::Result<void, std::string> on_entity_placed(const dross::ScriptModule& module,
                                                     const dross::placement::EntityPlaced&,
                                                     dross::ScriptCallbackTransaction& transaction,
@@ -85,6 +95,14 @@ dross::placement::PlaceEntity query() {
                   },
               .facing = dross::HexFacing::east,
           },
+  };
+}
+
+dross::combat::PerformAbility ability_query() {
+  return {
+      .actor = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 1}},
+      .target = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 2}},
+      .ability = id("dross_demo:thump"),
   };
 }
 
@@ -118,6 +136,27 @@ TEST_CASE("script callbacks follow region entity and module identity order") {
   REQUIRE(result.accepted);
   CHECK(port.calls == std::vector<std::string>{"rule:demo:zeta", "rule:demo:alpha",
                                                "rule:demo:zeta", "rule:demo:zeta"});
+}
+
+TEST_CASE("ability rule callbacks use deterministic module ordering and commit state") {
+  RecordingPort port;
+  dross::RandomHub random{dross::MasterSeed{1}};
+  dross::TypedScriptRuntime runtime{port, random};
+  REQUIRE(runtime.install(entity_module("demo:zeta", 2)));
+  REQUIRE(runtime.install(region_module("demo:alpha")));
+  port.calls.clear();
+
+  const auto result = runtime.contribute_ability(ability_query(), dross::Tick{3});
+
+  REQUIRE(result.accepted);
+  CHECK(port.calls == std::vector<std::string>{"ability:demo:alpha", "ability:demo:zeta"});
+  const auto value = runtime.state().find(dross::ScriptStateAddress{
+      .module_id = id("demo:zeta"),
+      .scope = dross::ScriptScope::for_entity(id("demo:region"), dross::EntityId{7, 2}),
+      .key = dross::ScriptStateKey::parse("ability_checked").value(),
+  });
+  REQUIRE(value != nullptr);
+  CHECK(std::get<bool>(*value));
 }
 
 TEST_CASE("rule callback fault discards buffered state") {

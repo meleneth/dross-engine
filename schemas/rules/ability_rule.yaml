@@ -1,0 +1,12 @@
+kind: rule
+namespace: dross.combat
+name: AbilityRule
+version: 1
+id: dross:ability_rule
+fields:
+  - name: actor
+    type: entity_ref
+  - name: target
+    type: entity_ref
+  - name: ability
+    type: content_id

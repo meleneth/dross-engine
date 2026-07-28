@@ -251,11 +251,12 @@ bool GodotScriptRuntime::discover_callbacks(const ScriptModule& module) {
     return false;
   }
   installed->placement = installed->instance->has_method("contribute_placement_rules");
+  installed->ability = installed->instance->has_method("contribute_ability_rules");
   installed->entity_placed = installed->instance->has_method("on_entity_placed");
   installed->damage_applied = installed->instance->has_method("on_damage_applied");
   installed->actor_killed = installed->instance->has_method("on_actor_killed");
-  return installed->placement || installed->entity_placed || installed->damage_applied ||
-         installed->actor_killed;
+  return installed->placement || installed->ability || installed->entity_placed ||
+         installed->damage_applied || installed->actor_killed;
 }
 
 Result<void, std::string> GodotScriptRuntime::invoke(const ScriptModule& module,
@@ -298,6 +299,25 @@ GodotScriptRuntime::contribute_placement(const ScriptModule& module, const place
   godot::Array args;
   args.push_back(query);
   auto result = invoke(module, "contribute_placement_rules", args, transaction, random);
+  if (result && !query->is_accepted()) {
+    transaction.add_rule(ScriptRuleContribution{.accepted = false, .reason = query->core_reason()});
+  }
+  return result;
+}
+
+Result<void, std::string>
+GodotScriptRuntime::contribute_ability(const ScriptModule& module, const combat::PerformAbility&,
+                                       ScriptCallbackTransaction& transaction,
+                                       RandomStream& random) {
+  auto* installed = find(module);
+  if (!installed || !installed->ability) {
+    return {};
+  }
+  godot::Ref<generated::godot_api::DrossAbilityRuleQuery> query;
+  query.instantiate();
+  godot::Array args;
+  args.push_back(query);
+  auto result = invoke(module, "contribute_ability_rules", args, transaction, random);
   if (result && !query->is_accepted()) {
     transaction.add_rule(ScriptRuleContribution{.accepted = false, .reason = query->core_reason()});
   }

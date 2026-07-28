@@ -64,4 +64,4 @@ static_assert(std::is_standard_layout_v<
     dross::combat::RequestCombatStart>);
 static_assert(std::is_standard_layout_v<
     dross::combat::TurnStarted>);
-static_assert(dross::generated::schema_registry.size() == 21);
+static_assert(dross::generated::schema_registry.size() == 22);

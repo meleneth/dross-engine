@@ -1,6 +1,11 @@
 extends RefCounted
 
 
+func contribute_ability_rules(
+		_query: DrossAbilityRuleQuery, context: DrossScriptContext) -> void:
+	context.state.set_bool("rule_checked", true)
+
+
 func on_damage_applied(event: DrossDamageAppliedEvent, context: DrossScriptContext) -> void:
 	if event.target_sequence != context.owner_sequence:
 		return

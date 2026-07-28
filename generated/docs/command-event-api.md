@@ -11,6 +11,16 @@
   - `target`: `entity_ref`
   - `ability`: `content_id`
 
+## `dross:ability_rule`
+
+- Kind: `rule`
+- C++ type: `dross::combat::AbilityRule`
+- Version: 1
+- Fields:
+  - `actor`: `entity_ref`
+  - `target`: `entity_ref`
+  - `ability`: `content_id`
+
 ## `dross:action_points_spent`
 
 - Kind: `event`
