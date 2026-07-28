@@ -44,6 +44,7 @@ dross::SaveContainer container_with(std::vector<dross::ComponentRecord> records)
                   dross::SimulationModeSnapshot{.state = dross::SimulationModeState::exploration},
           },
       .content_manifest = dross::first_slice_content_manifest(),
+      .combat = {},
       .components = std::move(records),
   };
 }
@@ -168,6 +169,47 @@ TEST_CASE("save container round trip preserves required header and component rec
 
   REQUIRE(decoded);
   CHECK(*decoded == expected);
+}
+
+TEST_CASE("save container round trips a typed combat actor-turn boundary") {
+  auto expected = container_with({});
+  dross::CombatSession session{{
+      {.entity = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{9, 1}},
+       .initiative = 10,
+       .maximum_action_points = 3},
+      {.entity = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{9, 2}},
+       .initiative = 5,
+       .maximum_action_points = 2},
+  }};
+  REQUIRE(session.start());
+  dross::AbilityResolver actors{
+      session,
+      {
+          {.entity = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{9, 1}},
+           .pose = {.anchor = {.region = dross::RegionId{content_id("demo:arena")},
+                               .coord = {.q = 0, .r = 0},
+                               .layer = 0},
+                    .facing = dross::HexFacing::east},
+           .health = dross::HitPoints{8}},
+          {.entity = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{9, 2}},
+           .pose = {.anchor = {.region = dross::RegionId{content_id("demo:arena")},
+                               .coord = {.q = 1, .r = 0},
+                               .layer = 0},
+                    .facing = dross::HexFacing::east},
+           .health = dross::HitPoints{3}},
+      },
+  };
+  expected.combat = dross::CombatBoundarySnapshot{
+      .ability = content_id("dross_demo:thump"),
+      .session = session.snapshot(),
+      .actors = actors.snapshot(),
+  };
+
+  const auto decoded = dross::decode_save_container(dross::encode_save_container(expected));
+
+  REQUIRE(decoded);
+  REQUIRE(decoded->combat);
+  CHECK(decoded->combat == expected.combat);
 }
 
 TEST_CASE("save decoder rejects truncated and malformed container bytes") {

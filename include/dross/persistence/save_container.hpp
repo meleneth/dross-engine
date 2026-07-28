@@ -3,6 +3,7 @@
 #include <dross/content/content_manifest.hpp>
 #include <dross/foundation/result.hpp>
 #include <dross/foundation/version.hpp>
+#include <dross/runtime/combat_runtime.hpp>
 #include <dross/runtime/replay.hpp>
 #include <dross/world/world_storage.hpp>
 
@@ -94,10 +95,19 @@ struct SaveRuntimeSnapshot {
   [[nodiscard]] bool operator==(const SaveRuntimeSnapshot&) const = default;
 };
 
+struct CombatBoundarySnapshot {
+  ContentId ability;
+  CombatSessionSnapshot session;
+  AbilityResolverSnapshot actors;
+
+  [[nodiscard]] bool operator==(const CombatBoundarySnapshot&) const = default;
+};
+
 struct SaveContainer {
   SaveHeader header;
   SaveRuntimeSnapshot runtime;
   ContentManifest content_manifest;
+  std::optional<CombatBoundarySnapshot> combat;
   std::vector<ComponentRecord> components;
 
   [[nodiscard]] bool operator==(const SaveContainer&) const = default;

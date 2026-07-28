@@ -404,6 +404,12 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
     }
     writer.write_string(encode_bytes(std::as_bytes(std::span{package.content_hash})));
   }
+  writer.write_u16(container.combat.has_value() ? 1U : 0U);
+  if (container.combat) {
+    writer.write(container.combat->ability);
+    encode_combat_session_snapshot(writer, container.combat->session);
+    encode_ability_resolver_snapshot(writer, container.combat->actors);
+  }
 
   auto records = container.components;
   std::ranges::sort(records, [](const ComponentRecord& left, const ComponentRecord& right) {
@@ -493,6 +499,24 @@ decode_save_container(const std::span<const std::byte> bytes) {
         .content_hash = content_hash,
     });
   }
+  const auto has_combat = reader.read_u16();
+  if (!has_combat || *has_combat > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  std::optional<CombatBoundarySnapshot> combat;
+  if (*has_combat == 1U) {
+    auto ability = reader.read_content_id();
+    auto session = decode_combat_session_snapshot(reader);
+    auto actors = decode_ability_resolver_snapshot(reader);
+    if (!ability || !session || !actors) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    combat = CombatBoundarySnapshot{
+        .ability = *ability,
+        .session = *std::move(session),
+        .actors = *std::move(actors),
+    };
+  }
 
   const auto component_count = reader.read_u64();
   if (!component_count) {
@@ -516,6 +540,7 @@ decode_save_container(const std::span<const std::byte> bytes) {
           },
       .runtime = *std::move(runtime),
       .content_manifest = std::move(manifest),
+      .combat = std::move(combat),
       .components = {},
   };
   for (std::uint64_t index = 0; index < *component_count; ++index) {
