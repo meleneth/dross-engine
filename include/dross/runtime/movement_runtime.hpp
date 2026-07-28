@@ -1,6 +1,9 @@
 #pragma once
 
 #include <dross/foundation/quantities.hpp>
+#include <dross/generated/actor_entered_cell.hpp>
+#include <dross/generated/movement_completed.hpp>
+#include <dross/generated/movement_started.hpp>
 #include <dross/hex/path_planner.hpp>
 
 #include <cstddef>
@@ -39,6 +42,14 @@ struct MovementPreview {
   std::uint64_t occupancy_revision;
 };
 
+class MovementEventSink {
+public:
+  virtual ~MovementEventSink() = default;
+  virtual void publish(const movement::MovementStarted& event) = 0;
+  virtual void publish(const movement::ActorEnteredCell& event) = 0;
+  virtual void publish(const movement::MovementCompleted& event) = 0;
+};
+
 class MovementLifecycle {
 public:
   MovementLifecycle();
@@ -75,8 +86,8 @@ struct MovementSnapshot {
 class MovementRuntime {
 public:
   MovementRuntime(const CompiledHexMap& map, OccupancyIndex& occupancy, const PathPlanner& planner,
-                  const FootprintDefinition& footprint, EntityId entity, HexPose initial_pose,
-                  MovementConfig config);
+                  const FootprintDefinition& footprint, EntityRef entity, HexPose initial_pose,
+                  MovementConfig config, MovementEventSink* events = nullptr);
 
   [[nodiscard]] MovementPreview preview(const HexPose& goal) const;
   [[nodiscard]] bool move_to(const HexPose& goal);
@@ -94,9 +105,10 @@ private:
   OccupancyIndex* occupancy_;
   const PathPlanner* planner_;
   const FootprintDefinition* footprint_;
-  EntityId entity_;
+  EntityRef entity_;
   HexPose pose_;
   MovementConfig config_;
+  MovementEventSink* events_;
   MovementLifecycle lifecycle_;
   std::vector<HexPose> path_;
   std::size_t next_pose_{0};

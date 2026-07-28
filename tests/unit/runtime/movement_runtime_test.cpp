@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -46,6 +47,10 @@ dross::FootprintDefinition single_footprint() {
       .value();
 }
 
+constexpr dross::EntityRef actor() {
+  return dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 1}};
+}
+
 struct Fixture {
   dross::CompiledHexMap map{line_map()};
   dross::OccupancyIndex occupancy;
@@ -55,11 +60,22 @@ struct Fixture {
                                   occupancy,
                                   planner,
                                   footprint,
-                                  dross::EntityId{7, 1},
+                                  actor(),
                                   pose(0, 0),
                                   dross::MovementConfig{.ticks_per_transition = 2}};
 
-  Fixture() { REQUIRE(occupancy.place(dross::EntityId{7, 1}, {cell(0, 0)})); }
+  Fixture() { REQUIRE(occupancy.place(actor().id(), {cell(0, 0)})); }
+};
+
+class RecordingMovementEvents final : public dross::MovementEventSink {
+public:
+  void publish(const dross::movement::MovementStarted&) override { calls.emplace_back("started"); }
+  void publish(const dross::movement::ActorEnteredCell&) override { calls.emplace_back("entered"); }
+  void publish(const dross::movement::MovementCompleted&) override {
+    calls.emplace_back("completed");
+  }
+
+  std::vector<std::string> calls;
 };
 
 } // namespace
@@ -167,8 +183,13 @@ TEST_CASE("multi-cell footprint occupancy moves atomically at the edge boundary"
                        .value();
   const dross::EntityId entity{7, 1};
   REQUIRE(occupancy.place(entity, footprint.expand(pose(0, 0))));
-  dross::MovementRuntime movement{
-      map, occupancy, planner, footprint, entity, pose(0, 0), {.ticks_per_transition = 2}};
+  dross::MovementRuntime movement{map,
+                                  occupancy,
+                                  planner,
+                                  footprint,
+                                  dross::EntityRef{dross::WorldInstanceId{1}, entity},
+                                  pose(0, 0),
+                                  {.ticks_per_transition = 2}};
   REQUIRE(movement.move_to(pose(1, 0)));
 
   CHECK(movement.advance(dross::Tick{0}) == dross::MovementAdvance::in_progress);
@@ -181,4 +202,27 @@ TEST_CASE("multi-cell footprint occupancy moves atomically at the edge boundary"
   CHECK_FALSE(occupancy.occupant(cell(0, 1)));
   CHECK(occupancy.occupant(cell(1, 0)) == entity);
   CHECK(occupancy.occupant(cell(1, 1)) == entity);
+}
+
+TEST_CASE("movement facts follow authoritative cell commits") {
+  auto map = line_map();
+  dross::OccupancyIndex occupancy;
+  dross::WeightedAStarPathPlanner planner;
+  auto footprint = single_footprint();
+  RecordingMovementEvents events;
+  REQUIRE(occupancy.place(actor().id(), {cell(0, 0)}));
+  dross::MovementRuntime movement{
+      map,    occupancy, planner, footprint, actor(), pose(0, 0), {.ticks_per_transition = 2},
+      &events};
+
+  REQUIRE(movement.move_to(pose(2, 0)));
+  CHECK(events.calls == std::vector<std::string>{"started"});
+  CHECK(movement.advance(dross::Tick{0}) == dross::MovementAdvance::in_progress);
+  CHECK(events.calls == std::vector<std::string>{"started"});
+  CHECK(movement.advance(dross::Tick{1}) == dross::MovementAdvance::entered_cell);
+  CHECK(events.calls == std::vector<std::string>{"started", "entered"});
+  CHECK(movement.advance(dross::Tick{2}) == dross::MovementAdvance::in_progress);
+  CHECK(events.calls == std::vector<std::string>{"started", "entered"});
+  CHECK(movement.advance(dross::Tick{3}) == dross::MovementAdvance::completed);
+  CHECK(events.calls == std::vector<std::string>{"started", "entered", "entered", "completed"});
 }

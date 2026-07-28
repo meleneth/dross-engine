@@ -83,14 +83,15 @@ MovementLifecycleState MovementLifecycle::state() const {
 
 MovementRuntime::MovementRuntime(const CompiledHexMap& map, OccupancyIndex& occupancy,
                                  const PathPlanner& planner, const FootprintDefinition& footprint,
-                                 const EntityId entity, HexPose initial_pose,
-                                 const MovementConfig config)
+                                 const EntityRef entity, HexPose initial_pose,
+                                 const MovementConfig config, MovementEventSink* events)
     : map_{&map}, occupancy_{&occupancy}, planner_{&planner}, footprint_{&footprint},
-      entity_{entity}, pose_{std::move(initial_pose)}, config_{config} {}
+      entity_{entity}, pose_{std::move(initial_pose)}, config_{config}, events_{events} {}
 
 MovementPreview MovementRuntime::preview(const HexPose& goal) const {
-  const auto planned = planner_->plan(*map_, *occupancy_, *footprint_, pose_, goal,
-                                      TraversalPolicy{.rotation_cost = MovementCost{0}}, entity_);
+  const auto planned =
+      planner_->plan(*map_, *occupancy_, *footprint_, pose_, goal,
+                     TraversalPolicy{.rotation_cost = MovementCost{0}}, entity_.id());
   if (!planned) {
     return MovementPreview{.accepted = false,
                            .rejection = planned.error(),
@@ -132,6 +133,13 @@ bool MovementRuntime::move_to(const HexPose& goal) {
   transition_ticks_ = 0;
   expected_occupancy_revision_ = planned.occupancy_revision;
   cancel_requested_ = false;
+  if (events_ != nullptr) {
+    events_->publish(movement::MovementStarted{
+        .entity = entity_,
+        .origin = pose_,
+        .destination = goal,
+    });
+  }
   return true;
 }
 
@@ -159,7 +167,7 @@ MovementAdvance MovementRuntime::advance(const Tick tick) {
     return MovementAdvance::in_progress;
   }
   const auto& destination = path_[next_pose_];
-  if (!occupancy_->move(entity_, footprint_->expand(destination))) {
+  if (!occupancy_->move(entity_.id(), footprint_->expand(destination))) {
     static_cast<void>(lifecycle_.block());
     return MovementAdvance::blocked;
   }
@@ -167,6 +175,12 @@ MovementAdvance MovementRuntime::advance(const Tick tick) {
   expected_occupancy_revision_ = occupancy_->revision();
   transition_ticks_ = 0;
   ++next_pose_;
+  if (events_ != nullptr) {
+    events_->publish(movement::ActorEnteredCell{
+        .entity = entity_,
+        .pose = pose_,
+    });
+  }
   if (cancel_requested_) {
     static_cast<void>(lifecycle_.finish());
     return MovementAdvance::cancelled;
@@ -177,6 +191,12 @@ MovementAdvance MovementRuntime::advance(const Tick tick) {
   }
   if (next_pose_ == path_.size()) {
     static_cast<void>(lifecycle_.finish());
+    if (events_ != nullptr) {
+      events_->publish(movement::MovementCompleted{
+          .entity = entity_,
+          .pose = pose_,
+      });
+    }
     return MovementAdvance::completed;
   }
   return MovementAdvance::entered_cell;
