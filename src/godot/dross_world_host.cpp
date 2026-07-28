@@ -144,6 +144,8 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
   EntityRef entity{WorldInstanceId{synthetic_instance}, EntityId{7, 1}};
   MovementRuntime movement;
   Tick tick{0};
+  bool combat_pending{false};
+  bool combat{false};
 };
 
 DrossWorldHost::DrossWorldHost() = default;
@@ -379,11 +381,30 @@ bool DrossWorldHost::move_to(const std::int64_t destination_q) {
          movement_state_->movement.move_to(movement_pose(static_cast<std::int32_t>(destination_q)));
 }
 
+bool DrossWorldHost::cancel_movement() {
+  return movement_state_ && movement_state_->movement.cancel();
+}
+
+bool DrossWorldHost::request_movement_combat() {
+  if (!movement_state_ || movement_state_->combat_pending || movement_state_->combat) {
+    return false;
+  }
+  movement_state_->combat_pending = true;
+  movement_state_->movement.request_combat_stop();
+  return true;
+}
+
 bool DrossWorldHost::advance_movement_tick() {
   if (!movement_state_) {
     return false;
   }
-  static_cast<void>(movement_state_->movement.advance(movement_state_->tick));
+  const auto result = movement_state_->movement.advance(movement_state_->tick);
+  if (result == MovementAdvance::combat_boundary ||
+      (movement_state_->combat_pending &&
+       movement_state_->movement.state() == MovementLifecycleState::idle)) {
+    movement_state_->combat_pending = false;
+    movement_state_->combat = true;
+  }
   movement_state_->tick = Tick{movement_state_->tick.value() + 1};
   return true;
 }
@@ -405,6 +426,16 @@ godot::String DrossWorldHost::get_movement_state() const {
     return "blocked";
   }
   return "none";
+}
+
+godot::String DrossWorldHost::get_movement_mode() const {
+  if (!movement_state_) {
+    return "none";
+  }
+  if (movement_state_->combat) {
+    return "combat";
+  }
+  return movement_state_->combat_pending ? "combat_pending" : "exploration";
 }
 
 void DrossWorldHost::_bind_methods() {
@@ -445,12 +476,17 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::preview_movement);
   godot::ClassDB::bind_method(godot::D_METHOD("move_to", "destination_q"),
                               &DrossWorldHost::move_to);
+  godot::ClassDB::bind_method(godot::D_METHOD("cancel_movement"), &DrossWorldHost::cancel_movement);
+  godot::ClassDB::bind_method(godot::D_METHOD("request_movement_combat"),
+                              &DrossWorldHost::request_movement_combat);
   godot::ClassDB::bind_method(godot::D_METHOD("advance_movement_tick"),
                               &DrossWorldHost::advance_movement_tick);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_column"),
                               &DrossWorldHost::get_movement_column);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_state"),
                               &DrossWorldHost::get_movement_state);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_movement_mode"),
+                              &DrossWorldHost::get_movement_mode);
 }
 
 } // namespace dross::godot_adapter

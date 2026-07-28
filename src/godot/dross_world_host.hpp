@@ -48,9 +48,12 @@ public:
   [[nodiscard]] bool start_movement_scenario();
   [[nodiscard]] godot::Ref<DrossMovementPreview> preview_movement(std::int64_t destination_q) const;
   [[nodiscard]] bool move_to(std::int64_t destination_q);
+  [[nodiscard]] bool cancel_movement();
+  [[nodiscard]] bool request_movement_combat();
   [[nodiscard]] bool advance_movement_tick();
   [[nodiscard]] std::int64_t get_movement_column() const;
   [[nodiscard]] godot::String get_movement_state() const;
+  [[nodiscard]] godot::String get_movement_mode() const;
 
 protected:
   static void _bind_methods();
