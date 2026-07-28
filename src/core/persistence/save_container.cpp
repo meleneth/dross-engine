@@ -550,6 +550,9 @@ decode_save_container(const std::span<const std::byte> bytes) {
 Result<WorldLoadPlan, WorldLoadError>
 build_world_load_plan(const SaveContainer& container, const ComponentCodecRegistry& registry,
                       const ContentId& expected_map_id, const CheckpointHash& expected_map_hash) {
+  if (!validate_content_manifest(container.content_manifest, first_slice_content_manifest())) {
+    return tl::unexpected{WorldLoadError::content_manifest_mismatch};
+  }
   if (container.header.map_id != expected_map_id ||
       container.header.map_hash != expected_map_hash) {
     return tl::unexpected{WorldLoadError::map_mismatch};

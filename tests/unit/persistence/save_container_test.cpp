@@ -308,6 +308,25 @@ TEST_CASE("world load plan rejects map mismatch and orphan components") {
   CHECK(orphan.error() == dross::WorldLoadError::missing_identity);
 }
 
+TEST_CASE("world load plan rejects changed or missing required content before construction") {
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+  auto changed = container_with({});
+  changed.content_manifest.back().content_hash.front() ^= 0xFFU;
+
+  const auto changed_result = dross::build_world_load_plan(changed, registry, changed.header.map_id,
+                                                           changed.header.map_hash);
+  REQUIRE_FALSE(changed_result);
+  CHECK(changed_result.error() == dross::WorldLoadError::content_manifest_mismatch);
+
+  auto missing = container_with({});
+  missing.content_manifest.pop_back();
+  const auto missing_result = dross::build_world_load_plan(missing, registry, missing.header.map_id,
+                                                           missing.header.map_hash);
+  REQUIRE_FALSE(missing_result);
+  CHECK(missing_result.error() == dross::WorldLoadError::content_manifest_mismatch);
+}
+
 TEST_CASE("world component snapshot round trips through a fresh world") {
   dross::WorldStorage original{dross::WorldConfig{
       .lineage = 9,

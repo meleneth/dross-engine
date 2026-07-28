@@ -112,6 +112,7 @@ enum class SaveDecodeError : std::uint8_t {
 decode_save_container(std::span<const std::byte> bytes);
 
 enum class WorldLoadError : std::uint8_t {
+  content_manifest_mismatch,
   map_mismatch,
   component_invalid,
   duplicate_component,
