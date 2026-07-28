@@ -93,6 +93,7 @@ endif()
 
 add_executable(dross_headless
   tools/dross_cli/command_event_kernel_scenario.cpp
+  tools/dross_cli/exploration_movement_scenario.cpp
   tools/dross_cli/hex_pathing_scenario.cpp
   tools/dross_cli/lifecycle_machine_scenario.cpp
   tools/dross_cli/main.cpp

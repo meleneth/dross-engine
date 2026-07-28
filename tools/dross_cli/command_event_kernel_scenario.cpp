@@ -1,4 +1,5 @@
 #include "command_event_kernel_scenario.hpp"
+#include "exploration_movement_scenario.hpp"
 #include "lifecycle_machine_scenario.hpp"
 
 #include <dross/foundation/version.hpp>
@@ -209,6 +210,9 @@ int run_replay_verification(const std::string& path) {
   }
   if (recorded->header.scenario == content_id("dross:lifecycle_machines")) {
     return verify_lifecycle_replay(*recorded);
+  }
+  if (recorded->header.scenario == content_id("dross:exploration_movement")) {
+    return verify_exploration_movement_replay(*recorded);
   }
   try {
     const auto replayed =
