@@ -26,6 +26,7 @@ add_library(dross_core STATIC
   src/core/hex/footprint.cpp
   src/core/hex/compiled_hex_map.cpp
   src/core/hex/hex_coord.cpp
+  src/core/hex/grid_bake.cpp
   src/core/hex/hex_topology.cpp
   src/core/hex/occupancy.cpp
   src/core/hex/path_planner.cpp
@@ -104,6 +105,7 @@ add_executable(dross_tests
   tests/unit/foundation/byte_codec_test.cpp
   tests/unit/foundation/quantity_test.cpp
   tests/unit/hex/hex_coord_test.cpp
+  tests/unit/hex/grid_bake_test.cpp
   tests/unit/hex/hex_map_test.cpp
   tests/unit/hex/path_planner_test.cpp
   tests/unit/hex/hex_topology_test.cpp
