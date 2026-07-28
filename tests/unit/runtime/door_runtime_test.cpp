@@ -29,8 +29,8 @@ dross::CellFacts cell_facts(const dross::HexCellId& cell_id) {
           .semantic_tags = {}};
 }
 
-dross::DirectionalEdgeFacts traversable_edge() {
-  return {.traversable = true, .cost = dross::MovementCost{1}};
+dross::DirectionalEdgeFacts traversable_edge(const std::uint32_t cost = 1) {
+  return {.traversable = true, .cost = dross::MovementCost{cost}};
 }
 
 dross::FootprintDefinition single_cell_footprint() {
@@ -107,6 +107,46 @@ TEST_CASE("authoritative planner consumes committed door traversal state") {
   REQUIRE(opened);
   CHECK(opened->poses == std::vector{start, goal});
   CHECK(opened->total_cost == dross::MovementCost{1});
+}
+
+TEST_CASE("optional side door is not part of the shortest required route") {
+  const auto start_cell = cell(0, 0);
+  const auto door_cell = cell(1, 0);
+  const auto open_route_cell = cell(0, 1);
+  const auto mouse_cell = cell(1, 1);
+  dross::CompiledHexMapBuilder builder;
+  for (const auto& map_cell : {start_cell, door_cell, open_route_cell, mouse_cell}) {
+    REQUIRE(builder.add_cell(cell_facts(map_cell)));
+  }
+  REQUIRE(builder.add_edge(start_cell, door_cell, traversable_edge(3), traversable_edge(3)));
+  REQUIRE(builder.add_edge(door_cell, mouse_cell, traversable_edge(3), traversable_edge(3)));
+  REQUIRE(builder.add_edge(start_cell, open_route_cell, traversable_edge(), traversable_edge()));
+  REQUIRE(builder.add_edge(open_route_cell, mouse_cell, traversable_edge(), traversable_edge()));
+  const auto map = std::move(builder).build().value();
+  auto door_edges =
+      dross::EdgeFootprint::create({dross::EdgeKey::between(start_cell, door_cell).value()})
+          .value();
+  dross::DoorRuntime door{door_entity(), std::move(door_edges), dross::DoorState::closed};
+  const dross::WeightedAStarPathPlanner planner;
+  const dross::OccupancyIndex occupancy;
+  const auto footprint = single_cell_footprint();
+  const auto start = dross::HexPose{start_cell, dross::HexFacing::east};
+  const auto goal = dross::HexPose{mouse_cell, dross::HexFacing::east};
+  const auto policy =
+      dross::TraversalPolicy{.rotation_cost = dross::MovementCost{1}, .edge_policy = &door};
+
+  const auto closed_path =
+      planner.plan(map, occupancy, footprint, start, goal, policy, dross::EntityId{7, 1});
+  REQUIRE(closed_path);
+  REQUIRE(closed_path->poses.size() == 3);
+  CHECK(closed_path->poses[1].anchor == open_route_cell);
+
+  REQUIRE(door.open());
+  const auto open_path =
+      planner.plan(map, occupancy, footprint, start, goal, policy, dross::EntityId{7, 1});
+  REQUIRE(open_path);
+  CHECK(open_path->poses == closed_path->poses);
+  CHECK(open_path->total_cost == closed_path->total_cost);
 }
 
 TEST_CASE("presentation acknowledgement cannot change committed door state") {
