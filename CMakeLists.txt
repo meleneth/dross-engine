@@ -137,7 +137,7 @@ catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME headless.version COMMAND dross_headless version)
 set_tests_properties(
   headless.version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-09")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-10")
 add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
 set_tests_properties(
   headless.validate_id
@@ -155,6 +155,10 @@ set_tests_properties(
   headless.hex_pathing
   PROPERTIES PASS_REGULAR_EXPRESSION
              "^hex-pathing single=\\[0,0,east>0,1,east\\] cost=1 asymmetric=\\[0,0,east>0,0,southeast>0,1,southeast\\] cost=2 rotations=1 blocked=\\[occupied,blocked_edge\\] revision=1")
+add_test(NAME headless.grid_bake COMMAND dross_headless scenario grid-bake)
+set_tests_properties(
+  headless.grid_bake
+  PROPERTIES PASS_REGULAR_EXPRESSION "^grid-bake cells=2 edges=1 manual=1")
 add_test(NAME headless.command_event_kernel
          COMMAND dross_headless scenario command-event-kernel)
 set_tests_properties(

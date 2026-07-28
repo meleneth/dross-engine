@@ -252,6 +252,10 @@ void DrossHexGridRegion3D::_bind_methods() {
                               &DrossHexGridRegion3D::set_collision_mask);
   godot::ClassDB::bind_method(godot::D_METHOD("get_collision_mask"),
                               &DrossHexGridRegion3D::get_collision_mask);
+  godot::ClassDB::bind_method(godot::D_METHOD("set_optional_door_edge", "value"),
+                              &DrossHexGridRegion3D::set_optional_door_edge);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_optional_door_edge"),
+                              &DrossHexGridRegion3D::get_optional_door_edge);
   godot::ClassDB::bind_method(godot::D_METHOD("set_bake_profile", "value"),
                               &DrossHexGridRegion3D::set_bake_profile);
   godot::ClassDB::bind_method(godot::D_METHOD("get_bake_profile"),
@@ -280,6 +284,8 @@ void DrossHexGridRegion3D::_bind_methods() {
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "collision_mask",
                                    godot::PROPERTY_HINT_LAYERS_3D_PHYSICS),
                "set_collision_mask", "get_collision_mask");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "optional_door_edge"),
+               "set_optional_door_edge", "get_optional_door_edge");
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::OBJECT, "bake_profile",
                                    godot::PROPERTY_HINT_RESOURCE_TYPE, "DrossHexBakeProfile"),
                "set_bake_profile", "get_bake_profile");

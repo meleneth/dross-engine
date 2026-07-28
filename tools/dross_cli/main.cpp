@@ -1,6 +1,7 @@
 #include <dross/foundation/byte_codec.hpp>
 #include <dross/foundation/quantities.hpp>
 #include <dross/foundation/version.hpp>
+#include <dross/hex/grid_bake.hpp>
 #include <dross/identity/content_id.hpp>
 #include <dross/world/world_storage.hpp>
 
@@ -9,6 +10,7 @@
 #include "lifecycle_machine_scenario.hpp"
 #include "persistence_scenario.hpp"
 
+#include <algorithm>
 #include <charconv>
 #include <cstdint>
 #include <iostream>
@@ -34,6 +36,7 @@ void print_usage(std::ostream& output) {
             "  dross_headless validate-id <namespace:name>\n"
             "  dross_headless scenario identity-lifecycle\n"
             "  dross_headless scenario hex-pathing\n"
+            "  dross_headless scenario grid-bake\n"
             "  dross_headless scenario command-event-kernel [--seed N] [--record PATH]\n"
             "  dross_headless scenario lifecycle-machines [--record PATH]\n"
             "  dross_headless scenario persistence-foundation [--seed N] --save PATH\n"
@@ -105,6 +108,55 @@ void print_usage(std::ostream& output) {
   std::cout << "identity-lifecycle world=" << instance << " alive=[" << alive[0] << ',' << alive[1]
             << "] named=" << found_named->id()
             << " next=" << world.allocator_snapshot().next_runtime_sequence << '\n';
+  return 0;
+}
+
+[[nodiscard]] int run_grid_bake() {
+  const auto region = dross::RegionId{dross::ContentId::parse("demo:room").value()};
+  const auto identity = dross::GridIdentity{
+      .region = region, .origin_x_mm = 0, .origin_y_mm = 0, .origin_z_mm = 0, .radius_mm = 1000};
+  const auto first = dross::HexCellId{.region = region, .coord = {.q = 0, .r = 0}, .layer = 0};
+  const auto second = dross::HexCellId{.region = region, .coord = {.q = 1, .r = 0}, .layer = 0};
+  const auto profile = dross::HexBakeProfile{
+      .algorithm_version = 1,
+      .quantization_mm = 10,
+      .maximum_height_variance_mm = 30,
+      .required_sample_count = 7,
+      .terrain = dross::ContentId::parse("dross:floor").value(),
+      .movement_cost = dross::MovementCost{1},
+  };
+  const dross::GridBake bake{
+      .identity = identity,
+      .profile_version = 1,
+      .cells =
+          {
+              {.id = first,
+               .surface_samples_mm = {1000, 0, 0, 0, 0, 0, 0},
+               .standing_clearance = true,
+               .source = dross::ContentId::parse("godot:physics_geometry").value()},
+              {.id = second,
+               .surface_samples_mm = {0, 0, 0, 0, 0, 0, 0},
+               .standing_clearance = true,
+               .source = dross::ContentId::parse("godot:physics_geometry").value()},
+          },
+      .edges = {{.from = first, .to = second, .from_to_clear = false, .to_from_clear = false}},
+  };
+  const dross::GridOverrides overrides{
+      .identity = identity,
+      .cells = {{first, dross::CellTraversabilityOverride::force_traversable}},
+  };
+  const auto compiled = dross::compile_grid_bake(bake, overrides, profile);
+  if (!compiled) {
+    std::cerr << "grid bake compile failed\n";
+    return scenario_error;
+  }
+  std::cout << "grid-bake cells=" << compiled->map.cell_ids().size()
+            << " edges=" << compiled->map.edge_count() << " manual="
+            << std::ranges::count_if(compiled->provenance,
+                                     [](const auto& entry) {
+                                       return entry.second != dross::CellProvenance::automatic;
+                                     })
+            << '\n';
   return 0;
 }
 
@@ -217,6 +269,10 @@ int main(const int argument_count, const char* const arguments[]) {
   if (argument_count == 3 && std::string_view{arguments[1]} == "scenario" &&
       std::string_view{arguments[2]} == "hex-pathing") {
     return run_hex_pathing_scenario();
+  }
+  if (argument_count == 3 && std::string_view{arguments[1]} == "scenario" &&
+      std::string_view{arguments[2]} == "grid-bake") {
+    return run_grid_bake();
   }
   if (argument_count >= 3 && std::string_view{arguments[1]} == "scenario" &&
       std::string_view{arguments[2]} == "command-event-kernel") {

@@ -8,37 +8,13 @@ func check(condition: bool, message: String) -> void:
 		failures.append(message)
 
 
-func static_box(parent: Node3D, position: Vector3, size: Vector3) -> void:
-	var body := StaticBody3D.new()
-	var shape := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = size
-	shape.shape = box
-	body.position = position
-	body.add_child(shape)
-	parent.add_child(body)
-
-
 func _initialize() -> void:
 	check(ClassDB.class_exists("DrossHexGridRegion3D"), "grid region is not registered")
-	var room := Node3D.new()
+	var room: Node3D = load("res://demo/phase10_room.tscn").instantiate()
 	get_root().add_child(room)
-	static_box(room, Vector3(0, -0.1, 0), Vector3(8, 0.2, 5))
-	# Narrow geometry affects the center sample but not the six inset samples.
-	static_box(room, Vector3(0, 0.5, 0), Vector3(0.35, 1.0, 0.35))
-
-	var region := DrossHexGridRegion3D.new()
-	region.region_id = "demo:room"
-	region.cell_radius = 1.0
-	region.q_min = 0
-	region.q_max = 1
-	region.r_min = 0
-	region.r_max = 0
-	region.bake_profile = DrossHexBakeProfile.new()
-	region.overrides = DrossHexGridOverrides.new()
-	region.overrides.region_id = "demo:room"
-	region.overrides.radius_mm = 1000
-	room.add_child(region)
+	var region: DrossHexGridRegion3D = room.get_node("GridRegion")
+	check(region.optional_door_edge == "demo:room:0,0,0|demo:room:1,0,0",
+			"demo room did not retain its optional side-door edge")
 
 	await physics_frame
 	await physics_frame

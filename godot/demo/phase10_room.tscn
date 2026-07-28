@@ -1,0 +1,39 @@
+[gd_scene load_steps=5 format=3]
+
+[sub_resource type="BoxShape3D" id="FloorShape"]
+size = Vector3(8, 0.2, 5)
+
+[sub_resource type="BoxShape3D" id="ObstructionShape"]
+size = Vector3(0.35, 1, 0.35)
+
+[sub_resource type="DrossHexBakeProfile" id="BakeProfile"]
+required_sample_count = 7
+
+[sub_resource type="DrossHexGridOverrides" id="Overrides"]
+region_id = "demo:room"
+radius_mm = 1000
+
+[node name="Phase10Room" type="Node3D"]
+
+[node name="Floor" type="StaticBody3D" parent="."]
+position = Vector3(0, -0.1, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor"]
+shape = SubResource("FloorShape")
+
+[node name="GeometricObstruction" type="StaticBody3D" parent="."]
+position = Vector3(0, 0.5, 0)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="GeometricObstruction"]
+shape = SubResource("ObstructionShape")
+
+[node name="GridRegion" type="DrossHexGridRegion3D" parent="."]
+region_id = "demo:room"
+cell_radius = 1.0
+q_min = 0
+q_max = 1
+r_min = 0
+r_max = 0
+optional_door_edge = "demo:room:0,0,0|demo:room:1,0,0"
+bake_profile = SubResource("BakeProfile")
+overrides = SubResource("Overrides")

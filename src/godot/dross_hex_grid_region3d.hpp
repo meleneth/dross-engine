@@ -42,6 +42,8 @@ public:
   [[nodiscard]] std::int64_t get_r_max() const { return r_max_; }
   void set_collision_mask(std::int64_t value) { collision_mask_ = value; }
   [[nodiscard]] std::int64_t get_collision_mask() const { return collision_mask_; }
+  void set_optional_door_edge(const godot::String& value) { optional_door_edge_ = value; }
+  [[nodiscard]] godot::String get_optional_door_edge() const { return optional_door_edge_; }
   void set_bake_profile(const godot::Ref<DrossHexBakeProfile>& value) { profile_ = value; }
   [[nodiscard]] godot::Ref<DrossHexBakeProfile> get_bake_profile() const { return profile_; }
   void set_overrides(const godot::Ref<DrossHexGridOverrides>& value) { overrides_ = value; }
@@ -64,6 +66,7 @@ private:
   std::int64_t r_min_{-1};
   std::int64_t r_max_{1};
   std::int64_t collision_mask_{1};
+  godot::String optional_door_edge_;
   godot::Ref<DrossHexBakeProfile> profile_;
   godot::Ref<DrossHexGridOverrides> overrides_;
   godot::Ref<DrossHexGridBake> last_bake_;
