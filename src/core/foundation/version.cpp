@@ -2,6 +2,6 @@
 
 namespace dross {
 
-std::string_view build_information() noexcept { return "dross-engine 0.1.0 phase-08"; }
+std::string_view build_information() noexcept { return "dross-engine 0.1.0 phase-09"; }
 
 } // namespace dross
