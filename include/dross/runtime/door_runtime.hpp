@@ -4,7 +4,7 @@
 #include <dross/foundation/result.hpp>
 #include <dross/generated/door_closed.hpp>
 #include <dross/generated/door_opened.hpp>
-#include <dross/hex/hex_topology.hpp>
+#include <dross/hex/traversal.hpp>
 #include <dross/identity/entity_ref.hpp>
 
 #include <cstdint>
@@ -46,7 +46,7 @@ struct DoorSnapshot {
 void encode_door_snapshot(ByteWriter& writer, DoorSnapshot snapshot);
 [[nodiscard]] Result<DoorSnapshot, DecodeError> decode_door_snapshot(ByteReader& reader);
 
-class DoorRuntime {
+class DoorRuntime final : public EdgeTraversalPolicy {
 public:
   class EventSink {
   public:
@@ -66,7 +66,7 @@ public:
   [[nodiscard]] bool open();
   [[nodiscard]] bool close();
   [[nodiscard]] DoorState state() const;
-  [[nodiscard]] bool allows(const EdgeKey& edge) const;
+  [[nodiscard]] bool allows(const EdgeKey& edge) const override;
   [[nodiscard]] DoorSnapshot snapshot() const;
   [[nodiscard]] bool restore(DoorSnapshot snapshot);
   void acknowledge_presentation(std::uint64_t acknowledgement_id);

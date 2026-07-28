@@ -9,8 +9,15 @@
 
 namespace dross {
 
+class EdgeTraversalPolicy {
+public:
+  virtual ~EdgeTraversalPolicy() = default;
+  [[nodiscard]] virtual bool allows(const EdgeKey& edge) const = 0;
+};
+
 struct TraversalPolicy {
   MovementCost rotation_cost;
+  const EdgeTraversalPolicy* edge_policy{nullptr};
 };
 
 enum class TraversalBlockReason : std::uint8_t {

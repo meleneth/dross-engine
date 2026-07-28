@@ -1,5 +1,7 @@
 #include <dross/runtime/door_runtime.hpp>
 
+#include <dross/hex/path_planner.hpp>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <string>
@@ -15,6 +17,26 @@ dross::HexCellId cell(const std::int32_t q, const std::int32_t r = 0) {
 
 dross::EdgeKey edge(const std::int32_t first, const std::int32_t second) {
   return dross::EdgeKey::between(cell(first), cell(second)).value();
+}
+
+dross::CellFacts cell_facts(const dross::HexCellId& cell_id) {
+  return {.id = cell_id,
+          .surface_height = dross::Millimeters{0},
+          .terrain = id("dross:floor"),
+          .base_cost = dross::MovementCost{0},
+          .clearance = dross::Clearance::open,
+          .traversable = true,
+          .semantic_tags = {}};
+}
+
+dross::DirectionalEdgeFacts traversable_edge() {
+  return {.traversable = true, .cost = dross::MovementCost{1}};
+}
+
+dross::FootprintDefinition single_cell_footprint() {
+  return dross::FootprintDefinition::create(dross::FootprintId{id("demo:single")},
+                                            {dross::HexCoord{0, 0}})
+      .value();
 }
 
 constexpr dross::EntityRef door_entity() {
@@ -57,6 +79,34 @@ TEST_CASE("door lifecycle commits open and closed traversal state through SML") 
   CHECK(events.calls == std::vector<std::string>{"opened", "closed"});
   CHECK_FALSE(door.allows(edge(0, 1)));
   CHECK_FALSE(door.close());
+}
+
+TEST_CASE("authoritative planner consumes committed door traversal state") {
+  dross::CompiledHexMapBuilder builder;
+  REQUIRE(builder.add_cell(cell_facts(cell(0))));
+  REQUIRE(builder.add_cell(cell_facts(cell(1))));
+  REQUIRE(builder.add_edge(cell(0), cell(1), traversable_edge(), traversable_edge()));
+  const auto map = std::move(builder).build().value();
+  auto door_footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
+  dross::DoorRuntime door{door_entity(), std::move(door_footprint), dross::DoorState::closed};
+  const dross::WeightedAStarPathPlanner planner;
+  const dross::OccupancyIndex occupancy;
+  const auto actor = dross::EntityId{7, 1};
+  const auto start = dross::HexPose{cell(0), dross::HexFacing::east};
+  const auto goal = dross::HexPose{cell(1), dross::HexFacing::east};
+  const auto footprint = single_cell_footprint();
+  const auto policy =
+      dross::TraversalPolicy{.rotation_cost = dross::MovementCost{1}, .edge_policy = &door};
+
+  const auto blocked = planner.plan(map, occupancy, footprint, start, goal, policy, actor);
+  REQUIRE_FALSE(blocked);
+  CHECK(blocked.error() == dross::PathError::no_path);
+
+  REQUIRE(door.open());
+  const auto opened = planner.plan(map, occupancy, footprint, start, goal, policy, actor);
+  REQUIRE(opened);
+  CHECK(opened->poses == std::vector{start, goal});
+  CHECK(opened->total_cost == dross::MovementCost{1});
 }
 
 TEST_CASE("presentation acknowledgement cannot change committed door state") {

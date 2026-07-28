@@ -64,6 +64,10 @@ TraversalAssessment assess_transition(const CompiledHexMap& map, const Occupancy
     if (!edge->from_to(old_cells[index]).traversable) {
       return blocked(TraversalBlockReason::blocked_edge);
     }
+    if (policy.edge_policy != nullptr &&
+        !policy.edge_policy->allows(EdgeKey::between(old_cells[index], new_cells[index]).value())) {
+      return blocked(TraversalBlockReason::blocked_edge);
+    }
   }
 
   const auto anchor_edge = map.edge(from.anchor, destination.anchor);
