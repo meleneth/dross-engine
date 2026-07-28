@@ -11,6 +11,7 @@ namespace {
 struct Accept {};
 struct Finish {};
 struct Block {};
+template <MovementLifecycleState State> struct Restore {};
 struct Idle {};
 struct Traversing {};
 struct Blocked {};
@@ -28,9 +29,12 @@ struct MovementLogger {
 struct MovementTable {
   auto operator()() const {
     using namespace boost::sml;
-    return make_transition_table(*state<Idle> + event<Accept> = state<Traversing>,
-                                 state<Traversing> + event<Finish> = state<Idle>,
-                                 state<Traversing> + event<Block> = state<Blocked>);
+    return make_transition_table(
+        *state<Idle> + event<Accept> = state<Traversing>,
+        state<Traversing> + event<Finish> = state<Idle>,
+        state<Traversing> + event<Block> = state<Blocked>,
+        state<Idle> + event<Restore<MovementLifecycleState::traversing>> = state<Traversing>,
+        state<Idle> + event<Restore<MovementLifecycleState::blocked>> = state<Blocked>);
   }
 };
 
@@ -52,6 +56,20 @@ MovementLifecycle& MovementLifecycle::operator=(MovementLifecycle&&) noexcept = 
 bool MovementLifecycle::accept() { return impl_->machine.process_event(Accept{}); }
 bool MovementLifecycle::finish() { return impl_->machine.process_event(Finish{}); }
 bool MovementLifecycle::block() { return impl_->machine.process_event(Block{}); }
+
+bool MovementLifecycle::restore(const MovementLifecycleState restored) {
+  static MovementLogger logger;
+  impl_ = std::make_unique<Impl>(logger);
+  switch (restored) {
+  case MovementLifecycleState::idle:
+    return true;
+  case MovementLifecycleState::traversing:
+    return impl_->machine.process_event(Restore<MovementLifecycleState::traversing>{});
+  case MovementLifecycleState::blocked:
+    return impl_->machine.process_event(Restore<MovementLifecycleState::blocked>{});
+  }
+  return false;
+}
 
 MovementLifecycleState MovementLifecycle::state() const {
   if (impl_->machine.is(boost::sml::state<Idle>)) {
@@ -162,6 +180,42 @@ MovementAdvance MovementRuntime::advance(const Tick tick) {
     return MovementAdvance::completed;
   }
   return MovementAdvance::entered_cell;
+}
+
+MovementSnapshot MovementRuntime::snapshot() const {
+  return MovementSnapshot{
+      .state = lifecycle_.state(),
+      .pose = pose_,
+      .path = path_,
+      .next_pose = next_pose_,
+      .transition_ticks = transition_ticks_,
+      .expected_occupancy_revision = expected_occupancy_revision_,
+      .cancel_requested = cancel_requested_,
+      .combat_stop_requested = combat_stop_requested_,
+  };
+}
+
+bool MovementRuntime::restore(const MovementSnapshot& restored) {
+  const bool valid_idle =
+      restored.state == MovementLifecycleState::idle && restored.transition_ticks == 0;
+  const bool valid_active = restored.state != MovementLifecycleState::idle &&
+                            restored.path.size() >= 2 && restored.next_pose > 0 &&
+                            restored.next_pose < restored.path.size() &&
+                            restored.transition_ticks < config_.ticks_per_transition &&
+                            restored.path[restored.next_pose - 1] == restored.pose;
+  if ((!valid_idle && !valid_active) || restored.pose != pose_ ||
+      restored.expected_occupancy_revision != occupancy_->revision() ||
+      !lifecycle_.restore(restored.state)) {
+    return false;
+  }
+  pose_ = restored.pose;
+  path_ = restored.path;
+  next_pose_ = restored.next_pose;
+  transition_ticks_ = restored.transition_ticks;
+  expected_occupancy_revision_ = restored.expected_occupancy_revision;
+  cancel_requested_ = restored.cancel_requested;
+  combat_stop_requested_ = restored.combat_stop_requested;
+  return true;
 }
 
 } // namespace dross

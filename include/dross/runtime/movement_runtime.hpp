@@ -51,11 +51,25 @@ public:
   [[nodiscard]] bool accept();
   [[nodiscard]] bool finish();
   [[nodiscard]] bool block();
+  [[nodiscard]] bool restore(MovementLifecycleState state);
   [[nodiscard]] MovementLifecycleState state() const;
 
 private:
   struct Impl;
   std::unique_ptr<Impl> impl_;
+};
+
+struct MovementSnapshot {
+  MovementLifecycleState state;
+  HexPose pose;
+  std::vector<HexPose> path;
+  std::size_t next_pose;
+  std::uint32_t transition_ticks;
+  std::uint64_t expected_occupancy_revision;
+  bool cancel_requested;
+  bool combat_stop_requested;
+
+  [[nodiscard]] bool operator==(const MovementSnapshot&) const = default;
 };
 
 class MovementRuntime {
@@ -69,6 +83,8 @@ public:
   [[nodiscard]] bool cancel();
   void request_combat_stop();
   [[nodiscard]] MovementAdvance advance(Tick tick);
+  [[nodiscard]] MovementSnapshot snapshot() const;
+  [[nodiscard]] bool restore(const MovementSnapshot& snapshot);
 
   [[nodiscard]] const HexPose& pose() const noexcept { return pose_; }
   [[nodiscard]] MovementLifecycleState state() const { return lifecycle_.state(); }

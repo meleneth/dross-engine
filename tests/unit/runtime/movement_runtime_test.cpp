@@ -116,3 +116,69 @@ TEST_CASE("dynamic occupancy revision invalidates the unstarted path tail") {
   CHECK(fixture.movement.state() == dross::MovementLifecycleState::blocked);
   CHECK(fixture.occupancy.occupant(cell(1, 0)) == dross::EntityId{7, 1});
 }
+
+TEST_CASE("movement snapshot restores a partially elapsed edge") {
+  Fixture original;
+  REQUIRE(original.movement.move_to(pose(2, 0)));
+  CHECK(original.movement.advance(dross::Tick{0}) == dross::MovementAdvance::in_progress);
+  const auto saved = original.movement.snapshot();
+
+  Fixture restored;
+  REQUIRE(restored.movement.restore(saved));
+  CHECK(restored.movement.snapshot() == saved);
+  CHECK(original.movement.advance(dross::Tick{1}) == dross::MovementAdvance::entered_cell);
+  CHECK(restored.movement.advance(dross::Tick{1}) == dross::MovementAdvance::entered_cell);
+  CHECK(original.movement.advance(dross::Tick{2}) == dross::MovementAdvance::in_progress);
+  CHECK(restored.movement.advance(dross::Tick{2}) == dross::MovementAdvance::in_progress);
+  CHECK(original.movement.advance(dross::Tick{3}) == dross::MovementAdvance::completed);
+  CHECK(restored.movement.advance(dross::Tick{3}) == dross::MovementAdvance::completed);
+  CHECK(original.movement.snapshot() == restored.movement.snapshot());
+  CHECK(original.occupancy.entries() == restored.occupancy.entries());
+}
+
+TEST_CASE("multi-cell footprint occupancy moves atomically at the edge boundary") {
+  dross::CompiledHexMapBuilder builder;
+  for (std::int32_t q = 0; q < 3; ++q) {
+    for (std::int32_t r = 0; r < 2; ++r) {
+      REQUIRE(builder.add_cell(dross::CellFacts{
+          .id = cell(q, r),
+          .surface_height = dross::Millimeters{0},
+          .terrain = id("dross:floor"),
+          .base_cost = dross::MovementCost{1},
+          .clearance = dross::Clearance::open,
+          .traversable = true,
+          .semantic_tags = {},
+      }));
+    }
+    if (q > 0) {
+      for (std::int32_t r = 0; r < 2; ++r) {
+        REQUIRE(builder.add_edge(
+            cell(q - 1, r), cell(q, r),
+            dross::DirectionalEdgeFacts{.traversable = true, .cost = dross::MovementCost{1}},
+            dross::DirectionalEdgeFacts{.traversable = true, .cost = dross::MovementCost{1}}));
+      }
+    }
+  }
+  auto map = std::move(builder).build().value();
+  dross::OccupancyIndex occupancy;
+  dross::WeightedAStarPathPlanner planner;
+  auto footprint = dross::FootprintDefinition::create(dross::FootprintId{id("demo:double")},
+                                                      {{.q = 0, .r = 0}, {.q = 0, .r = 1}})
+                       .value();
+  const dross::EntityId entity{7, 1};
+  REQUIRE(occupancy.place(entity, footprint.expand(pose(0, 0))));
+  dross::MovementRuntime movement{
+      map, occupancy, planner, footprint, entity, pose(0, 0), {.ticks_per_transition = 2}};
+  REQUIRE(movement.move_to(pose(1, 0)));
+
+  CHECK(movement.advance(dross::Tick{0}) == dross::MovementAdvance::in_progress);
+  CHECK(occupancy.occupant(cell(0, 0)) == entity);
+  CHECK(occupancy.occupant(cell(0, 1)) == entity);
+  CHECK_FALSE(occupancy.occupant(cell(1, 0)));
+  CHECK_FALSE(occupancy.occupant(cell(1, 1)));
+  CHECK(movement.advance(dross::Tick{1}) == dross::MovementAdvance::completed);
+  CHECK_FALSE(occupancy.occupant(cell(0, 0)));
+  CHECK_FALSE(occupancy.occupant(cell(0, 1)));
+  CHECK(occupancy.occupant(cell(1, 0)) == entity);
+  CHECK(occupancy.occupant(cell(1, 1)) == entity);
+}
