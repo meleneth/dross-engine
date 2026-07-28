@@ -20,6 +20,14 @@ struct SchemaRegistryEntry {
 };
 
 inline constexpr std::array schema_registry{
+    SchemaRegistryEntry{.stable_id = "dross:ability_committed",
+                        .name = "AbilityCommitted",
+                        .kind = SchemaKind::event,
+                        .version = 1U},
+    SchemaRegistryEntry{.stable_id = "dross:action_points_spent",
+                        .name = "ActionPointsSpent",
+                        .kind = SchemaKind::event,
+                        .version = 1U},
     SchemaRegistryEntry{.stable_id = "dross:actor_entered_cell",
                         .name = "ActorEnteredCell",
                         .kind = SchemaKind::event,
@@ -35,6 +43,10 @@ inline constexpr std::array schema_registry{
     SchemaRegistryEntry{.stable_id = "dross:close_door",
                         .name = "CloseDoor",
                         .kind = SchemaKind::command,
+                        .version = 1U},
+    SchemaRegistryEntry{.stable_id = "dross:combat_started",
+                        .name = "CombatStarted",
+                        .kind = SchemaKind::event,
                         .version = 1U},
     SchemaRegistryEntry{.stable_id = "dross:damage_applied",
                         .name = "DamageApplied",
@@ -87,6 +99,10 @@ inline constexpr std::array schema_registry{
     SchemaRegistryEntry{.stable_id = "dross:request_combat_start",
                         .name = "RequestCombatStart",
                         .kind = SchemaKind::command,
+                        .version = 1U},
+    SchemaRegistryEntry{.stable_id = "dross:turn_started",
+                        .name = "TurnStarted",
+                        .kind = SchemaKind::event,
                         .version = 1U},
 };
 

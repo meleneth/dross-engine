@@ -9,6 +9,126 @@
 
 namespace dross::generated::godot_api {
 
+godot::Ref<DrossAbilityCommittedEvent>
+DrossAbilityCommittedEvent::from_core(
+    const dross::combat::AbilityCommitted& value) {
+  godot::Ref<DrossAbilityCommittedEvent> event;
+  event.instantiate();
+  event->actor_world_ = value.actor.world_instance().value();
+  event->actor_lineage_ = value.actor.id().lineage();
+  event->actor_sequence_ = value.actor.id().sequence();
+  event->target_world_ = value.target.world_instance().value();
+  event->target_lineage_ = value.target.id().lineage();
+  event->target_sequence_ = value.target.id().sequence();
+  event->ability_ = godot::String{value.ability.canonical().data()};
+  return event;
+}
+
+std::int64_t DrossAbilityCommittedEvent::get_actor_world() const {
+  return static_cast<std::int64_t>(actor_world_);
+}
+std::int64_t DrossAbilityCommittedEvent::get_actor_lineage() const {
+  return static_cast<std::int64_t>(actor_lineage_);
+}
+std::int64_t DrossAbilityCommittedEvent::get_actor_sequence() const {
+  return static_cast<std::int64_t>(actor_sequence_);
+}
+std::int64_t DrossAbilityCommittedEvent::get_target_world() const {
+  return static_cast<std::int64_t>(target_world_);
+}
+std::int64_t DrossAbilityCommittedEvent::get_target_lineage() const {
+  return static_cast<std::int64_t>(target_lineage_);
+}
+std::int64_t DrossAbilityCommittedEvent::get_target_sequence() const {
+  return static_cast<std::int64_t>(target_sequence_);
+}
+godot::String DrossAbilityCommittedEvent::get_ability() const {
+  return ability_;
+}
+
+void DrossAbilityCommittedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_actor_world"),
+                              &DrossAbilityCommittedEvent::get_actor_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_actor_lineage"),
+                              &DrossAbilityCommittedEvent::get_actor_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_actor_sequence"),
+                              &DrossAbilityCommittedEvent::get_actor_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "actor_world"), "",
+               "get_actor_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "actor_lineage"), "",
+               "get_actor_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "actor_sequence"), "",
+               "get_actor_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_target_world"),
+                              &DrossAbilityCommittedEvent::get_target_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_target_lineage"),
+                              &DrossAbilityCommittedEvent::get_target_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_target_sequence"),
+                              &DrossAbilityCommittedEvent::get_target_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "target_world"), "",
+               "get_target_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "target_lineage"), "",
+               "get_target_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "target_sequence"), "",
+               "get_target_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_ability"),
+                              &DrossAbilityCommittedEvent::get_ability);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "ability"), "",
+               "get_ability");
+}
+
+godot::Ref<DrossActionPointsSpentEvent>
+DrossActionPointsSpentEvent::from_core(
+    const dross::combat::ActionPointsSpent& value) {
+  godot::Ref<DrossActionPointsSpentEvent> event;
+  event.instantiate();
+  event->actor_world_ = value.actor.world_instance().value();
+  event->actor_lineage_ = value.actor.id().lineage();
+  event->actor_sequence_ = value.actor.id().sequence();
+  event->amount_ = value.amount;
+  event->remaining_ = value.remaining;
+  return event;
+}
+
+std::int64_t DrossActionPointsSpentEvent::get_actor_world() const {
+  return static_cast<std::int64_t>(actor_world_);
+}
+std::int64_t DrossActionPointsSpentEvent::get_actor_lineage() const {
+  return static_cast<std::int64_t>(actor_lineage_);
+}
+std::int64_t DrossActionPointsSpentEvent::get_actor_sequence() const {
+  return static_cast<std::int64_t>(actor_sequence_);
+}
+std::int64_t DrossActionPointsSpentEvent::get_amount() const {
+  return amount_;
+}
+std::int64_t DrossActionPointsSpentEvent::get_remaining() const {
+  return remaining_;
+}
+
+void DrossActionPointsSpentEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_actor_world"),
+                              &DrossActionPointsSpentEvent::get_actor_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_actor_lineage"),
+                              &DrossActionPointsSpentEvent::get_actor_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_actor_sequence"),
+                              &DrossActionPointsSpentEvent::get_actor_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "actor_world"), "",
+               "get_actor_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "actor_lineage"), "",
+               "get_actor_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "actor_sequence"), "",
+               "get_actor_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_amount"),
+                              &DrossActionPointsSpentEvent::get_amount);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "amount"), "",
+               "get_amount");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_remaining"),
+                              &DrossActionPointsSpentEvent::get_remaining);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "remaining"), "",
+               "get_remaining");
+}
+
 godot::Ref<DrossActorEnteredCellEvent>
 DrossActorEnteredCellEvent::from_core(
     const dross::movement::ActorEnteredCell& value) {
@@ -152,6 +272,42 @@ void DrossActorKilledEvent::_bind_methods() {
                               &DrossActorKilledEvent::get_ability);
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "ability"), "",
                "get_ability");
+}
+
+godot::Ref<DrossCombatStartedEvent>
+DrossCombatStartedEvent::from_core(
+    const dross::combat::CombatStarted& value) {
+  godot::Ref<DrossCombatStartedEvent> event;
+  event.instantiate();
+  event->active_actor_world_ = value.active_actor.world_instance().value();
+  event->active_actor_lineage_ = value.active_actor.id().lineage();
+  event->active_actor_sequence_ = value.active_actor.id().sequence();
+  return event;
+}
+
+std::int64_t DrossCombatStartedEvent::get_active_actor_world() const {
+  return static_cast<std::int64_t>(active_actor_world_);
+}
+std::int64_t DrossCombatStartedEvent::get_active_actor_lineage() const {
+  return static_cast<std::int64_t>(active_actor_lineage_);
+}
+std::int64_t DrossCombatStartedEvent::get_active_actor_sequence() const {
+  return static_cast<std::int64_t>(active_actor_sequence_);
+}
+
+void DrossCombatStartedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_active_actor_world"),
+                              &DrossCombatStartedEvent::get_active_actor_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_active_actor_lineage"),
+                              &DrossCombatStartedEvent::get_active_actor_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_active_actor_sequence"),
+                              &DrossCombatStartedEvent::get_active_actor_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "active_actor_world"), "",
+               "get_active_actor_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "active_actor_lineage"), "",
+               "get_active_actor_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "active_actor_sequence"), "",
+               "get_active_actor_sequence");
 }
 
 godot::Ref<DrossDamageAppliedEvent>
@@ -574,6 +730,50 @@ void DrossMovementStartedEvent::_bind_methods() {
                "get_destination_facing");
 }
 
+godot::Ref<DrossTurnStartedEvent>
+DrossTurnStartedEvent::from_core(
+    const dross::combat::TurnStarted& value) {
+  godot::Ref<DrossTurnStartedEvent> event;
+  event.instantiate();
+  event->actor_world_ = value.actor.world_instance().value();
+  event->actor_lineage_ = value.actor.id().lineage();
+  event->actor_sequence_ = value.actor.id().sequence();
+  event->action_points_ = value.action_points;
+  return event;
+}
+
+std::int64_t DrossTurnStartedEvent::get_actor_world() const {
+  return static_cast<std::int64_t>(actor_world_);
+}
+std::int64_t DrossTurnStartedEvent::get_actor_lineage() const {
+  return static_cast<std::int64_t>(actor_lineage_);
+}
+std::int64_t DrossTurnStartedEvent::get_actor_sequence() const {
+  return static_cast<std::int64_t>(actor_sequence_);
+}
+std::int64_t DrossTurnStartedEvent::get_action_points() const {
+  return action_points_;
+}
+
+void DrossTurnStartedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_actor_world"),
+                              &DrossTurnStartedEvent::get_actor_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_actor_lineage"),
+                              &DrossTurnStartedEvent::get_actor_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_actor_sequence"),
+                              &DrossTurnStartedEvent::get_actor_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "actor_world"), "",
+               "get_actor_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "actor_lineage"), "",
+               "get_actor_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "actor_sequence"), "",
+               "get_actor_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_action_points"),
+                              &DrossTurnStartedEvent::get_action_points);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "action_points"), "",
+               "get_action_points");
+}
+
 void DrossPlacementRuleQuery::reject(const godot::String& reason) {
   const auto utf8 = reason.utf8();
   auto parsed = ContentId::parse(
@@ -598,14 +798,18 @@ void DrossPlacementRuleQuery::_bind_methods() {
 }
 
 void register_generated_godot_types() {
+  godot::ClassDB::register_class<DrossAbilityCommittedEvent>();
+  godot::ClassDB::register_class<DrossActionPointsSpentEvent>();
   godot::ClassDB::register_class<DrossActorEnteredCellEvent>();
   godot::ClassDB::register_class<DrossActorKilledEvent>();
+  godot::ClassDB::register_class<DrossCombatStartedEvent>();
   godot::ClassDB::register_class<DrossDamageAppliedEvent>();
   godot::ClassDB::register_class<DrossDoorClosedEvent>();
   godot::ClassDB::register_class<DrossDoorOpenedEvent>();
   godot::ClassDB::register_class<DrossEntityPlacedEvent>();
   godot::ClassDB::register_class<DrossMovementCompletedEvent>();
   godot::ClassDB::register_class<DrossMovementStartedEvent>();
+  godot::ClassDB::register_class<DrossTurnStartedEvent>();
   godot::ClassDB::register_class<DrossPlacementRuleQuery>();
 }
 

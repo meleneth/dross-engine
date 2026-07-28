@@ -1,0 +1,12 @@
+kind: event
+namespace: dross.combat
+name: AbilityCommitted
+version: 1
+id: dross:ability_committed
+fields:
+  - name: actor
+    type: entity_ref
+  - name: target
+    type: entity_ref
+  - name: ability
+    type: content_id

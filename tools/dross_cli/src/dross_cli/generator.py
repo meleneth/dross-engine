@@ -32,6 +32,7 @@ def cpp_type(field_type: str) -> str:
         "entity_ref": "dross::EntityRef",
         "hex_pose": "dross::HexPose",
         "hit_points": "dross::HitPoints",
+        "uint32": "std::uint32_t",
     }[field_type]
 
 

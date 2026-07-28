@@ -31,6 +31,8 @@ Dross{{ schema.name }}Event::from_core(
   event->{{ field.name }}_ = godot::String{value.{{ field.name }}.canonical().data()};
 {% elif field.type == "hit_points" %}
   event->{{ field.name }}_ = value.{{ field.name }}.value();
+{% elif field.type == "uint32" %}
+  event->{{ field.name }}_ = value.{{ field.name }};
 {% endif %}
 {% endfor %}
   return event;
@@ -67,7 +69,7 @@ std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}_facing() const {
 godot::String Dross{{ schema.name }}Event::get_{{ field.name }}() const {
   return {{ field.name }}_;
 }
-{% elif field.type == "hit_points" %}
+{% elif field.type in ["hit_points", "uint32"] %}
 std::int64_t Dross{{ schema.name }}Event::get_{{ field.name }}() const {
   return {{ field.name }}_;
 }
@@ -101,7 +103,7 @@ void Dross{{ schema.name }}Event::_bind_methods() {
                               &Dross{{ schema.name }}Event::get_{{ field.name }});
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "{{ field.name }}"), "",
                "get_{{ field.name }}");
-{% elif field.type == "hit_points" %}
+{% elif field.type in ["hit_points", "uint32"] %}
   godot::ClassDB::bind_method(godot::D_METHOD("get_{{ field.name }}"),
                               &Dross{{ schema.name }}Event::get_{{ field.name }});
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "{{ field.name }}"), "",

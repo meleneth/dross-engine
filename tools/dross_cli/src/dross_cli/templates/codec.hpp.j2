@@ -33,6 +33,15 @@ decode_hit_points(ByteReader& reader) {
   return HitPoints{static_cast<std::int32_t>(*value)};
 }
 
+inline void encode_uint32(ByteWriter& writer, const std::uint32_t value) {
+  writer.write_u32(value);
+}
+
+[[nodiscard]] inline Result<std::uint32_t, DecodeError>
+decode_uint32(ByteReader& reader) {
+  return reader.read_u32();
+}
+
 inline void encode_entity_ref(ByteWriter& writer, const EntityRef& value) {
   writer.write_u64(value.world_instance().value());
   writer.write(value.id());

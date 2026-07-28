@@ -1,0 +1,10 @@
+kind: event
+namespace: dross.combat
+name: TurnStarted
+version: 1
+id: dross:turn_started
+fields:
+  - name: actor
+    type: entity_ref
+  - name: action_points
+    type: uint32

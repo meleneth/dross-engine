@@ -166,6 +166,12 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink {
     }
   }
 
+  void publish(const combat::AbilityCommitted& event) override {
+    if (event.ability == ability.id) {
+      last_cue = godot::String{ability.presentation_cue.canonical().data()};
+    }
+  }
+
   void publish(const combat::DamageApplied& event) override {
     if (scripts != nullptr) {
       scripts->port.set_tick(scripts->tick);
@@ -519,8 +525,6 @@ bool DrossWorldHost::perform_thump() {
     return false;
   }
   combat_state_->killed = result.killed;
-  combat_state_->last_cue =
-      godot::String{combat_state_->ability.presentation_cue.canonical().data()};
   return !combat_state_->script_fault;
 }
 

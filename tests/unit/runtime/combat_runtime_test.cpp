@@ -42,6 +42,10 @@ dross::AbilityDefinition thump() {
 
 class RecordingCombatEvents final : public dross::AbilityResolver::EventSink {
 public:
+  void publish(const dross::combat::AbilityCommitted& event) override {
+    calls.emplace_back("ability");
+    ability = event;
+  }
   void publish(const dross::combat::DamageApplied& event) override {
     calls.emplace_back("damage");
     damage = event;
@@ -52,8 +56,26 @@ public:
   }
 
   std::vector<std::string> calls;
+  std::optional<dross::combat::AbilityCommitted> ability;
   std::optional<dross::combat::DamageApplied> damage;
   std::optional<dross::combat::ActorKilled> killed;
+};
+
+class RecordingSessionEvents final : public dross::CombatSession::EventSink {
+public:
+  void publish(const dross::combat::CombatStarted& event) override {
+    calls.emplace_back("combat:" + std::to_string(event.active_actor.id().sequence()));
+  }
+  void publish(const dross::combat::TurnStarted& event) override {
+    calls.emplace_back("turn:" + std::to_string(event.actor.id().sequence()) + ":" +
+                       std::to_string(event.action_points));
+  }
+  void publish(const dross::combat::ActionPointsSpent& event) override {
+    calls.emplace_back("spent:" + std::to_string(event.amount) + ":" +
+                       std::to_string(event.remaining));
+  }
+
+  std::vector<std::string> calls;
 };
 
 } // namespace
@@ -84,6 +106,20 @@ TEST_CASE("only the active living actor spends AP and turn start refreshes it") 
   REQUIRE(session.end_turn(dross::EntityId{7, 2}));
   CHECK(session.active_actor() == dross::EntityId{7, 1});
   CHECK(session.action_points(dross::EntityId{7, 1}) == 3);
+}
+
+TEST_CASE("combat lifecycle emits typed facts only after committed transitions") {
+  RecordingSessionEvents events;
+  dross::CombatSession session{{combatant(1, 10, 3), combatant(2, 5, 2)}, &events};
+
+  CHECK_FALSE(session.spend_action_points(dross::EntityId{7, 1}, 1));
+  CHECK(events.calls.empty());
+  REQUIRE(session.start());
+  CHECK(events.calls == std::vector<std::string>{"combat:1", "turn:1:3"});
+  REQUIRE(session.spend_action_points(dross::EntityId{7, 1}, 2));
+  CHECK(events.calls == std::vector<std::string>{"combat:1", "turn:1:3", "spent:2:1"});
+  REQUIRE(session.end_turn(dross::EntityId{7, 1}));
+  CHECK(events.calls == std::vector<std::string>{"combat:1", "turn:1:3", "spent:2:1", "turn:2:2"});
 }
 
 TEST_CASE("dead combatants are skipped and one survivor completes combat") {
@@ -182,7 +218,9 @@ TEST_CASE("lethal generic ability marks the target dead and completes combat") {
   CHECK(result.killed);
   CHECK(result.remaining_health == dross::HitPoints{0});
   CHECK(session.state() == dross::CombatSessionState::completed);
-  CHECK(events.calls == std::vector<std::string>{"damage", "killed"});
+  CHECK(events.calls == std::vector<std::string>{"ability", "damage", "killed"});
+  REQUIRE(events.ability);
+  CHECK(events.ability->ability == id("dross_demo:thump"));
   REQUIRE(events.damage);
   CHECK(events.damage->amount == dross::HitPoints{3});
   CHECK(events.damage->target == combatant(2, 5, 2).entity);

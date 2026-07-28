@@ -2,8 +2,12 @@
 
 #include <dross/foundation/byte_codec.hpp>
 #include <dross/foundation/quantities.hpp>
+#include <dross/generated/ability_committed.hpp>
+#include <dross/generated/action_points_spent.hpp>
 #include <dross/generated/actor_killed.hpp>
+#include <dross/generated/combat_started.hpp>
 #include <dross/generated/damage_applied.hpp>
+#include <dross/generated/turn_started.hpp>
 #include <dross/hex/hex_topology.hpp>
 #include <dross/identity/content_id.hpp>
 #include <dross/identity/entity_ref.hpp>
@@ -50,7 +54,15 @@ decode_combat_session_snapshot(ByteReader& reader);
 
 class CombatSession final : public MovementCostAccount {
 public:
-  explicit CombatSession(std::vector<CombatantDefinition> combatants);
+  class EventSink {
+  public:
+    virtual ~EventSink() = default;
+    virtual void publish(const combat::CombatStarted& event) = 0;
+    virtual void publish(const combat::TurnStarted& event) = 0;
+    virtual void publish(const combat::ActionPointsSpent& event) = 0;
+  };
+
+  explicit CombatSession(std::vector<CombatantDefinition> combatants, EventSink* events = nullptr);
   ~CombatSession();
   CombatSession(CombatSession&&) noexcept;
   CombatSession& operator=(CombatSession&&) noexcept;
@@ -116,6 +128,7 @@ public:
   class EventSink {
   public:
     virtual ~EventSink() = default;
+    virtual void publish(const combat::AbilityCommitted& event) = 0;
     virtual void publish(const combat::DamageApplied& event) = 0;
     virtual void publish(const combat::ActorKilled& event) = 0;
   };

@@ -20,7 +20,7 @@ class FieldSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    type: Literal["content_id", "entity_ref", "hex_pose", "hit_points"]
+    type: Literal["content_id", "entity_ref", "hex_pose", "hit_points", "uint32"]
     optional: bool = False
 
     @field_validator("name")

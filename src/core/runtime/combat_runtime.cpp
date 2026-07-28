@@ -46,7 +46,8 @@ struct CombatantState {
 } // namespace
 
 struct CombatSession::Impl {
-  explicit Impl(std::vector<CombatantDefinition> definitions) : machine{logger} {
+  explicit Impl(std::vector<CombatantDefinition> definitions, EventSink* event_sink)
+      : machine{logger}, events{event_sink} {
     std::ranges::sort(definitions, [](const auto& left, const auto& right) {
       if (left.initiative != right.initiative) {
         return left.initiative > right.initiative;
@@ -79,6 +80,7 @@ struct CombatSession::Impl {
   boost::sml::sm<CombatTable, boost::sml::logger<CombatLogger>> machine;
   std::vector<CombatantState> combatants;
   std::size_t active_index{0};
+  EventSink* events;
 };
 
 void encode_combat_session_snapshot(ByteWriter& writer, const CombatSessionSnapshot& snapshot) {
@@ -132,8 +134,8 @@ Result<CombatSessionSnapshot, DecodeError> decode_combat_session_snapshot(ByteRe
   };
 }
 
-CombatSession::CombatSession(std::vector<CombatantDefinition> combatants)
-    : impl_{std::make_unique<Impl>(std::move(combatants))} {}
+CombatSession::CombatSession(std::vector<CombatantDefinition> combatants, EventSink* events)
+    : impl_{std::make_unique<Impl>(std::move(combatants), events)} {}
 CombatSession::~CombatSession() = default;
 CombatSession::CombatSession(CombatSession&&) noexcept = default;
 CombatSession& CombatSession::operator=(CombatSession&&) noexcept = default;
@@ -148,6 +150,13 @@ bool CombatSession::start() {
   }
   auto& active = impl_->combatants[impl_->active_index];
   active.action_points = active.definition.maximum_action_points;
+  if (impl_->events != nullptr) {
+    impl_->events->publish(combat::CombatStarted{.active_actor = active.definition.entity});
+    impl_->events->publish(combat::TurnStarted{
+        .actor = active.definition.entity,
+        .action_points = active.action_points,
+    });
+  }
   return true;
 }
 
@@ -164,6 +173,12 @@ bool CombatSession::end_turn(const EntityId actor) {
   } while (!impl_->combatants[impl_->active_index].alive);
   auto& active = impl_->combatants[impl_->active_index];
   active.action_points = active.definition.maximum_action_points;
+  if (impl_->events != nullptr) {
+    impl_->events->publish(combat::TurnStarted{
+        .actor = active.definition.entity,
+        .action_points = active.action_points,
+    });
+  }
   return true;
 }
 
@@ -176,6 +191,13 @@ bool CombatSession::spend_action_points(const EntityId actor, const std::uint32_
     return false;
   }
   active.action_points -= amount;
+  if (impl_->events != nullptr) {
+    impl_->events->publish(combat::ActionPointsSpent{
+        .actor = active.definition.entity,
+        .amount = amount,
+        .remaining = active.action_points,
+    });
+  }
   return true;
 }
 
@@ -335,6 +357,13 @@ AbilityResult AbilityResolver::perform(const AbilityDefinition& ability, const E
   }
   if (!session_->spend_action_points(actor, ability.action_point_cost)) {
     return rejected(AbilityRejection::insufficient_action_points);
+  }
+  if (events_ != nullptr) {
+    events_->publish(combat::AbilityCommitted{
+        .actor = source->entity,
+        .target = destination->entity,
+        .ability = ability.id,
+    });
   }
 
   const auto bonus =

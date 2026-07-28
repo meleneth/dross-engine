@@ -31,6 +31,8 @@ fields:
     type: content_id
   - name: damage
     type: hit_points
+  - name: action_points
+    type: uint32
 """.lstrip(),
     )
 
@@ -42,6 +44,7 @@ fields:
         "hex_pose",
         "content_id",
         "hit_points",
+        "uint32",
     ]
 
 

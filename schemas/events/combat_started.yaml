@@ -1,0 +1,8 @@
+kind: event
+namespace: dross.combat
+name: CombatStarted
+version: 1
+id: dross:combat_started
+fields:
+  - name: active_actor
+    type: entity_ref
