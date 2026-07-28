@@ -189,6 +189,13 @@ set_tests_properties(
   PROPERTIES PASS_REGULAR_EXPRESSION
              "^lifecycle-machines checkpoints=8 trace=8 final=faulted")
 add_test(
+  NAME headless.replay_fixture
+  COMMAND dross_headless replay --verify-checkpoints
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/thump-v1.dross-replay")
+set_tests_properties(
+  headless.replay_fixture
+  PROPERTIES PASS_REGULAR_EXPRESSION "^replay verified checkpoints=2")
+add_test(
   NAME headless.persistence_foundation
   COMMAND dross_headless scenario persistence-foundation --seed 12345
           --save "${CMAKE_CURRENT_BINARY_DIR}/foundation.dross-save")

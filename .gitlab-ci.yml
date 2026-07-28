@@ -32,6 +32,7 @@ clang-debug-test:
     - CC=clang CXX=clang++ cmake --preset linux-debug
     - cmake --build --preset linux-debug
     - ctest --preset linux-debug --output-on-failure
+    - build/linux-debug/dross_headless replay --verify-checkpoints tests/fixtures/thump-v1.dross-replay
 
 gcc-release-test:
   stage: build
@@ -43,6 +44,17 @@ gcc-release-test:
     - cmake --preset linux-release
     - cmake --build --preset linux-release
     - ctest --preset linux-release --output-on-failure
+    - build/linux-release/dross_headless replay --verify-checkpoints tests/fixtures/thump-v1.dross-replay
+
+windows-msvc-replay-test:
+  stage: build
+  tags:
+    - windows
+  script:
+    - cmake --preset windows-msvc-release
+    - cmake --build --preset windows-msvc-release
+    - ctest --preset windows-msvc-release --output-on-failure
+    - build/windows-msvc-release/dross_headless.exe replay --verify-checkpoints tests/fixtures/thump-v1.dross-replay
 
 godot-4.7.1-headless-test:
   stage: godot
@@ -58,6 +70,10 @@ godot-4.7.1-headless-test:
     - cmake --build --preset linux-debug
     - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot --editor --quit
     - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase08.gd
+    - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase09.gd
+    - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase10.gd
+    - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase11.gd
+    - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase12.gd
     - cd godot && XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -a res://tests/DrossBoundaryTest.gd
 
 asan-ubsan-test:
@@ -70,3 +86,4 @@ asan-ubsan-test:
     - CC=clang CXX=clang++ cmake --preset linux-asan-ubsan
     - cmake --build --preset linux-asan-ubsan
     - ctest --preset linux-asan-ubsan --output-on-failure
+    - build/linux-asan-ubsan/dross_headless replay --verify-checkpoints tests/fixtures/thump-v1.dross-replay
