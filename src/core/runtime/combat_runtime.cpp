@@ -1,5 +1,7 @@
 #include <dross/runtime/combat_runtime.hpp>
 
+#include <dross/hex/hex_coord.hpp>
+
 #include <boost/sml.hpp>
 
 #include <algorithm>
@@ -165,6 +167,77 @@ CombatSessionState CombatSession::state() const {
     return CombatSessionState::active;
   }
   return CombatSessionState::completed;
+}
+
+AbilityResolver::AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors)
+    : session_{&session}, actors_{std::move(actors)} {
+  std::ranges::sort(actors_, {}, [](const AbilityActorState& value) { return value.entity.id(); });
+}
+
+AbilityResult AbilityResolver::perform(const AbilityDefinition& ability, const EntityId actor,
+                                       const EntityId target) {
+  const auto source = std::ranges::find(
+      actors_, actor, [](const AbilityActorState& value) { return value.entity.id(); });
+  const auto destination = std::ranges::find(
+      actors_, target, [](const AbilityActorState& value) { return value.entity.id(); });
+  const auto rejected = [&](const AbilityRejection reason) {
+    return AbilityResult{
+        .accepted = false,
+        .rejection = reason,
+        .damage = HitPoints{0},
+        .remaining_health = destination == actors_.end() ? HitPoints{0} : destination->health,
+        .killed = false,
+    };
+  };
+  if (ability.damage.value() <= 0) {
+    return rejected(AbilityRejection::invalid_ability);
+  }
+  if (source == actors_.end()) {
+    return rejected(AbilityRejection::unknown_actor);
+  }
+  if (session_->state() != CombatSessionState::active || session_->active_actor() != actor) {
+    return rejected(AbilityRejection::inactive_actor);
+  }
+  if (destination == actors_.end() || actor == target ||
+      source->entity.world_instance() != destination->entity.world_instance()) {
+    return rejected(AbilityRejection::invalid_target);
+  }
+  if (destination->health.value() <= 0) {
+    return rejected(AbilityRejection::target_dead);
+  }
+  if (source->pose.anchor.region != destination->pose.anchor.region ||
+      source->pose.anchor.layer != destination->pose.anchor.layer ||
+      hex_distance(source->pose.anchor.coord, destination->pose.anchor.coord) > ability.range) {
+    return rejected(AbilityRejection::out_of_range);
+  }
+  if (session_->action_points(actor) < ability.action_point_cost) {
+    return rejected(AbilityRejection::insufficient_action_points);
+  }
+  if (!session_->spend_action_points(actor, ability.action_point_cost)) {
+    return rejected(AbilityRejection::insufficient_action_points);
+  }
+
+  const auto applied =
+      ability.damage.value() >= destination->health.value() ? destination->health : ability.damage;
+  destination->health =
+      HitPoints{static_cast<std::int32_t>(destination->health.value() - applied.value())};
+  const bool killed = destination->health.value() == 0;
+  if (killed) {
+    static_cast<void>(session_->set_alive(target, false));
+  }
+  return AbilityResult{
+      .accepted = true,
+      .rejection = AbilityRejection::none,
+      .damage = applied,
+      .remaining_health = destination->health,
+      .killed = killed,
+  };
+}
+
+HitPoints AbilityResolver::health(const EntityId actor) const {
+  const auto found = std::ranges::find(
+      actors_, actor, [](const AbilityActorState& value) { return value.entity.id(); });
+  return found == actors_.end() ? HitPoints{0} : found->health;
 }
 
 } // namespace dross
