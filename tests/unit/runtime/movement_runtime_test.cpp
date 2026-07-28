@@ -1,0 +1,118 @@
+#include <dross/runtime/movement_runtime.hpp>
+
+#include <catch2/catch_test_macros.hpp>
+
+#include <cstdint>
+#include <utility>
+#include <vector>
+
+namespace {
+
+dross::ContentId id(const char* value) { return dross::ContentId::parse(value).value(); }
+
+dross::HexCellId cell(const std::int32_t q, const std::int32_t r) {
+  return {.region = dross::RegionId{id("demo:room")}, .coord = {.q = q, .r = r}, .layer = 0};
+}
+
+dross::HexPose pose(const std::int32_t q, const std::int32_t r) {
+  return {.anchor = cell(q, r), .facing = dross::HexFacing::east};
+}
+
+dross::CompiledHexMap line_map() {
+  dross::CompiledHexMapBuilder builder;
+  for (std::int32_t q = 0; q < 4; ++q) {
+    REQUIRE(builder.add_cell(dross::CellFacts{
+        .id = cell(q, 0),
+        .surface_height = dross::Millimeters{0},
+        .terrain = id("dross:floor"),
+        .base_cost = dross::MovementCost{1},
+        .clearance = dross::Clearance::open,
+        .traversable = true,
+        .semantic_tags = {},
+    }));
+  }
+  for (std::int32_t q = 0; q < 3; ++q) {
+    REQUIRE(builder.add_edge(
+        cell(q, 0), cell(q + 1, 0),
+        dross::DirectionalEdgeFacts{.traversable = true, .cost = dross::MovementCost{1}},
+        dross::DirectionalEdgeFacts{.traversable = true, .cost = dross::MovementCost{1}}));
+  }
+  return std::move(builder).build().value();
+}
+
+dross::FootprintDefinition single_footprint() {
+  return dross::FootprintDefinition::create(dross::FootprintId{id("demo:single")},
+                                            {{.q = 0, .r = 0}})
+      .value();
+}
+
+struct Fixture {
+  dross::CompiledHexMap map{line_map()};
+  dross::OccupancyIndex occupancy;
+  dross::WeightedAStarPathPlanner planner;
+  dross::FootprintDefinition footprint{single_footprint()};
+  dross::MovementRuntime movement{map,
+                                  occupancy,
+                                  planner,
+                                  footprint,
+                                  dross::EntityId{7, 1},
+                                  pose(0, 0),
+                                  dross::MovementConfig{.ticks_per_transition = 2}};
+
+  Fixture() { REQUIRE(occupancy.place(dross::EntityId{7, 1}, {cell(0, 0)})); }
+};
+
+} // namespace
+
+TEST_CASE("accepted movement commits occupancy only at fixed transition boundaries") {
+  Fixture fixture;
+  const auto preview = fixture.movement.preview(pose(2, 0));
+  REQUIRE(preview.accepted);
+  CHECK(preview.duration_ticks == 4);
+  REQUIRE(fixture.movement.move_to(pose(2, 0)));
+  CHECK(fixture.movement.preview(pose(2, 0)).path == preview.path);
+
+  CHECK(fixture.movement.advance(dross::Tick{0}) == dross::MovementAdvance::in_progress);
+  CHECK(fixture.occupancy.occupant(cell(0, 0)) == dross::EntityId{7, 1});
+  CHECK_FALSE(fixture.occupancy.occupant(cell(1, 0)));
+  CHECK(fixture.movement.advance(dross::Tick{1}) == dross::MovementAdvance::entered_cell);
+  CHECK_FALSE(fixture.occupancy.occupant(cell(0, 0)));
+  CHECK(fixture.occupancy.occupant(cell(1, 0)) == dross::EntityId{7, 1});
+  CHECK(fixture.movement.pose() == pose(1, 0));
+
+  CHECK(fixture.movement.advance(dross::Tick{2}) == dross::MovementAdvance::in_progress);
+  CHECK(fixture.movement.advance(dross::Tick{3}) == dross::MovementAdvance::completed);
+  CHECK(fixture.movement.pose() == pose(2, 0));
+  CHECK(fixture.occupancy.occupant(cell(2, 0)) == dross::EntityId{7, 1});
+}
+
+TEST_CASE("cancel and combat pending stop movement at a committed cell boundary") {
+  Fixture cancelled;
+  REQUIRE(cancelled.movement.move_to(pose(3, 0)));
+  REQUIRE(cancelled.movement.cancel());
+  CHECK(cancelled.movement.advance(dross::Tick{0}) == dross::MovementAdvance::in_progress);
+  CHECK(cancelled.movement.advance(dross::Tick{1}) == dross::MovementAdvance::cancelled);
+  CHECK(cancelled.movement.pose() == pose(1, 0));
+  CHECK(cancelled.movement.state() == dross::MovementLifecycleState::idle);
+
+  Fixture pending;
+  REQUIRE(pending.movement.move_to(pose(3, 0)));
+  pending.movement.request_combat_stop();
+  CHECK_FALSE(pending.movement.move_to(pose(2, 0)));
+  static_cast<void>(pending.movement.advance(dross::Tick{0}));
+  CHECK(pending.movement.advance(dross::Tick{1}) == dross::MovementAdvance::combat_boundary);
+  CHECK(pending.movement.pose() == pose(1, 0));
+}
+
+TEST_CASE("dynamic occupancy revision invalidates the unstarted path tail") {
+  Fixture fixture;
+  REQUIRE(fixture.movement.move_to(pose(3, 0)));
+  static_cast<void>(fixture.movement.advance(dross::Tick{0}));
+  CHECK(fixture.movement.advance(dross::Tick{1}) == dross::MovementAdvance::entered_cell);
+  REQUIRE(fixture.occupancy.place(dross::EntityId{7, 2}, {cell(2, 0)}));
+
+  CHECK(fixture.movement.advance(dross::Tick{2}) == dross::MovementAdvance::blocked);
+  CHECK(fixture.movement.pose() == pose(1, 0));
+  CHECK(fixture.movement.state() == dross::MovementLifecycleState::blocked);
+  CHECK(fixture.occupancy.occupant(cell(1, 0)) == dross::EntityId{7, 1});
+}
