@@ -1,11 +1,27 @@
 #include <dross/runtime/script_runtime.hpp>
 
+#include <dross/foundation/byte_codec.hpp>
+
 #include <algorithm>
+#include <bit>
 #include <cctype>
 #include <string>
 #include <utility>
 
 namespace dross {
+namespace {
+
+constexpr std::uint32_t script_state_magic = 0x53535244U;
+constexpr std::uint16_t script_state_version = 1;
+
+enum class DurableValueTag : std::uint16_t {
+  boolean = 1,
+  integer = 2,
+  content_id = 3,
+  entity_id = 4,
+};
+
+} // namespace
 
 ScriptScope ScriptScope::for_region(ContentId region) {
   return ScriptScope{.kind = ScriptScopeKind::region, .region = std::move(region), .entity = {}};
@@ -43,6 +59,140 @@ void ScriptStateBag::apply(const std::vector<ScriptStateWrite>& writes) {
   for (const auto& write : writes) {
     values_.insert_or_assign(write.address, write.value);
   }
+}
+
+std::vector<std::byte> encode_script_state(const ScriptStateBag& state) {
+  ByteWriter writer;
+  writer.write_u32(script_state_magic);
+  writer.write_u16(script_state_version);
+  writer.write_u32(static_cast<std::uint32_t>(state.values().size()));
+  for (const auto& [address, value] : state.values()) {
+    writer.write(address.module_id);
+    writer.write_u16(static_cast<std::uint16_t>(address.scope.kind));
+    writer.write(address.scope.region);
+    writer.write_u16(address.scope.entity.has_value() ? 1U : 0U);
+    if (address.scope.entity) {
+      writer.write(*address.scope.entity);
+    }
+    writer.write_string(address.key.value());
+    std::visit(
+        [&writer](const auto& item) {
+          using Value = std::decay_t<decltype(item)>;
+          if constexpr (std::is_same_v<Value, bool>) {
+            writer.write_u16(static_cast<std::uint16_t>(DurableValueTag::boolean));
+            writer.write_u16(item ? 1U : 0U);
+          } else if constexpr (std::is_same_v<Value, std::int64_t>) {
+            writer.write_u16(static_cast<std::uint16_t>(DurableValueTag::integer));
+            writer.write_u64(std::bit_cast<std::uint64_t>(item));
+          } else if constexpr (std::is_same_v<Value, ContentId>) {
+            writer.write_u16(static_cast<std::uint16_t>(DurableValueTag::content_id));
+            writer.write(item);
+          } else {
+            writer.write_u16(static_cast<std::uint16_t>(DurableValueTag::entity_id));
+            writer.write(item);
+          }
+        },
+        value);
+  }
+  return {writer.bytes().begin(), writer.bytes().end()};
+}
+
+Result<ScriptStateBag, ScriptStateDecodeError>
+decode_script_state(const std::span<const std::byte> bytes) {
+  ByteReader reader{bytes};
+  const auto magic = reader.read_u32();
+  const auto version = reader.read_u16();
+  const auto count = reader.read_u32();
+  if (!magic || !version || !count || *magic != script_state_magic ||
+      *version != script_state_version) {
+    return tl::unexpected{ScriptStateDecodeError::invalid_format};
+  }
+
+  ScriptStateBag state;
+  std::vector<ScriptStateWrite> writes;
+  writes.reserve(*count);
+  for (std::uint32_t index = 0; index < *count; ++index) {
+    auto module = reader.read_content_id();
+    auto kind = reader.read_u16();
+    auto region = reader.read_content_id();
+    auto has_entity = reader.read_u16();
+    if (!module || !kind || !region || !has_entity || *kind > 1U || *has_entity > 1U) {
+      return tl::unexpected{ScriptStateDecodeError::invalid_scope};
+    }
+    std::optional<EntityId> entity;
+    if (*has_entity == 1U) {
+      auto decoded = reader.read_entity_id();
+      if (!decoded) {
+        return tl::unexpected{ScriptStateDecodeError::invalid_scope};
+      }
+      entity = *decoded;
+    }
+    const auto scope_kind = static_cast<ScriptScopeKind>(*kind);
+    if ((scope_kind == ScriptScopeKind::region && entity) ||
+        (scope_kind == ScriptScopeKind::entity && !entity)) {
+      return tl::unexpected{ScriptStateDecodeError::invalid_scope};
+    }
+    auto key_text = reader.read_string();
+    if (!key_text) {
+      return tl::unexpected{ScriptStateDecodeError::invalid_key};
+    }
+    auto key = ScriptStateKey::parse(std::move(*key_text));
+    if (!key) {
+      return tl::unexpected{ScriptStateDecodeError::invalid_key};
+    }
+    auto tag = reader.read_u16();
+    if (!tag) {
+      return tl::unexpected{ScriptStateDecodeError::invalid_value};
+    }
+    ScriptStateValue value;
+    switch (static_cast<DurableValueTag>(*tag)) {
+    case DurableValueTag::boolean: {
+      auto decoded = reader.read_u16();
+      if (!decoded || *decoded > 1U) {
+        return tl::unexpected{ScriptStateDecodeError::invalid_value};
+      }
+      value = *decoded == 1U;
+      break;
+    }
+    case DurableValueTag::integer: {
+      auto decoded = reader.read_u64();
+      if (!decoded) {
+        return tl::unexpected{ScriptStateDecodeError::invalid_value};
+      }
+      value = std::bit_cast<std::int64_t>(*decoded);
+      break;
+    }
+    case DurableValueTag::content_id: {
+      auto decoded = reader.read_content_id();
+      if (!decoded) {
+        return tl::unexpected{ScriptStateDecodeError::invalid_value};
+      }
+      value = std::move(*decoded);
+      break;
+    }
+    case DurableValueTag::entity_id: {
+      auto decoded = reader.read_entity_id();
+      if (!decoded) {
+        return tl::unexpected{ScriptStateDecodeError::invalid_value};
+      }
+      value = *decoded;
+      break;
+    }
+    default:
+      return tl::unexpected{ScriptStateDecodeError::invalid_value};
+    }
+    writes.push_back(ScriptStateWrite{
+        .address = {.module_id = std::move(*module),
+                    .scope = {.kind = scope_kind, .region = std::move(*region), .entity = entity},
+                    .key = std::move(*key)},
+        .value = std::move(value),
+    });
+  }
+  if (reader.remaining() != 0) {
+    return tl::unexpected{ScriptStateDecodeError::invalid_format};
+  }
+  state.apply(writes);
+  return state;
 }
 
 ScriptCallbackTransaction::ScriptCallbackTransaction(const ScriptModule& module,

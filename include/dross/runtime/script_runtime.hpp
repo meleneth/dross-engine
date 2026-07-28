@@ -9,9 +9,11 @@
 #include <dross/runtime/command_event_kernel.hpp>
 
 #include <compare>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <span>
 #include <string>
 #include <variant>
 #include <vector>
@@ -90,6 +92,17 @@ public:
 private:
   std::map<ScriptStateAddress, ScriptStateValue> values_;
 };
+
+enum class ScriptStateDecodeError : std::uint8_t {
+  invalid_format,
+  invalid_scope,
+  invalid_key,
+  invalid_value,
+};
+
+[[nodiscard]] std::vector<std::byte> encode_script_state(const ScriptStateBag& state);
+[[nodiscard]] Result<ScriptStateBag, ScriptStateDecodeError>
+decode_script_state(std::span<const std::byte> bytes);
 
 struct ScriptRuleContribution {
   bool accepted;

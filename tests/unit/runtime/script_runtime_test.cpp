@@ -2,7 +2,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstddef>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -162,4 +164,32 @@ TEST_CASE("script state keys and random streams are deterministic") {
   REQUIRE(second.contribute_placement(query(), dross::Tick{0}).accepted);
   CHECK(first_port.rolls == second_port.rolls);
   CHECK(first.state().values() == second.state().values());
+}
+
+TEST_CASE("script state has a canonical durable codec") {
+  dross::ScriptStateBag state;
+  const auto module = entity_module("demo:persistent", 3);
+  state.apply({
+      dross::ScriptStateWrite{.address = {.module_id = module.module_id,
+                                          .scope = module.scope,
+                                          .key = dross::ScriptStateKey::parse("alert").value()},
+                              .value = true},
+      dross::ScriptStateWrite{.address = {.module_id = module.module_id,
+                                          .scope = module.scope,
+                                          .key = dross::ScriptStateKey::parse("count").value()},
+                              .value = std::int64_t{-42}},
+      dross::ScriptStateWrite{.address = {.module_id = module.module_id,
+                                          .scope = module.scope,
+                                          .key = dross::ScriptStateKey::parse("target").value()},
+                              .value = dross::EntityId{9, 17}},
+  });
+
+  const auto encoded = dross::encode_script_state(state);
+  const auto restored = dross::decode_script_state(encoded);
+  REQUIRE(restored);
+  CHECK(restored->values() == state.values());
+  CHECK(dross::encode_script_state(*restored) == encoded);
+
+  const std::vector<std::byte> truncated{encoded.begin(), encoded.end() - 1};
+  CHECK_FALSE(dross::decode_script_state(truncated));
 }
