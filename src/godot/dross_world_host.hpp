@@ -2,8 +2,11 @@
 
 #include "compiled_actor_definition.hpp"
 #include "dross_actor_definition.hpp"
+#include "dross_script_runtime.hpp"
 
 #include <godot_cpp/classes/node.hpp>
+#include <godot_cpp/variant/packed_byte_array.hpp>
+#include <godot_cpp/variant/typed_array.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -26,13 +29,30 @@ public:
   [[nodiscard]] std::int64_t get_entity_count() const;
   [[nodiscard]] godot::String get_actor_id() const;
   [[nodiscard]] std::int64_t get_footprint_cell_count() const;
+  [[nodiscard]] bool
+  start_script_scenario(const godot::TypedArray<DrossScriptModuleDefinition>& modules,
+                        std::int64_t seed);
+  [[nodiscard]] bool run_script_scenario();
+  [[nodiscard]] godot::String get_script_call_order() const;
+  [[nodiscard]] godot::String get_script_mode() const;
+  [[nodiscard]] bool is_script_world_faulted() const;
+  [[nodiscard]] bool get_script_state_bool(const godot::String& module_id,
+                                           std::int64_t entity_sequence,
+                                           const godot::String& key) const;
+  [[nodiscard]] std::int64_t get_script_state_int(const godot::String& module_id,
+                                                  std::int64_t entity_sequence,
+                                                  const godot::String& key) const;
+  [[nodiscard]] godot::PackedByteArray save_script_state() const;
+  [[nodiscard]] bool restore_script_state(const godot::PackedByteArray& bytes);
 
 protected:
   static void _bind_methods();
 
 private:
   struct RuntimeState;
+  struct ScriptScenarioState;
   std::unique_ptr<RuntimeState> state_;
+  std::unique_ptr<ScriptScenarioState> script_state_;
 };
 
 } // namespace dross::godot_adapter

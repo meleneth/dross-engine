@@ -68,6 +68,7 @@ if(DROSS_BUILD_GODOT)
     generated/src/godot_api.cpp
     src/godot/dross_actor_definition.cpp
     src/godot/dross_footprint_definition.cpp
+    src/godot/dross_script_runtime.cpp
     src/godot/dross_validation_error.cpp
     src/godot/dross_world_host.cpp
     src/godot/register_types.cpp
@@ -131,7 +132,7 @@ catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME headless.version COMMAND dross_headless version)
 set_tests_properties(
   headless.version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-08")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-09")
 add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
 set_tests_properties(
   headless.validate_id
@@ -206,4 +207,9 @@ add_test(
   NAME architecture.no_forbidden_random_api
   COMMAND Python3::Interpreter
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/architecture/no_forbidden_random_api.py"
+          "${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(
+  NAME architecture.no_forbidden_gdscript_random
+  COMMAND Python3::Interpreter
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/architecture/no_forbidden_gdscript_random.py"
           "${CMAKE_CURRENT_SOURCE_DIR}")
