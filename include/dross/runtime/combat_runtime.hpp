@@ -111,6 +111,28 @@ struct AbilityActorState {
   HitPoints health;
 };
 
+struct AbilityActorSnapshot {
+  EntityId entity;
+  HexPose pose;
+  HitPoints health;
+
+  [[nodiscard]] auto operator<=>(const AbilityActorSnapshot&) const = default;
+};
+
+struct AbilityResolverSnapshot {
+  std::vector<AbilityActorSnapshot> actors;
+
+  [[nodiscard]] auto operator<=>(const AbilityResolverSnapshot&) const = default;
+};
+
+void encode_ability_resolver_snapshot(ByteWriter& writer, const AbilityResolverSnapshot& snapshot);
+[[nodiscard]] Result<AbilityResolverSnapshot, DecodeError>
+decode_ability_resolver_snapshot(ByteReader& reader);
+
+enum class AbilityRestoreError : std::uint8_t {
+  invalid_snapshot,
+};
+
 enum class AbilityRejection : std::uint8_t {
   none,
   invalid_ability,
@@ -153,10 +175,15 @@ public:
   AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors,
                   EventSink* events = nullptr, RandomStream* random = nullptr,
                   RuleSource* rules = nullptr);
+  [[nodiscard]] static Result<std::unique_ptr<AbilityResolver>, AbilityRestoreError>
+  from_snapshot(CombatSession& session, const AbilityResolverSnapshot& snapshot,
+                WorldInstanceId world_instance, EventSink* events = nullptr,
+                RandomStream* random = nullptr, RuleSource* rules = nullptr);
 
   [[nodiscard]] AbilityResult perform(const AbilityDefinition& ability, EntityId actor,
                                       EntityId target);
   [[nodiscard]] HitPoints health(EntityId actor) const;
+  [[nodiscard]] AbilityResolverSnapshot snapshot() const;
 
 private:
   CombatSession* session_;

@@ -197,6 +197,36 @@ TEST_CASE("generic adjacent ability spends AP and commits deterministic damage")
   CHECK(resolver.health(dross::EntityId{7, 2}) == dross::HitPoints{2});
 }
 
+TEST_CASE("ability resolver snapshot codec restores authoritative pose and health") {
+  dross::CombatSession session{{combatant(1, 10, 3), combatant(2, 5, 2)}};
+  REQUIRE(session.start());
+  dross::AbilityResolver original{
+      session,
+      {
+          {.entity = combatant(1, 10, 3).entity, .pose = pose(0), .health = dross::HitPoints{8}},
+          {.entity = combatant(2, 5, 2).entity, .pose = pose(1), .health = dross::HitPoints{5}},
+      },
+  };
+  REQUIRE(original.perform(thump(), dross::EntityId{7, 1}, dross::EntityId{7, 2}).accepted);
+
+  dross::ByteWriter writer;
+  dross::encode_ability_resolver_snapshot(writer, original.snapshot());
+  dross::ByteReader reader{writer.bytes()};
+  const auto decoded = dross::decode_ability_resolver_snapshot(reader);
+  REQUIRE(decoded);
+  CHECK(reader.remaining() == 0);
+  const auto restored =
+      dross::AbilityResolver::from_snapshot(session, *decoded, dross::WorldInstanceId{42});
+  REQUIRE(restored);
+  CHECK((*restored)->snapshot() == original.snapshot());
+  CHECK((*restored)->health(dross::EntityId{7, 2}) == dross::HitPoints{2});
+
+  auto duplicate = *decoded;
+  duplicate.actors.push_back(duplicate.actors.front());
+  CHECK_FALSE(
+      dross::AbilityResolver::from_snapshot(session, duplicate, dross::WorldInstanceId{42}));
+}
+
 TEST_CASE("rejected ability leaves AP and health unchanged") {
   dross::CombatSession session{{combatant(1, 10, 3), combatant(2, 5, 2)}};
   REQUIRE(session.start());

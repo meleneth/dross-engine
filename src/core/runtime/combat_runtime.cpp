@@ -1,5 +1,6 @@
 #include <dross/runtime/combat_runtime.hpp>
 
+#include <dross/generated/schema_codec.hpp>
 #include <dross/hex/hex_coord.hpp>
 
 #include <boost/sml.hpp>
@@ -7,6 +8,7 @@
 #include <algorithm>
 #include <bit>
 #include <limits>
+#include <set>
 #include <utility>
 
 namespace dross {
@@ -341,11 +343,65 @@ bool CombatSession::spend(const EntityId actor, const MovementCost cost) {
   return spend_action_points(actor, cost.value());
 }
 
+void encode_ability_resolver_snapshot(ByteWriter& writer, const AbilityResolverSnapshot& snapshot) {
+  writer.write_u64(snapshot.actors.size());
+  for (const auto& actor : snapshot.actors) {
+    writer.write(actor.entity);
+    generated::encode_hex_pose(writer, actor.pose);
+    writer.write_u32(std::bit_cast<std::uint32_t>(actor.health.value()));
+  }
+}
+
+Result<AbilityResolverSnapshot, DecodeError> decode_ability_resolver_snapshot(ByteReader& reader) {
+  const auto count = reader.read_u64();
+  if (!count || *count > reader.remaining() ||
+      *count > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())) {
+    return tl::unexpected{DecodeError{.position = 0, .reason = DecodeErrorReason::invalid_length}};
+  }
+  std::vector<AbilityActorSnapshot> actors;
+  actors.reserve(static_cast<std::size_t>(*count));
+  for (std::uint64_t index = 0; index < *count; ++index) {
+    auto entity = reader.read_entity_id();
+    auto pose = generated::decode_hex_pose(reader);
+    auto health = reader.read_u32();
+    if (!entity || !pose || !health) {
+      const auto error = !entity ? entity.error() : (!pose ? pose.error() : health.error());
+      return tl::unexpected{error};
+    }
+    actors.push_back({
+        .entity = *entity,
+        .pose = *std::move(pose),
+        .health = HitPoints{std::bit_cast<std::int32_t>(*health)},
+    });
+  }
+  return AbilityResolverSnapshot{.actors = std::move(actors)};
+}
+
 AbilityResolver::AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors,
                                  EventSink* events, RandomStream* random, RuleSource* rules)
     : session_{&session}, actors_{std::move(actors)}, events_{events}, random_{random},
       rules_{rules} {
   std::ranges::sort(actors_, {}, [](const AbilityActorState& value) { return value.entity.id(); });
+}
+
+Result<std::unique_ptr<AbilityResolver>, AbilityRestoreError>
+AbilityResolver::from_snapshot(CombatSession& session, const AbilityResolverSnapshot& snapshot,
+                               const WorldInstanceId world_instance, EventSink* events,
+                               RandomStream* random, RuleSource* rules) {
+  std::set<EntityId> identities;
+  std::vector<AbilityActorState> actors;
+  actors.reserve(snapshot.actors.size());
+  for (const auto& actor : snapshot.actors) {
+    if (actor.health.value() < 0 || !identities.insert(actor.entity).second) {
+      return tl::unexpected{AbilityRestoreError::invalid_snapshot};
+    }
+    actors.push_back({
+        .entity = EntityRef{world_instance, actor.entity},
+        .pose = actor.pose,
+        .health = actor.health,
+    });
+  }
+  return std::make_unique<AbilityResolver>(session, std::move(actors), events, random, rules);
 }
 
 AbilityResult AbilityResolver::perform(const AbilityDefinition& ability, const EntityId actor,
@@ -447,6 +503,19 @@ HitPoints AbilityResolver::health(const EntityId actor) const {
   const auto found = std::ranges::find(
       actors_, actor, [](const AbilityActorState& value) { return value.entity.id(); });
   return found == actors_.end() ? HitPoints{0} : found->health;
+}
+
+AbilityResolverSnapshot AbilityResolver::snapshot() const {
+  std::vector<AbilityActorSnapshot> actors;
+  actors.reserve(actors_.size());
+  for (const auto& actor : actors_) {
+    actors.push_back({
+        .entity = actor.entity.id(),
+        .pose = actor.pose,
+        .health = actor.health,
+    });
+  }
+  return {.actors = std::move(actors)};
 }
 
 } // namespace dross
