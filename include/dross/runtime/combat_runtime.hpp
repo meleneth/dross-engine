@@ -8,6 +8,7 @@
 #include <dross/identity/content_id.hpp>
 #include <dross/identity/entity_ref.hpp>
 #include <dross/random/random_hub.hpp>
+#include <dross/runtime/movement_runtime.hpp>
 
 #include <cstdint>
 #include <memory>
@@ -47,7 +48,7 @@ void encode_combat_session_snapshot(ByteWriter& writer, const CombatSessionSnaps
 [[nodiscard]] Result<CombatSessionSnapshot, DecodeError>
 decode_combat_session_snapshot(ByteReader& reader);
 
-class CombatSession {
+class CombatSession final : public MovementCostAccount {
 public:
   explicit CombatSession(std::vector<CombatantDefinition> combatants);
   ~CombatSession();
@@ -66,6 +67,8 @@ public:
   [[nodiscard]] CombatSessionState state() const;
   [[nodiscard]] CombatSessionSnapshot snapshot() const;
   [[nodiscard]] bool restore(const CombatSessionSnapshot& snapshot);
+  [[nodiscard]] bool can_spend(EntityId actor, MovementCost cost) const override;
+  [[nodiscard]] bool spend(EntityId actor, MovementCost cost) override;
 
 private:
   struct Impl;

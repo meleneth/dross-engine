@@ -13,6 +13,7 @@ enum class PathError : std::uint8_t {
   invalid_goal,
   no_path,
   cost_overflow,
+  insufficient_budget,
 };
 
 struct PlannedPath {

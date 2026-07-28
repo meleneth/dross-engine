@@ -154,9 +154,11 @@ Result<MovementSnapshot, DecodeError> decode_movement_snapshot(ByteReader& reade
 MovementRuntime::MovementRuntime(const CompiledHexMap& map, OccupancyIndex& occupancy,
                                  const PathPlanner& planner, const FootprintDefinition& footprint,
                                  const EntityRef entity, HexPose initial_pose,
-                                 const MovementConfig config, MovementEventSink* events)
+                                 const MovementConfig config, MovementEventSink* events,
+                                 MovementCostAccount* costs)
     : map_{&map}, occupancy_{&occupancy}, planner_{&planner}, footprint_{&footprint},
-      entity_{entity}, pose_{std::move(initial_pose)}, config_{config}, events_{events} {}
+      entity_{entity}, pose_{std::move(initial_pose)}, config_{config}, events_{events},
+      costs_{costs} {}
 
 MovementPreview MovementRuntime::preview(const HexPose& goal) const {
   const auto planned =
@@ -176,6 +178,14 @@ MovementPreview MovementRuntime::preview(const HexPose& goal) const {
                            .rejection = PathError::cost_overflow,
                            .path = {},
                            .cost = MovementCost{0},
+                           .duration_ticks = 0,
+                           .occupancy_revision = planned->occupancy_revision};
+  }
+  if (costs_ != nullptr && !costs_->can_spend(entity_.id(), planned->total_cost)) {
+    return MovementPreview{.accepted = false,
+                           .rejection = PathError::insufficient_budget,
+                           .path = {},
+                           .cost = planned->total_cost,
                            .duration_ticks = 0,
                            .occupancy_revision = planned->occupancy_revision};
   }
@@ -237,7 +247,16 @@ MovementAdvance MovementRuntime::advance(const Tick tick) {
     return MovementAdvance::in_progress;
   }
   const auto& destination = path_[next_pose_];
-  if (!occupancy_->move(entity_.id(), footprint_->expand(destination))) {
+  const auto transition =
+      assess_transition(*map_, *occupancy_, *footprint_, pose_, destination,
+                        TraversalPolicy{.rotation_cost = MovementCost{0}}, entity_.id());
+  if (!transition.allowed() ||
+      (costs_ != nullptr && !costs_->can_spend(entity_.id(), transition.cost)) ||
+      !occupancy_->move(entity_.id(), footprint_->expand(destination))) {
+    static_cast<void>(lifecycle_.block());
+    return MovementAdvance::blocked;
+  }
+  if (costs_ != nullptr && !costs_->spend(entity_.id(), transition.cost)) {
     static_cast<void>(lifecycle_.block());
     return MovementAdvance::blocked;
   }

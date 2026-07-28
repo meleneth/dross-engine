@@ -1,5 +1,7 @@
 #include <dross/runtime/movement_runtime.hpp>
 
+#include <dross/runtime/combat_runtime.hpp>
+
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
@@ -247,4 +249,34 @@ TEST_CASE("movement facts follow authoritative cell commits") {
   CHECK(events.calls == std::vector<std::string>{"started", "entered"});
   CHECK(movement.advance(dross::Tick{3}) == dross::MovementAdvance::completed);
   CHECK(events.calls == std::vector<std::string>{"started", "entered", "entered", "completed"});
+}
+
+TEST_CASE("combat movement previews against AP and spends only at committed boundaries") {
+  auto map = line_map();
+  dross::OccupancyIndex occupancy;
+  dross::WeightedAStarPathPlanner planner;
+  auto footprint = single_footprint();
+  dross::CombatSession combat{{
+      {.entity = actor(), .initiative = 10, .maximum_action_points = 3},
+      {.entity = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 2}},
+       .initiative = 5,
+       .maximum_action_points = 3},
+  }};
+  REQUIRE(combat.start());
+  REQUIRE(occupancy.place(actor().id(), {cell(0, 0)}));
+  dross::MovementRuntime movement{
+      map,     occupancy, planner, footprint, actor(), pose(0, 0), {.ticks_per_transition = 2},
+      nullptr, &combat};
+
+  const auto too_far = movement.preview(pose(2, 0));
+  CHECK_FALSE(too_far.accepted);
+  CHECK(too_far.rejection == dross::PathError::insufficient_budget);
+  CHECK(combat.action_points(actor().id()) == 3);
+
+  REQUIRE(movement.move_to(pose(1, 0)));
+  CHECK(movement.advance(dross::Tick{0}) == dross::MovementAdvance::in_progress);
+  CHECK(combat.action_points(actor().id()) == 3);
+  CHECK(movement.advance(dross::Tick{1}) == dross::MovementAdvance::completed);
+  CHECK(combat.action_points(actor().id()) == 1);
+  CHECK(movement.pose() == pose(1, 0));
 }

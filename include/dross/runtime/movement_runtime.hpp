@@ -50,6 +50,13 @@ public:
   virtual void publish(const movement::MovementCompleted& event) = 0;
 };
 
+class MovementCostAccount {
+public:
+  virtual ~MovementCostAccount() = default;
+  [[nodiscard]] virtual bool can_spend(EntityId actor, MovementCost cost) const = 0;
+  [[nodiscard]] virtual bool spend(EntityId actor, MovementCost cost) = 0;
+};
+
 class MovementLifecycle {
 public:
   MovementLifecycle();
@@ -90,7 +97,8 @@ class MovementRuntime {
 public:
   MovementRuntime(const CompiledHexMap& map, OccupancyIndex& occupancy, const PathPlanner& planner,
                   const FootprintDefinition& footprint, EntityRef entity, HexPose initial_pose,
-                  MovementConfig config, MovementEventSink* events = nullptr);
+                  MovementConfig config, MovementEventSink* events = nullptr,
+                  MovementCostAccount* costs = nullptr);
 
   [[nodiscard]] MovementPreview preview(const HexPose& goal) const;
   [[nodiscard]] bool move_to(const HexPose& goal);
@@ -112,6 +120,7 @@ private:
   HexPose pose_;
   MovementConfig config_;
   MovementEventSink* events_;
+  MovementCostAccount* costs_;
   MovementLifecycle lifecycle_;
   std::vector<HexPose> path_;
   std::size_t next_pose_{0};

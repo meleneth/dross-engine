@@ -276,6 +276,15 @@ bool CombatSession::restore(const CombatSessionSnapshot& restored) {
   return true;
 }
 
+bool CombatSession::can_spend(const EntityId actor, const MovementCost cost) const {
+  return state() == CombatSessionState::active && active_actor() == actor &&
+         action_points(actor) >= cost.value();
+}
+
+bool CombatSession::spend(const EntityId actor, const MovementCost cost) {
+  return spend_action_points(actor, cost.value());
+}
+
 AbilityResolver::AbilityResolver(CombatSession& session, std::vector<AbilityActorState> actors,
                                  EventSink* events, RandomStream* random)
     : session_{&session}, actors_{std::move(actors)}, events_{events}, random_{random} {
