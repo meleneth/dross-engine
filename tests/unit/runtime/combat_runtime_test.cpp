@@ -159,18 +159,22 @@ TEST_CASE("combat session snapshot codec restores active turn AP and living rost
   REQUIRE(decoded);
   CHECK(reader.remaining() == 0);
 
-  dross::CombatSession restored{{combatant(1, 10, 4), combatant(2, 8, 3), combatant(3, 6, 2)}};
-  REQUIRE(restored.restore(*decoded));
-  CHECK(restored.snapshot() == original.snapshot());
-  REQUIRE(restored.end_turn(dross::EntityId{7, 1}));
-  CHECK(restored.active_actor() == dross::EntityId{7, 3});
-  CHECK(restored.action_points(dross::EntityId{7, 3}) == 2);
+  const auto restored = dross::CombatSession::from_snapshot(*decoded, dross::WorldInstanceId{42});
+  REQUIRE(restored);
+  CHECK((*restored)->snapshot() == original.snapshot());
+  REQUIRE((*restored)->end_turn(dross::EntityId{7, 1}));
+  CHECK((*restored)->active_actor() == dross::EntityId{7, 3});
+  CHECK((*restored)->action_points(dross::EntityId{7, 3}) == 2);
 
   auto mismatched = *decoded;
   mismatched.combatants[0].entity = dross::EntityId{99, 1};
   dross::CombatSession rejected{{combatant(1, 10, 4), combatant(2, 8, 3), combatant(3, 6, 2)}};
   CHECK_FALSE(rejected.restore(mismatched));
   CHECK(rejected.state() == dross::CombatSessionState::inactive);
+
+  auto invalid = *decoded;
+  invalid.combatants[0].action_points = invalid.combatants[0].maximum_action_points + 1;
+  CHECK_FALSE(dross::CombatSession::from_snapshot(invalid, dross::WorldInstanceId{42}));
 }
 
 TEST_CASE("generic adjacent ability spends AP and commits deterministic damage") {

@@ -5,6 +5,7 @@
 #include <boost/sml.hpp>
 
 #include <algorithm>
+#include <bit>
 #include <limits>
 #include <utility>
 
@@ -89,6 +90,8 @@ void encode_combat_session_snapshot(ByteWriter& writer, const CombatSessionSnaps
   writer.write_u64(snapshot.combatants.size());
   for (const auto& combatant : snapshot.combatants) {
     writer.write(combatant.entity);
+    writer.write_u32(std::bit_cast<std::uint32_t>(combatant.initiative));
+    writer.write_u32(combatant.maximum_action_points);
     writer.write_u32(combatant.action_points);
     writer.write_u16(combatant.alive ? 1U : 0U);
   }
@@ -113,19 +116,27 @@ Result<CombatSessionSnapshot, DecodeError> decode_combat_session_snapshot(ByteRe
   combatants.reserve(static_cast<std::size_t>(*count));
   for (std::uint64_t index = 0; index < *count; ++index) {
     auto entity = reader.read_entity_id();
+    auto initiative = reader.read_u32();
+    auto maximum_action_points = reader.read_u32();
     auto action_points = reader.read_u32();
     auto alive = reader.read_u16();
-    if (!entity || !action_points || !alive) {
-      const auto error =
-          !entity ? entity.error() : (!action_points ? action_points.error() : alive.error());
+    if (!entity || !initiative || !maximum_action_points || !action_points || !alive) {
+      const auto error = !entity                  ? entity.error()
+                         : !initiative            ? initiative.error()
+                         : !maximum_action_points ? maximum_action_points.error()
+                         : !action_points         ? action_points.error()
+                                                  : alive.error();
       return tl::unexpected{error};
     }
     if (*alive > 1) {
       return tl::unexpected{
           DecodeError{.position = 0, .reason = DecodeErrorReason::invalid_length}};
     }
-    combatants.push_back(
-        {.entity = *entity, .action_points = *action_points, .alive = *alive != 0});
+    combatants.push_back({.entity = *entity,
+                          .initiative = std::bit_cast<std::int32_t>(*initiative),
+                          .maximum_action_points = *maximum_action_points,
+                          .action_points = *action_points,
+                          .alive = *alive != 0});
   }
   return CombatSessionSnapshot{
       .state = static_cast<CombatSessionState>(*state),
@@ -136,6 +147,25 @@ Result<CombatSessionSnapshot, DecodeError> decode_combat_session_snapshot(ByteRe
 
 CombatSession::CombatSession(std::vector<CombatantDefinition> combatants, EventSink* events)
     : impl_{std::make_unique<Impl>(std::move(combatants), events)} {}
+
+Result<std::unique_ptr<CombatSession>, CombatRestoreError>
+CombatSession::from_snapshot(const CombatSessionSnapshot& snapshot,
+                             const WorldInstanceId world_instance, EventSink* events) {
+  std::vector<CombatantDefinition> definitions;
+  definitions.reserve(snapshot.combatants.size());
+  for (const auto& combatant : snapshot.combatants) {
+    definitions.push_back({
+        .entity = EntityRef{world_instance, combatant.entity},
+        .initiative = combatant.initiative,
+        .maximum_action_points = combatant.maximum_action_points,
+    });
+  }
+  auto restored = std::make_unique<CombatSession>(std::move(definitions), events);
+  if (!restored->restore(snapshot)) {
+    return tl::unexpected{CombatRestoreError::invalid_snapshot};
+  }
+  return restored;
+}
 CombatSession::~CombatSession() = default;
 CombatSession::CombatSession(CombatSession&&) noexcept = default;
 CombatSession& CombatSession::operator=(CombatSession&&) noexcept = default;
@@ -249,6 +279,8 @@ CombatSessionSnapshot CombatSession::snapshot() const {
   for (const auto& combatant : impl_->combatants) {
     combatants.push_back({
         .entity = combatant.definition.entity.id(),
+        .initiative = combatant.definition.initiative,
+        .maximum_action_points = combatant.definition.maximum_action_points,
         .action_points = combatant.action_points,
         .alive = combatant.alive,
     });
@@ -271,6 +303,8 @@ bool CombatSession::restore(const CombatSessionSnapshot& restored) {
     const auto& saved = restored.combatants[index];
     const auto& current = impl_->combatants[index];
     if (saved.entity != current.definition.entity.id() ||
+        saved.initiative != current.definition.initiative ||
+        saved.maximum_action_points != current.definition.maximum_action_points ||
         saved.action_points > current.definition.maximum_action_points) {
       return false;
     }

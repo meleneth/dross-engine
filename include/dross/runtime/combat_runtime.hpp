@@ -34,6 +34,8 @@ struct CombatantDefinition {
 
 struct CombatantSnapshot {
   EntityId entity;
+  std::int32_t initiative;
+  std::uint32_t maximum_action_points;
   std::uint32_t action_points;
   bool alive;
 
@@ -52,6 +54,10 @@ void encode_combat_session_snapshot(ByteWriter& writer, const CombatSessionSnaps
 [[nodiscard]] Result<CombatSessionSnapshot, DecodeError>
 decode_combat_session_snapshot(ByteReader& reader);
 
+enum class CombatRestoreError : std::uint8_t {
+  invalid_snapshot,
+};
+
 class CombatSession final : public MovementCostAccount {
 public:
   class EventSink {
@@ -63,6 +69,9 @@ public:
   };
 
   explicit CombatSession(std::vector<CombatantDefinition> combatants, EventSink* events = nullptr);
+  [[nodiscard]] static Result<std::unique_ptr<CombatSession>, CombatRestoreError>
+  from_snapshot(const CombatSessionSnapshot& snapshot, WorldInstanceId world_instance,
+                EventSink* events = nullptr);
   ~CombatSession();
   CombatSession(CombatSession&&) noexcept;
   CombatSession& operator=(CombatSession&&) noexcept;
