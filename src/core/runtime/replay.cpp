@@ -13,7 +13,7 @@
 namespace dross {
 namespace {
 
-constexpr std::string_view replay_magic{"dross-replay-v1"};
+constexpr std::string_view replay_magic{"dross-replay-v2"};
 constexpr std::uint8_t low_nibble_mask = 0x0FU;
 constexpr std::uint8_t hexadecimal_alpha_offset = 10U;
 
@@ -396,6 +396,10 @@ std::vector<std::byte> encode_replay(const ReplayLog& replay) {
     writer.write_u16(static_cast<std::uint16_t>(entry.event));
     writer.write_u16(static_cast<std::uint16_t>(entry.outcome));
   }
+  writer.write_u64(replay.canonical_events.size());
+  for (const auto& event : replay.canonical_events) {
+    writer.write_string(event);
+  }
   writer.write_u64(replay.checkpoints.size());
   for (const auto& checkpoint : replay.checkpoints) {
     writer.write_u64(checkpoint.tick.value());
@@ -480,6 +484,7 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
                              .random_algorithm_version = *algorithm_version},
       .external_commands = {},
       .machine_trace = {},
+      .canonical_events = {},
       .checkpoints = {},
   };
   for (std::uint64_t index = 0; index < *command_count; ++index) {
@@ -514,6 +519,18 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
         .event = static_cast<MachineEventId>(*event),
         .outcome = static_cast<MachineEventOutcome>(*outcome),
     });
+  }
+  const auto event_count = reader.read_u64();
+  if (!event_count || *event_count > reader.remaining()) {
+    return tl::unexpected{ReplayDecodeError::invalid_format};
+  }
+  result.canonical_events.reserve(static_cast<std::size_t>(*event_count));
+  for (std::uint64_t index = 0; index < *event_count; ++index) {
+    auto event = reader.read_string();
+    if (!event) {
+      return tl::unexpected{ReplayDecodeError::invalid_format};
+    }
+    result.canonical_events.push_back(std::move(*event));
   }
   const auto checkpoint_count = reader.read_u64();
   if (!checkpoint_count) {

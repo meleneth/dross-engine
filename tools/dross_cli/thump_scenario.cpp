@@ -322,6 +322,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
                   },
               .external_commands = {},
               .machine_trace = {},
+              .canonical_events = events.trace(),
               .checkpoints = std::move(checkpoints),
           },
       .save_checkpoints = std::move(save_checkpoints),
@@ -407,6 +408,10 @@ int verify_thump_replay(const dross::ReplayLog& recorded) {
     const auto replayed = execute(recorded.header.master_seed.value(), ResumeBoundary::none);
     const auto divergence =
         dross::first_divergence(recorded.checkpoints, replayed.replay.checkpoints);
+    if (recorded.canonical_events != replayed.replay.canonical_events) {
+      std::cerr << "replay event divergence\n";
+      return scenario_error;
+    }
     if (divergence) {
       std::cerr << "replay divergence tick=" << divergence->tick.value()
                 << " section=" << static_cast<unsigned int>(divergence->section);
@@ -416,7 +421,8 @@ int verify_thump_replay(const dross::ReplayLog& recorded) {
       std::cerr << '\n';
       return scenario_error;
     }
-    std::cout << "replay verified checkpoints=" << recorded.checkpoints.size() << '\n';
+    std::cout << "replay verified checkpoints=" << recorded.checkpoints.size()
+              << " events=" << recorded.canonical_events.size() << '\n';
     return 0;
   } catch (const std::exception& error) {
     std::cerr << "Thump replay failed: " << error.what() << '\n';

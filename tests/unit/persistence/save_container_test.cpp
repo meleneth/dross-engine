@@ -558,6 +558,7 @@ TEST_CASE("replay checkpoints can begin from a freshly loaded save snapshot") {
           },
       .external_commands = {},
       .machine_trace = {},
+      .canonical_events = {},
       .checkpoints = {loaded_checkpoint},
   };
 

@@ -254,6 +254,7 @@ ScenarioResult execute(const std::uint64_t seed) {
                   },
               .external_commands = {},
               .machine_trace = {},
+              .canonical_events = {},
               .checkpoints = std::move(checkpoints),
           },
       .final_pose = movement.pose(),
@@ -294,6 +295,10 @@ int verify_exploration_movement_replay(const dross::ReplayLog& recorded) {
     const auto replayed = execute(recorded.header.master_seed.value());
     const auto divergence =
         dross::first_divergence(recorded.checkpoints, replayed.replay.checkpoints);
+    if (recorded.canonical_events != replayed.replay.canonical_events) {
+      std::cerr << "movement event trace divergence\n";
+      return scenario_error;
+    }
     if (divergence) {
       std::cerr << "replay divergence tick=" << divergence->tick.value()
                 << " section=" << static_cast<unsigned int>(divergence->section);

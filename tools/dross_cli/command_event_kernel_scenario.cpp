@@ -161,6 +161,7 @@ ScenarioResult execute_scenario(const std::uint64_t seed,
                   },
               .external_commands = replay_commands == nullptr ? external : *replay_commands,
               .machine_trace = {},
+              .canonical_events = {},
               .checkpoints = std::move(checkpoints),
           },
       .random_rejected = random_rejected,
@@ -239,6 +240,10 @@ int run_replay_verification(const std::string& path) {
         execute_scenario(recorded->header.master_seed.value(), &recorded->external_commands);
     const auto divergence =
         dross::first_divergence(recorded->checkpoints, replayed.replay.checkpoints);
+    if (recorded->canonical_events != replayed.replay.canonical_events) {
+      std::cerr << "replay event trace divergence\n";
+      return scenario_error;
+    }
     if (divergence) {
       std::cerr << "replay divergence tick=" << divergence->tick.value()
                 << " section=" << static_cast<unsigned int>(divergence->section);
@@ -275,6 +280,10 @@ int compare_runs(const std::string& expected_path, const std::string& actual_pat
     std::cerr << "run divergence machine_trace\n";
     return scenario_error;
   }
+  if (expected->canonical_events != actual->canonical_events) {
+    std::cerr << "run divergence canonical_events\n";
+    return scenario_error;
+  }
   const auto divergence = dross::first_divergence(expected->checkpoints, actual->checkpoints);
   if (divergence) {
     std::cerr << "run divergence tick=" << divergence->tick.value()
@@ -285,6 +294,7 @@ int compare_runs(const std::string& expected_path, const std::string& actual_pat
     std::cerr << '\n';
     return scenario_error;
   }
-  std::cout << "runs match checkpoints=" << expected->checkpoints.size() << '\n';
+  std::cout << "runs match checkpoints=" << expected->checkpoints.size()
+            << " events=" << expected->canonical_events.size() << '\n';
   return 0;
 }

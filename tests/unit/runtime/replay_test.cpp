@@ -170,6 +170,11 @@ TEST_CASE("replay DTO has a deterministic round trip") {
           },
       .external_commands = {},
       .machine_trace = {},
+      .canonical_events =
+          {
+              "combat_started/52/1",
+              "ability_committed/52/1/52/2/dross_demo:thump",
+          },
       .checkpoints = {checkpoint_for({1, 2}, 12345)},
   };
 

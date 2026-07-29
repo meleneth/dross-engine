@@ -77,6 +77,7 @@ struct ReplayLog {
   ReplayHeader header;
   std::vector<PlaceEntityEnvelope> external_commands;
   std::vector<MachineTraceEntry> machine_trace;
+  std::vector<std::string> canonical_events;
   std::vector<CanonicalCheckpoint> checkpoints;
 
   [[nodiscard]] bool operator==(const ReplayLog&) const = default;

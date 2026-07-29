@@ -81,6 +81,7 @@ dross::ReplayLog execute_lifecycle_scenario() {
           },
       .external_commands = {},
       .machine_trace = trace.entries(),
+      .canonical_events = {},
       .checkpoints = std::move(checkpoints),
   };
 }
@@ -126,6 +127,10 @@ int verify_lifecycle_replay(const dross::ReplayLog& recorded) {
     }
     if (recorded.machine_trace != replayed.machine_trace) {
       std::cerr << "lifecycle machine trace divergence\n";
+      return scenario_error;
+    }
+    if (recorded.canonical_events != replayed.canonical_events) {
+      std::cerr << "lifecycle event trace divergence\n";
       return scenario_error;
     }
     std::cout << "replay verified checkpoints=" << recorded.checkpoints.size()
