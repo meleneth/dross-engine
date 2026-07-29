@@ -45,7 +45,6 @@ __pycache__/
 /godot/.import/
 /godot/reports/
 /godot/export.cfg
-/godot/export_presets.cfg
 
 # Editor and OS noise
 /.idea/

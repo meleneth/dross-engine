@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+godot_bin="${GODOT_BIN:-}"
+output_dir="${1:-${repo_root}/build/package-linux}"
+
+if [[ -z "${godot_bin}" || ! -x "${godot_bin}" ]]; then
+  echo "GODOT_BIN must name an executable Godot 4.7.1 Linux binary" >&2
+  exit 2
+fi
+if [[ -e "${output_dir}" ]] && [[ -n "$(find "${output_dir}" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+  echo "package output must be absent or empty: ${output_dir}" >&2
+  exit 2
+fi
+
+cmake --preset linux-release
+cmake --build --preset linux-release
+
+staging_dir="$(mktemp -d /tmp/dross-package-linux.XXXXXX)"
+cleanup() {
+  rm -rf "${staging_dir}"
+}
+trap cleanup EXIT
+
+export XDG_DATA_HOME="${staging_dir}/xdg-data"
+export XDG_CONFIG_HOME="${staging_dir}/xdg-config"
+export XDG_CACHE_HOME="${staging_dir}/xdg-cache"
+
+"${godot_bin}" --headless --path "${repo_root}/godot" \
+  --export-pack "Linux Prototype" "${staging_dir}/dross-engine.pck" \
+  >"${staging_dir}/export.log" 2>&1
+
+install -m 0755 "${godot_bin}" "${staging_dir}/dross-engine.x86_64"
+install -d "${staging_dir}/bin"
+install -m 0755 "${repo_root}/godot/bin/libdross_godot.so" \
+  "${staging_dir}/bin/libdross_godot.so"
+
+(
+  cd "${staging_dir}"
+  ./dross-engine.x86_64 --headless --main-pack dross-engine.pck --quit-after 3 \
+    >smoke.log 2>&1
+)
+if rg -n "SCRIPT ERROR:|^ERROR:" "${staging_dir}/smoke.log"; then
+  echo "packaged prototype emitted runtime errors" >&2
+  exit 1
+fi
+
+(
+  cd "${staging_dir}"
+  sha256sum dross-engine.x86_64 dross-engine.pck bin/libdross_godot.so >SHA256SUMS
+)
+
+mkdir -p "${output_dir}"
+cp -a "${staging_dir}/dross-engine.x86_64" "${staging_dir}/dross-engine.pck" \
+  "${staging_dir}/bin" "${staging_dir}/SHA256SUMS" "${staging_dir}/smoke.log" \
+  "${output_dir}/"
+echo "Linux prototype package: ${output_dir}"
