@@ -5,7 +5,8 @@ config_version=5
 
 [application]
 
-config/name="Dross Phase 08"
+config/name="Dross Engine — Thump on Field Mouse"
+run/main_scene="res://demo/phase14_vertical_slice.tscn"
 
 [editor_plugins]
 

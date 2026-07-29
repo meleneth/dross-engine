@@ -150,7 +150,8 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
 
 struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
                                                    AbilityResolver::RuleSource {
-  CombatScenarioState(AbilityDefinition definition, ScriptScenarioState* script_scenario)
+  CombatScenarioState(AbilityDefinition definition, ScriptScenarioState* script_scenario,
+                      const std::int32_t player_q)
       : ability{std::move(definition)}, scripts{script_scenario},
         session{{
             {.entity = player, .initiative = 10, .maximum_action_points = 3},
@@ -158,8 +159,8 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
         }},
         resolver{session,
                  {
-                     {.entity = player, .pose = movement_pose(0), .health = HitPoints{8}},
-                     {.entity = mouse, .pose = movement_pose(1), .health = HitPoints{3}},
+                     {.entity = player, .pose = movement_pose(player_q), .health = HitPoints{8}},
+                     {.entity = mouse, .pose = movement_pose(player_q + 1), .health = HitPoints{3}},
                  },
                  this,
                  nullptr,
@@ -489,6 +490,10 @@ bool DrossWorldHost::advance_movement_tick() {
   return true;
 }
 
+std::int64_t DrossWorldHost::get_movement_tick() const {
+  return movement_state_ ? static_cast<std::int64_t>(movement_state_->tick.value()) : 0;
+}
+
 std::int64_t DrossWorldHost::get_movement_column() const {
   return movement_state_ ? movement_state_->movement.pose().anchor.coord.q : -1;
 }
@@ -523,11 +528,16 @@ bool DrossWorldHost::start_thump_scenario(
   if (ability_definition.is_null()) {
     return false;
   }
+  if (movement_state_ && movement_state_->movement.state() != MovementLifecycleState::idle) {
+    return false;
+  }
   auto ability = ability_definition->compile_core();
   if (!ability) {
     return false;
   }
-  combat_state_ = std::make_unique<CombatScenarioState>(std::move(*ability), script_state_.get());
+  const auto player_q = movement_state_ ? movement_state_->movement.pose().anchor.coord.q : 0;
+  combat_state_ =
+      std::make_unique<CombatScenarioState>(std::move(*ability), script_state_.get(), player_q);
   return true;
 }
 
@@ -634,6 +644,8 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::request_movement_combat);
   godot::ClassDB::bind_method(godot::D_METHOD("advance_movement_tick"),
                               &DrossWorldHost::advance_movement_tick);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_movement_tick"),
+                              &DrossWorldHost::get_movement_tick);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_column"),
                               &DrossWorldHost::get_movement_column);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_state"),

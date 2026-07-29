@@ -7,9 +7,10 @@ cross-platform evidence is incomplete. In particular, Phase 13 does not yet
 have recorded proof for every required compiler, sanitizer, Windows, Godot,
 and Steam Deck validation target.
 
-Work is proceeding to Phase 14 by explicit project-owner direction. These
-requirements remain open carryover and must be completed before the integrated
-vertical slice can be declared complete.
+Work is proceeding to Phase 14 by explicit project-owner direction. Windows
+and Steam Deck hardware are unavailable to the project, so those targets are
+recorded as unverified rather than treated as blockers or reported as passing.
+Available Linux and Godot validation remains required.
 
 ## Goal
 

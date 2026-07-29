@@ -2,10 +2,10 @@
 
 ## Status
 
-**Active.** Phase 14 began with Phase 13's cross-platform validation evidence
-still open. Phase 14 may proceed, but its final validation must close that
-carryover; neither Phase 13 nor the vertical slice may be reported complete
-until the missing evidence is recorded.
+**Active.** Phase 14 began without access to Windows or Steam Deck hardware.
+Those targets remain explicitly unverified and are not release claims.
+Available Linux compiler, sanitizer, replay, and Godot validation remains part
+of this phase.
 
 ## Goal
 

@@ -1,0 +1,105 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://demo/phase14_vertical_slice.gd" id="1_script"]
+
+[sub_resource type="PlaneMesh" id="FloorMesh"]
+size = Vector2(12, 7)
+
+[sub_resource type="StandardMaterial3D" id="PlayerMaterial"]
+albedo_color = Color(0.15, 0.45, 0.95, 1)
+
+[sub_resource type="CapsuleMesh" id="PlayerMesh"]
+material = SubResource("PlayerMaterial")
+radius = 0.45
+height = 1.8
+
+[sub_resource type="StandardMaterial3D" id="MouseMaterial"]
+albedo_color = Color(0.45, 0.24, 0.12, 1)
+
+[sub_resource type="SphereMesh" id="MouseMesh"]
+material = SubResource("MouseMaterial")
+radius = 0.42
+height = 0.84
+
+[sub_resource type="StandardMaterial3D" id="DoorMaterial"]
+albedo_color = Color(0.5, 0.28, 0.08, 1)
+
+[sub_resource type="BoxMesh" id="DoorMesh"]
+material = SubResource("DoorMaterial")
+size = Vector3(0.18, 2.2, 1.4)
+
+[sub_resource type="Environment" id="Environment"]
+background_mode = 1
+background_color = Color(0.06, 0.075, 0.1, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.65, 0.72, 0.85, 1)
+ambient_light_energy = 0.7
+
+[node name="ThumpOnFieldMouse" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment")
+
+[node name="DrossWorldHost" type="DrossWorldHost" parent="."]
+
+[node name="Floor" type="MeshInstance3D" parent="."]
+mesh = SubResource("FloorMesh")
+
+[node name="Player" type="MeshInstance3D" parent="."]
+position = Vector3(-3, 0.9, 0)
+mesh = SubResource("PlayerMesh")
+
+[node name="FieldMouse" type="MeshInstance3D" parent="."]
+position = Vector3(3, 0.42, 0)
+mesh = SubResource("MouseMesh")
+
+[node name="SideDoor" type="Node3D" parent="."]
+position = Vector3(4, 0, -2)
+
+[node name="Panel" type="MeshInstance3D" parent="SideDoor"]
+position = Vector3(0, 1.1, 0.7)
+mesh = SubResource("DoorMesh")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-55, -30, 0)
+shadow_enabled = true
+
+[node name="Camera3D" type="Camera3D" parent="."]
+projection = 1
+size = 9.0
+position = Vector3(0, 7.5, 8.5)
+rotation_degrees = Vector3(-42, 0, 0)
+current = true
+
+[node name="UI" type="CanvasLayer" parent="."]
+
+[node name="Title" type="Label" parent="UI"]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 620.0
+offset_bottom = 52.0
+theme_override_font_sizes/font_size = 24
+text = "Dross Engine — Thump on Field Mouse"
+
+[node name="Status" type="Label" parent="UI"]
+offset_left = 24.0
+offset_top = 58.0
+offset_right = 800.0
+offset_bottom = 88.0
+theme_override_font_sizes/font_size = 16
+text = "←/→ preview   Space move   Esc cancel   T Thump   D door"
+
+[node name="PathPreview" type="Label" parent="UI"]
+offset_left = 24.0
+offset_top = 92.0
+offset_right = 800.0
+offset_bottom = 120.0
+theme_override_font_sizes/font_size = 16
+
+[node name="Diagnostics" type="Label" parent="UI"]
+offset_left = 24.0
+offset_top = 130.0
+offset_right = 540.0
+offset_bottom = 350.0
+theme_override_font_sizes/font_size = 15

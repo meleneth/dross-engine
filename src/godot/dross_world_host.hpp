@@ -53,6 +53,7 @@ public:
   [[nodiscard]] bool cancel_movement();
   [[nodiscard]] bool request_movement_combat();
   [[nodiscard]] bool advance_movement_tick();
+  [[nodiscard]] std::int64_t get_movement_tick() const;
   [[nodiscard]] std::int64_t get_movement_column() const;
   [[nodiscard]] godot::String get_movement_state() const;
   [[nodiscard]] godot::String get_movement_mode() const;
