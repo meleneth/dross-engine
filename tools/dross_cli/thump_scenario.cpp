@@ -62,6 +62,28 @@ const dross::CompiledHexMap& thump_map() {
   return map;
 }
 
+dross::OccupancyIndex rebuild_occupancy(const dross::WorldStorage& world) {
+  std::vector<dross::OccupancyPlacement> placements;
+  for (const auto entity : world.read().stable_entity_ids()) {
+    const auto reference = world.read().find(entity);
+    if (!reference) {
+      throw std::logic_error{"Thump occupancy rebuild could not resolve entity"};
+    }
+    const auto entity_pose = world.read().pose(*reference);
+    if (entity_pose) {
+      placements.push_back(dross::OccupancyPlacement{
+          .entity = entity,
+          .cells = {entity_pose->anchor},
+      });
+    }
+  }
+  dross::OccupancyIndex occupancy;
+  if (!occupancy.rebuild(placements)) {
+    throw std::logic_error{"Thump occupancy rebuild failed"};
+  }
+  return occupancy;
+}
+
 struct SaveCheckpoint {
   std::string name;
   dross::SaveContainer save;
@@ -187,7 +209,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
           {.entity = mouse, .pose = pose(1), .health = dross::HitPoints{3}},
       },
       nullptr, damage_random);
-  dross::OccupancyIndex occupancy;
+  auto occupancy = rebuild_occupancy(*world);
   std::vector<dross::CanonicalCheckpoint> checkpoints;
   checkpoints.push_back(dross::canonical_checkpoint(
       dross::Tick{0}, *world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
