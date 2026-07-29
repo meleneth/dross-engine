@@ -44,6 +44,21 @@ TEST_CASE("changed master seed changes the random checkpoint section") {
         second.sections.at(dross::CheckpointSection::random));
 }
 
+TEST_CASE("capability diagnostic hash covers tick and capability presence") {
+  const auto empty =
+      dross::canonical_capability_hash(dross::Tick{3}, dross::CanonicalCapabilitySnapshot{});
+  const auto later =
+      dross::canonical_capability_hash(dross::Tick{4}, dross::CanonicalCapabilitySnapshot{});
+  dross::ScriptStateBag script;
+  const auto with_script = dross::canonical_capability_hash(
+      dross::Tick{3},
+      dross::CanonicalCapabilitySnapshot{
+          .movement = {}, .combat = {}, .combat_actors = {}, .door = {}, .script = script});
+
+  CHECK(empty != later);
+  CHECK(empty != with_script);
+}
+
 TEST_CASE("machine state changes the canonical machine section") {
   dross::WorldStorage world{
       dross::WorldConfig{.lineage = 7, .instance_id = dross::WorldInstanceId{9}}};

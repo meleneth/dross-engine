@@ -20,6 +20,9 @@ func _initialize() -> void:
 			"integrated overlay did not receive the authoritative movement map")
 	check(overlay.get_cell_keys() == compiled_map.get_cell_keys(),
 			"runtime grid differs from the authoritative movement map")
+	var initial_hash: String = demo.get_node(
+			"DrossWorldHost").get_canonical_capability_hash()
+	check(initial_hash.length() == 64, "diagnostic canonical hash is not BLAKE3-256")
 	check(demo.preview_destination(2), "integrated demo did not preview a reachable path")
 	check(overlay.path_cell_keys == PackedStringArray([
 		"dross:phase11:0,0,0",
@@ -33,6 +36,8 @@ func _initialize() -> void:
 			"diagnostic tick did not follow authoritative fixed ticks")
 	check(demo.get_node("DrossWorldHost").get_movement_column() == 2,
 			"integrated player did not reach the authoritative destination")
+	check(demo.get_node("DrossWorldHost").get_canonical_capability_hash() != initial_hash,
+			"authoritative movement did not change the diagnostic hash")
 	check(is_equal_approx(demo.get_node("Player").position.x, sqrt(3.0) * 2.0),
 			"player view did not follow the authoritative cell")
 	check(demo.get_node("DrossWorldHost").get_movement_mode() == "combat_pending",

@@ -46,6 +46,9 @@ struct CanonicalCapabilitySnapshot {
   std::optional<ScriptStateBag> script;
 };
 
+[[nodiscard]] CheckpointHash
+canonical_capability_hash(Tick tick, const CanonicalCapabilitySnapshot& capabilities);
+
 struct CanonicalCheckpoint {
   Tick tick;
   std::map<CheckpointSection, CheckpointHash> sections;

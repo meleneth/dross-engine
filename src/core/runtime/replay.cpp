@@ -152,6 +152,40 @@ CheckpointHash canonical_map_hash(const CompiledHexMap& map) {
   return hash_bytes(writer.bytes());
 }
 
+CheckpointHash canonical_capability_hash(const Tick tick,
+                                         const CanonicalCapabilitySnapshot& capabilities) {
+  ByteWriter writer;
+  writer.write_u64(tick.value());
+  const auto add = [&writer](const std::string_view name, const std::span<const std::byte> bytes) {
+    writer.write_string(name);
+    write_hash(writer, hash_bytes(bytes));
+  };
+  if (capabilities.movement) {
+    ByteWriter encoded;
+    encode_movement_snapshot(encoded, *capabilities.movement);
+    add("movement", encoded.bytes());
+  }
+  if (capabilities.combat) {
+    ByteWriter encoded;
+    encode_combat_session_snapshot(encoded, *capabilities.combat);
+    add("combat/session", encoded.bytes());
+  }
+  if (capabilities.combat_actors) {
+    ByteWriter encoded;
+    encode_ability_resolver_snapshot(encoded, *capabilities.combat_actors);
+    add("combat/actors", encoded.bytes());
+  }
+  if (capabilities.door) {
+    ByteWriter encoded;
+    encode_door_snapshot(encoded, *capabilities.door);
+    add("door", encoded.bytes());
+  }
+  if (capabilities.script) {
+    add("script/state", encode_script_state(*capabilities.script));
+  }
+  return hash_bytes(writer.bytes());
+}
+
 CanonicalCheckpoint
 canonical_checkpoint(const Tick tick, const WorldStorage& world, const OccupancyIndex& occupancy,
                      const RandomHubSnapshot& random, const WorldLifecycleSnapshot lifecycle,

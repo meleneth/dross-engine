@@ -178,6 +178,7 @@ func _refresh_diagnostics() -> void:
 		"last event: %s" % _last_event,
 		"script callback: %s" % host.get_script_call_order(),
 		"seed: %d" % DEMO_SEED,
+		"hash: %s" % host.get_canonical_capability_hash(),
 		"door: %s" % ("open" if host.is_door_open() else "closed"),
 		"mouse HP: %d" % host.get_mouse_health(),
 	])

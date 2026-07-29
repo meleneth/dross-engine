@@ -7,6 +7,7 @@
 #include <dross/runtime/fixed_tick_runtime.hpp>
 #include <dross/runtime/machine_trace.hpp>
 #include <dross/runtime/movement_runtime.hpp>
+#include <dross/runtime/replay.hpp>
 #include <dross/runtime/simulation_mode.hpp>
 #include <dross/runtime/world_lifecycle.hpp>
 #include <dross/world/world_storage.hpp>
@@ -541,6 +542,33 @@ godot::String DrossWorldHost::get_movement_mode() const {
   return movement_state_->combat_pending ? "combat_pending" : "exploration";
 }
 
+godot::String DrossWorldHost::get_canonical_capability_hash() const {
+  CanonicalCapabilitySnapshot capabilities;
+  if (movement_state_) {
+    capabilities.movement = movement_state_->movement.snapshot();
+  }
+  if (combat_state_) {
+    capabilities.combat = combat_state_->session.snapshot();
+    capabilities.combat_actors = combat_state_->resolver.snapshot();
+  }
+  if (door_state_) {
+    capabilities.door = door_state_->runtime.snapshot();
+  }
+  if (script_state_) {
+    capabilities.script = script_state_->runtime.state();
+  }
+  const auto tick = movement_state_ ? movement_state_->tick : Tick{0};
+  const auto hash = canonical_capability_hash(tick, capabilities);
+  constexpr std::string_view hexadecimal{"0123456789abcdef"};
+  std::string text;
+  text.reserve(hash.size() * 2U);
+  for (const auto value : hash) {
+    text.push_back(hexadecimal[value >> 4U]);
+    text.push_back(hexadecimal[value & 0x0FU]);
+  }
+  return godot::String{text.c_str()};
+}
+
 bool DrossWorldHost::start_thump_scenario(
     const godot::Ref<DrossAbilityDefinition>& ability_definition) {
   if (ability_definition.is_null()) {
@@ -675,6 +703,8 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::get_movement_state);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_mode"),
                               &DrossWorldHost::get_movement_mode);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_canonical_capability_hash"),
+                              &DrossWorldHost::get_canonical_capability_hash);
   godot::ClassDB::bind_method(godot::D_METHOD("start_thump_scenario", "ability_definition"),
                               &DrossWorldHost::start_thump_scenario);
   godot::ClassDB::bind_method(godot::D_METHOD("perform_thump"), &DrossWorldHost::perform_thump);
