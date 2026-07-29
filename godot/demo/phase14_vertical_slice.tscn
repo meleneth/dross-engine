@@ -50,8 +50,11 @@ mesh = SubResource("FloorMesh")
 [node name="GridOverlay" type="DrossHexGridOverlay3D" parent="."]
 cell_radius = 1.0
 
-[node name="Player" type="MeshInstance3D" parent="."]
+[node name="Player" type="DrossEntityView" parent="."]
 position = Vector3(0, 0.9, 0)
+entity_sequence = 1
+
+[node name="Visual" type="MeshInstance3D" parent="Player"]
 mesh = SubResource("PlayerMesh")
 
 [node name="FieldMouse" type="MeshInstance3D" parent="."]

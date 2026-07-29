@@ -6,7 +6,7 @@ const DEMO_SEED := 12345
 
 @onready var host: DrossWorldHost = $DrossWorldHost
 @onready var grid_overlay: DrossHexGridOverlay3D = $GridOverlay
-@onready var player_view: MeshInstance3D = $Player
+@onready var player_view: DrossEntityView = $Player
 @onready var mouse_view: MeshInstance3D = $FieldMouse
 @onready var door_view: Node3D = $SideDoor
 @onready var path_preview: Label = $UI/PathPreview
@@ -160,7 +160,14 @@ func toggle_door() -> bool:
 
 
 func _refresh_views() -> void:
-	player_view.position.x = sqrt(3.0) * float(host.get_movement_column())
+	var from := Vector3(
+			sqrt(3.0) * float(host.get_movement_column()), player_view.position.y, 0.0)
+	var to := Vector3(
+			sqrt(3.0) * float(host.get_movement_presentation_to_column()),
+			player_view.position.y,
+			0.0)
+	player_view.apply_presentation_snapshot(
+			from, to, host.get_movement_presentation_alpha())
 	if host.get_movement_column() == 2 and host.get_movement_mode() == "exploration":
 		if host.request_movement_combat():
 			_last_command = "RequestCombatStart"

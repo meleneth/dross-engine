@@ -30,7 +30,10 @@ func _initialize() -> void:
 		"dross:phase11:2,0,0",
 	]), "path preview did not highlight authoritative map cells")
 	check(demo.request_previewed_move(), "integrated demo rejected MoveTo")
-	for tick in range(4):
+	check(demo.advance_authoritative_tick(), "first integrated movement tick failed")
+	check(is_equal_approx(demo.get_node("Player").position.x, sqrt(3.0) * 0.5),
+			"player view did not interpolate within the authoritative edge")
+	for tick in range(3):
 		check(demo.advance_authoritative_tick(), "integrated movement tick failed")
 	check(demo.get_node("DrossWorldHost").get_movement_tick() == 4,
 			"diagnostic tick did not follow authoritative fixed ticks")

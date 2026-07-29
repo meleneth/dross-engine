@@ -26,6 +26,7 @@ namespace {
 
 constexpr std::uint64_t synthetic_lineage = 8;
 constexpr std::uint64_t synthetic_instance = 1;
+constexpr std::uint32_t movement_transition_ticks = 2;
 
 CompiledHexMap make_synthetic_map() {
   const auto region = RegionId{ContentId::parse("dross:phase08").value()};
@@ -127,7 +128,7 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
                  footprint,
                  entity,
                  movement_pose(0),
-                 MovementConfig{.ticks_per_transition = 2},
+                 MovementConfig{.ticks_per_transition = movement_transition_ticks},
                  this} {
     if (!occupancy.place(entity.id(), {movement_cell(0)})) {
       throw std::logic_error{"movement boundary occupancy setup failed"};
@@ -517,6 +518,29 @@ std::int64_t DrossWorldHost::get_movement_column() const {
   return movement_state_ ? movement_state_->movement.pose().anchor.coord.q : -1;
 }
 
+std::int64_t DrossWorldHost::get_movement_presentation_to_column() const {
+  if (!movement_state_) {
+    return -1;
+  }
+  const auto snapshot = movement_state_->movement.snapshot();
+  if (snapshot.state == MovementLifecycleState::traversing &&
+      snapshot.next_pose < snapshot.path.size()) {
+    return snapshot.path[snapshot.next_pose].anchor.coord.q;
+  }
+  return snapshot.pose.anchor.coord.q;
+}
+
+double DrossWorldHost::get_movement_presentation_alpha() const {
+  if (!movement_state_) {
+    return 0.0;
+  }
+  const auto snapshot = movement_state_->movement.snapshot();
+  return snapshot.state == MovementLifecycleState::traversing
+             ? static_cast<double>(snapshot.transition_ticks) /
+                   static_cast<double>(movement_transition_ticks)
+             : 0.0;
+}
+
 godot::String DrossWorldHost::get_movement_state() const {
   if (!movement_state_) {
     return "none";
@@ -699,6 +723,10 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::get_movement_tick);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_column"),
                               &DrossWorldHost::get_movement_column);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_movement_presentation_to_column"),
+                              &DrossWorldHost::get_movement_presentation_to_column);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_movement_presentation_alpha"),
+                              &DrossWorldHost::get_movement_presentation_alpha);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_state"),
                               &DrossWorldHost::get_movement_state);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_mode"),

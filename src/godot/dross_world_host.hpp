@@ -57,6 +57,8 @@ public:
   [[nodiscard]] bool advance_movement_tick();
   [[nodiscard]] std::int64_t get_movement_tick() const;
   [[nodiscard]] std::int64_t get_movement_column() const;
+  [[nodiscard]] std::int64_t get_movement_presentation_to_column() const;
+  [[nodiscard]] double get_movement_presentation_alpha() const;
   [[nodiscard]] godot::String get_movement_state() const;
   [[nodiscard]] godot::String get_movement_mode() const;
   [[nodiscard]] godot::String get_canonical_capability_hash() const;
