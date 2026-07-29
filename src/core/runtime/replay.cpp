@@ -290,11 +290,14 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
   sections.emplace(CheckpointSection::pending_commands, hash_bytes(pending.bytes()));
 
   ByteWriter capability_state;
-  const auto add_capability = [&](const std::string& name, const std::span<const std::byte> bytes) {
+  const auto add_capability = [&](const std::string& name, const std::span<const std::byte> bytes,
+                                  const bool add_summary_detail = true) {
     const auto hash = hash_bytes(bytes);
     capability_state.write_string(name);
     write_hash(capability_state, hash);
-    details[CheckpointSection::capabilities].emplace(name, hash);
+    if (add_summary_detail) {
+      details[CheckpointSection::capabilities].emplace(name, hash);
+    }
   };
   if (capabilities.movement) {
     ByteWriter movement;
@@ -318,7 +321,21 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
   }
   if (capabilities.script) {
     const auto script = encode_script_state(*capabilities.script);
-    add_capability("script/state", script);
+    add_capability("script/state", script, false);
+    for (const auto& [address, value] : capabilities.script->values()) {
+      ScriptStateBag single_value;
+      single_value.apply({ScriptStateWrite{.address = address, .value = value}});
+      std::string scope = address.scope.kind == ScriptScopeKind::region ? "region/" : "entity/";
+      scope += address.scope.region.canonical();
+      if (address.scope.entity) {
+        scope += "/" + std::to_string(address.scope.entity->lineage()) + "/" +
+                 std::to_string(address.scope.entity->sequence());
+      }
+      details[CheckpointSection::capabilities].emplace(
+          "script/state/" + std::string{address.module_id.canonical()} + "/" + scope + "/" +
+              address.key.value(),
+          hash_bytes(encode_script_state(single_value)));
+    }
   }
   if (!capability_state.bytes().empty()) {
     sections.emplace(CheckpointSection::capabilities, hash_bytes(capability_state.bytes()));

@@ -169,3 +169,43 @@ TEST_CASE("replay divergence localizes the first differing random stream") {
   REQUIRE(divergence->detail);
   CHECK(*divergence->detail == "stream/dross:combat");
 }
+
+TEST_CASE("replay divergence localizes the first differing script state key") {
+  dross::WorldStorage world{
+      dross::WorldConfig{.lineage = 7, .instance_id = dross::WorldInstanceId{9}}};
+  dross::OccupancyIndex occupancy;
+  dross::RandomHub random{dross::MasterSeed{12345}};
+  dross::NullMachineTrace trace;
+  dross::WorldLifecycle lifecycle{trace};
+  dross::SimulationMode mode{trace};
+  REQUIRE(lifecycle.restore(
+      dross::WorldLifecycleSnapshot{.state = dross::WorldLifecycleState::running}));
+
+  const auto address = dross::ScriptStateAddress{
+      .module_id = content_id("demo:field_mouse"),
+      .scope = dross::ScriptScope::for_entity(content_id("demo:thump_room"), dross::EntityId{7, 2}),
+      .key = dross::ScriptStateKey::parse("attacked_count").value(),
+  };
+  dross::ScriptStateBag expected_state;
+  expected_state.apply({dross::ScriptStateWrite{.address = address, .value = std::int64_t{1}}});
+  dross::ScriptStateBag actual_state;
+  actual_state.apply({dross::ScriptStateWrite{.address = address, .value = std::int64_t{2}}});
+
+  const auto expected = dross::canonical_checkpoint(
+      dross::Tick{4}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
+      {},
+      {.movement = {}, .combat = {}, .combat_actors = {}, .door = {}, .script = expected_state});
+  const auto actual = dross::canonical_checkpoint(
+      dross::Tick{4}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
+      {}, {.movement = {}, .combat = {}, .combat_actors = {}, .door = {}, .script = actual_state});
+
+  const std::array expected_values{expected};
+  const std::array actual_values{actual};
+  const auto divergence = dross::first_divergence(expected_values, actual_values);
+
+  REQUIRE(divergence);
+  CHECK(divergence->section == dross::CheckpointSection::capabilities);
+  REQUIRE(divergence->detail);
+  CHECK(*divergence->detail ==
+        "script/state/demo:field_mouse/entity/demo:thump_room/7/2/attacked_count");
+}
