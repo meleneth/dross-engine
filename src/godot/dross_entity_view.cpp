@@ -70,8 +70,12 @@ bool DrossViewRegistry::register_view(DrossEntityView* view) {
   }
   const auto sequence = view->get_entity_sequence();
   const auto found = views_.find(sequence);
-  if (found != views_.end() && godot::ObjectDB::get_instance(found->second) != nullptr) {
-    return false;
+  if (found != views_.end()) {
+    const auto* existing =
+        godot::Object::cast_to<DrossEntityView>(godot::ObjectDB::get_instance(found->second));
+    if (existing != nullptr && !existing->is_queued_for_deletion()) {
+      return false;
+    }
   }
   views_[sequence] = view->get_instance_id();
   return true;
@@ -83,9 +87,12 @@ bool DrossViewRegistry::unregister_view(const std::int64_t entity_sequence) {
 
 DrossEntityView* DrossViewRegistry::find_view(const std::int64_t entity_sequence) const {
   const auto found = views_.find(entity_sequence);
-  return found == views_.end() ? nullptr
-                               : godot::Object::cast_to<DrossEntityView>(
-                                     godot::ObjectDB::get_instance(found->second));
+  if (found == views_.end()) {
+    return nullptr;
+  }
+  auto* view =
+      godot::Object::cast_to<DrossEntityView>(godot::ObjectDB::get_instance(found->second));
+  return view != nullptr && !view->is_queued_for_deletion() ? view : nullptr;
 }
 
 std::int64_t DrossViewRegistry::get_view_count() const noexcept {
