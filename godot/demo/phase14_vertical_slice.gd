@@ -22,6 +22,7 @@ var _last_event := "world initialized"
 var _selected_cell_facts := "none"
 var _door_tween: Tween
 var _combat_started := false
+var _saved_state := PackedByteArray()
 
 
 func _ready() -> void:
@@ -91,6 +92,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			perform_thump_action()
 		elif event.keycode == KEY_D:
 			toggle_door()
+		elif event.keycode == KEY_S:
+			save_game()
 		elif event.keycode == KEY_ESCAPE:
 			cancel_movement()
 
@@ -211,6 +214,23 @@ func _finish_door_presentation(target_degrees: float, acknowledgement_id: int) -
 	else:
 		_last_event = "door presentation acknowledgement rejected"
 	_refresh_diagnostics()
+
+
+func save_game() -> bool:
+	_last_command = "SaveGame"
+	_saved_state = host.save_integrated_state()
+	if _saved_state.is_empty():
+		_last_event = "save rejected outside a supported boundary"
+		_refresh_diagnostics()
+		return false
+	_last_event = "saved %d canonical bytes" % _saved_state.size()
+	status.text = "Saved integrated state (%d bytes)" % _saved_state.size()
+	_refresh_diagnostics()
+	return true
+
+
+func get_saved_state() -> PackedByteArray:
+	return _saved_state
 
 
 func _refresh_views() -> void:

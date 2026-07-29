@@ -23,6 +23,12 @@ func _initialize() -> void:
 	var initial_hash: String = demo.get_node(
 			"DrossWorldHost").get_canonical_capability_hash()
 	check(initial_hash.length() == 64, "diagnostic canonical hash is not BLAKE3-256")
+	check(demo.save_game(), "integrated exploration save was rejected")
+	var exploration_save: PackedByteArray = demo.get_saved_state()
+	check(not exploration_save.is_empty(), "integrated exploration save was empty")
+	check(demo.save_game(), "repeated integrated exploration save was rejected")
+	check(demo.get_saved_state() == exploration_save,
+			"unchanged integrated state did not produce canonical save bytes")
 	check(demo.hover_world_position(Vector3(sqrt(3.0), 0.0, 0.0)),
 			"pointer hover did not query a reachable authoritative cell")
 	check(overlay.path_cell_keys == PackedStringArray([
@@ -79,6 +85,9 @@ func _initialize() -> void:
 	check(demo.perform_thump_action(), "integrated demo rejected Thump")
 	check(demo.get_node("DrossWorldHost").get_player_action_points() == 1,
 			"integrated Thump did not spend authoritative player AP")
+	check(demo.save_game(), "integrated post-combat save was rejected")
+	check(demo.get_saved_state() != exploration_save,
+			"changed integrated capabilities did not change canonical save bytes")
 	check("player AP: 1" in demo.get_node("UI/Diagnostics").text,
 			"integrated diagnostics did not expose committed player AP")
 	check(demo.get_node("DrossWorldHost").is_mouse_killed(),

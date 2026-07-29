@@ -62,6 +62,7 @@ public:
   [[nodiscard]] godot::String get_movement_state() const;
   [[nodiscard]] godot::String get_movement_mode() const;
   [[nodiscard]] godot::String get_canonical_capability_hash() const;
+  [[nodiscard]] godot::PackedByteArray save_integrated_state() const;
   [[nodiscard]] bool
   start_thump_scenario(const godot::Ref<DrossAbilityDefinition>& ability_definition);
   [[nodiscard]] bool perform_thump();

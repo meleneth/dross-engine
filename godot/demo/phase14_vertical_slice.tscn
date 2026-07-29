@@ -95,7 +95,7 @@ offset_top = 58.0
 offset_right = 800.0
 offset_bottom = 88.0
 theme_override_font_sizes/font_size = 16
-text = "Mouse hover + click move   Esc cancel   T Thump   D door"
+text = "Mouse hover + click move   Esc cancel   T Thump   D door   S save"
 
 [node name="PathPreview" type="Label" parent="UI"]
 offset_left = 24.0

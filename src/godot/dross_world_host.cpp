@@ -2,6 +2,7 @@
 
 #include <dross/foundation/quantities.hpp>
 #include <dross/hex/compiled_hex_map.hpp>
+#include <dross/persistence/save_container.hpp>
 #include <dross/random/random_hub.hpp>
 #include <dross/runtime/command_event_kernel.hpp>
 #include <dross/runtime/fixed_tick_runtime.hpp>
@@ -219,13 +220,16 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
 
 struct DrossWorldHost::DoorScenarioState final : DoorRuntime::EventSink {
   explicit DoorScenarioState(CompiledDoorDefinition definition)
-      : edge{definition.footprint.edges().front()},
+      : definition_id{definition.id}, edges{definition.footprint.edges()},
+        edge{definition.footprint.edges().front()},
         runtime{entity, std::move(definition.footprint), DoorState::closed, this, 2} {}
 
   void publish(const door::DoorOpened&) override { last_event = "dross:door_opened"; }
   void publish(const door::DoorClosed&) override { last_event = "dross:door_closed"; }
 
   EntityRef entity{WorldInstanceId{synthetic_instance}, EntityId{7, 3}};
+  ContentId definition_id;
+  std::vector<EdgeKey> edges;
   EdgeKey edge;
   DoorRuntime runtime;
   godot::String last_event;
@@ -593,6 +597,70 @@ godot::String DrossWorldHost::get_canonical_capability_hash() const {
   return godot::String{text.c_str()};
 }
 
+godot::PackedByteArray DrossWorldHost::save_integrated_state() const {
+  godot::PackedByteArray output;
+  if (!movement_state_ || !script_state_ || !door_state_) {
+    return output;
+  }
+  const auto mode = movement_state_->combat           ? SimulationModeState::combat
+                    : movement_state_->combat_pending ? SimulationModeState::combat_pending
+                                                      : SimulationModeState::exploration;
+  SaveContainer container{
+      .header =
+          SaveHeader{
+              .container_version = 1,
+              .simulation_schema_version = 1,
+              .engine_version = engine_version(),
+              .ticks_per_second = 30,
+              .current_tick = movement_state_->tick,
+              .world_lineage = synthetic_lineage,
+              .allocator = EntityIdAllocatorSnapshot{4},
+              .map_id = ContentId::parse("dross:phase11").value(),
+              .map_hash = canonical_map_hash(movement_state_->map),
+          },
+      .runtime =
+          SaveRuntimeSnapshot{
+              .random = script_state_->random.snapshot(),
+              .lifecycle = WorldLifecycleSnapshot{.state = WorldLifecycleState::running},
+              .mode = SimulationModeSnapshot{.state = mode},
+          },
+      .content_manifest = first_slice_content_manifest(),
+      .combat = {},
+      .movement =
+          MovementBoundarySnapshot{
+              .actor = movement_state_->entity.id(),
+              .footprint = movement_state_->footprint.id().content_id(),
+              .runtime = movement_state_->movement.snapshot(),
+          },
+      .door =
+          DoorBoundarySnapshot{
+              .door = door_state_->entity.id(),
+              .definition = door_state_->definition_id,
+              .edges = door_state_->edges,
+              .runtime = door_state_->runtime.snapshot(),
+          },
+      .script =
+          ScriptBoundarySnapshot{
+              .modules = script_state_->runtime.modules(),
+              .state = script_state_->runtime.state(),
+          },
+      .components = {},
+  };
+  if (combat_state_) {
+    container.combat = CombatBoundarySnapshot{
+        .ability = combat_state_->ability.id,
+        .session = combat_state_->session.snapshot(),
+        .actors = combat_state_->resolver.snapshot(),
+    };
+  }
+  const auto encoded = encode_save_container(container);
+  output.resize(static_cast<std::int64_t>(encoded.size()));
+  for (std::size_t index = 0; index < encoded.size(); ++index) {
+    output.set(static_cast<std::int64_t>(index), std::to_integer<std::uint8_t>(encoded[index]));
+  }
+  return output;
+}
+
 bool DrossWorldHost::start_thump_scenario(
     const godot::Ref<DrossAbilityDefinition>& ability_definition) {
   if (ability_definition.is_null()) {
@@ -628,10 +696,9 @@ bool DrossWorldHost::perform_thump() {
 }
 
 std::int64_t DrossWorldHost::get_player_action_points() const {
-  return combat_state_
-             ? static_cast<std::int64_t>(
-                   combat_state_->session.action_points(combat_state_->player.id()))
-             : -1;
+  return combat_state_ ? static_cast<std::int64_t>(
+                             combat_state_->session.action_points(combat_state_->player.id()))
+                       : -1;
 }
 
 std::int64_t DrossWorldHost::get_mouse_health() const {
@@ -740,6 +807,8 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::get_movement_mode);
   godot::ClassDB::bind_method(godot::D_METHOD("get_canonical_capability_hash"),
                               &DrossWorldHost::get_canonical_capability_hash);
+  godot::ClassDB::bind_method(godot::D_METHOD("save_integrated_state"),
+                              &DrossWorldHost::save_integrated_state);
   godot::ClassDB::bind_method(godot::D_METHOD("start_thump_scenario", "ability_definition"),
                               &DrossWorldHost::start_thump_scenario);
   godot::ClassDB::bind_method(godot::D_METHOD("perform_thump"), &DrossWorldHost::perform_thump);
