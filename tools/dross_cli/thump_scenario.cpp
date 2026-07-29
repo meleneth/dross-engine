@@ -9,6 +9,7 @@
 #include <dross/runtime/world_lifecycle.hpp>
 #include <dross/world/world_storage.hpp>
 
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -36,6 +37,7 @@ dross::HexPose pose(const std::int32_t q) {
 
 struct ScenarioResult {
   dross::ReplayLog replay;
+  std::vector<dross::SaveContainer> save_checkpoints;
   dross::HitPoints mouse_health;
   bool killed;
   dross::CombatSessionSnapshot combat;
@@ -81,25 +83,14 @@ ScenarioResult execute(const std::uint64_t seed, const bool resume_from_combat_b
       .bonus_damage_max = 1,
       .presentation_cue = content_id("dross_demo:thump"),
   };
-  dross::OccupancyIndex occupancy;
-  std::vector<dross::CanonicalCheckpoint> checkpoints;
-  checkpoints.push_back(dross::canonical_checkpoint(
-      dross::Tick{0}, world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
-      std::span<const dross::PlaceEntityEnvelope>{},
-      {.movement = {},
-       .combat = combat->snapshot(),
-       .combat_actors = resolver->snapshot(),
-       .door = {},
-       .script = {}}));
-
-  if (resume_from_combat_boundary) {
+  const auto save_checkpoint = [&](const dross::Tick tick) {
     dross::CheckpointHash map_hash{};
-    const dross::SaveContainer save{
+    return dross::SaveContainer{
         .header = {.container_version = 1,
                    .simulation_schema_version = 1,
                    .engine_version = dross::engine_version(),
                    .ticks_per_second = 30,
-                   .current_tick = dross::Tick{0},
+                   .current_tick = tick,
                    .world_lineage = 52,
                    .allocator = world.allocator_snapshot(),
                    .map_id = content_id("demo:thump_room"),
@@ -119,6 +110,22 @@ ScenarioResult execute(const std::uint64_t seed, const bool resume_from_combat_b
         .script = {},
         .components = dross::snapshot_world_components(world),
     };
+  };
+  dross::OccupancyIndex occupancy;
+  std::vector<dross::CanonicalCheckpoint> checkpoints;
+  checkpoints.push_back(dross::canonical_checkpoint(
+      dross::Tick{0}, world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
+      std::span<const dross::PlaceEntityEnvelope>{},
+      {.movement = {},
+       .combat = combat->snapshot(),
+       .combat_actors = resolver->snapshot(),
+       .door = {},
+       .script = {}}));
+  std::vector<dross::SaveContainer> save_checkpoints;
+  save_checkpoints.push_back(save_checkpoint(dross::Tick{0}));
+
+  if (resume_from_combat_boundary) {
+    const auto& save = save_checkpoints.front();
     const auto decoded = dross::decode_save_container(dross::encode_save_container(save));
     if (!decoded || !decoded->combat || decoded->combat->ability != thump.id) {
       throw std::logic_error{"Thump combat-boundary save decode failed"};
@@ -154,6 +161,7 @@ ScenarioResult execute(const std::uint64_t seed, const bool resume_from_combat_b
        .combat_actors = resolver->snapshot(),
        .door = {},
        .script = {}}));
+  save_checkpoints.push_back(save_checkpoint(dross::Tick{1}));
   return {
       .replay =
           dross::ReplayLog{
@@ -170,6 +178,7 @@ ScenarioResult execute(const std::uint64_t seed, const bool resume_from_combat_b
               .machine_trace = {},
               .checkpoints = std::move(checkpoints),
           },
+      .save_checkpoints = std::move(save_checkpoints),
       .mouse_health = resolver->health(mouse.id()),
       .killed = result.killed,
       .combat = combat->snapshot(),
@@ -185,9 +194,31 @@ bool write_replay(const std::string& path, const dross::ReplayLog& replay) {
   return output.good();
 }
 
+bool write_save_checkpoints(const std::string& directory,
+                            const std::vector<dross::SaveContainer>& checkpoints) {
+  std::error_code error;
+  if (!std::filesystem::create_directories(directory, error) && error) {
+    return false;
+  }
+  for (const auto& checkpoint : checkpoints) {
+    const auto bytes = dross::encode_save_container(checkpoint);
+    const auto path =
+        std::filesystem::path{directory} /
+        ("tick-" + std::to_string(checkpoint.header.current_tick.value()) + ".dross-save");
+    std::ofstream output{path, std::ios::binary};
+    output.write(reinterpret_cast<const char*>(bytes.data()),
+                 static_cast<std::streamsize>(bytes.size()));
+    if (!output.good()) {
+      return false;
+    }
+  }
+  return true;
+}
+
 } // namespace
 
-int run_thump_scenario(const std::uint64_t seed, const std::string& record_path) {
+int run_thump_scenario(const std::uint64_t seed, const std::string& record_path,
+                       const std::string& save_checkpoint_directory) {
   try {
     const auto uninterrupted = execute(seed, false);
     const auto resumed = execute(seed, true);
@@ -200,6 +231,11 @@ int run_thump_scenario(const std::uint64_t seed, const std::string& record_path)
     }
     if (!record_path.empty() && !write_replay(record_path, uninterrupted.replay)) {
       std::cerr << "failed to write Thump replay\n";
+      return scenario_error;
+    }
+    if (!save_checkpoint_directory.empty() &&
+        !write_save_checkpoints(save_checkpoint_directory, uninterrupted.save_checkpoints)) {
+      std::cerr << "failed to write Thump save checkpoints\n";
       return scenario_error;
     }
     std::cout << "thump-on-field-mouse seed=" << seed

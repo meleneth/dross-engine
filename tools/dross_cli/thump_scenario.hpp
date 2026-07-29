@@ -5,5 +5,6 @@
 #include <cstdint>
 #include <string>
 
-[[nodiscard]] int run_thump_scenario(std::uint64_t seed, const std::string& record_path);
+[[nodiscard]] int run_thump_scenario(std::uint64_t seed, const std::string& record_path,
+                                     const std::string& save_checkpoint_directory);
 [[nodiscard]] int verify_thump_replay(const dross::ReplayLog& recorded);
