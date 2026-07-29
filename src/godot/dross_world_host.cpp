@@ -438,6 +438,24 @@ bool DrossWorldHost::start_movement_scenario() {
   return true;
 }
 
+godot::Ref<DrossCompiledHexMap> DrossWorldHost::get_movement_compiled_map() const {
+  godot::Ref<DrossCompiledHexMap> output;
+  output.instantiate();
+  if (!movement_state_) {
+    return output;
+  }
+  std::map<HexCellId, CellProvenance> provenance;
+  for (const auto& cell : movement_state_->map.cell_ids()) {
+    provenance.emplace(cell, CellProvenance::automatic);
+  }
+  output->set_from_core(CompiledGridBake{
+      .map = movement_state_->map,
+      .provenance = std::move(provenance),
+      .reasons = {},
+  });
+  return output;
+}
+
 godot::Ref<DrossMovementPreview>
 DrossWorldHost::preview_movement(const std::int64_t destination_q) const {
   godot::Ref<DrossMovementPreview> output;
@@ -635,6 +653,8 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::restore_script_state);
   godot::ClassDB::bind_method(godot::D_METHOD("start_movement_scenario"),
                               &DrossWorldHost::start_movement_scenario);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_movement_compiled_map"),
+                              &DrossWorldHost::get_movement_compiled_map);
   godot::ClassDB::bind_method(godot::D_METHOD("preview_movement", "destination_q"),
                               &DrossWorldHost::preview_movement);
   godot::ClassDB::bind_method(godot::D_METHOD("move_to", "destination_q"),

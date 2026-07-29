@@ -13,7 +13,19 @@ func _initialize() -> void:
 	get_root().add_child(demo)
 	await process_frame
 
+	var overlay: DrossHexGridOverlay3D = demo.get_node("GridOverlay")
+	var compiled_map: DrossCompiledHexMap = demo.get_node(
+			"DrossWorldHost").get_movement_compiled_map()
+	check(compiled_map.get_cell_count() == 4,
+			"integrated overlay did not receive the authoritative movement map")
+	check(overlay.get_cell_keys() == compiled_map.get_cell_keys(),
+			"runtime grid differs from the authoritative movement map")
 	check(demo.preview_destination(2), "integrated demo did not preview a reachable path")
+	check(overlay.path_cell_keys == PackedStringArray([
+		"dross:phase11:0,0,0",
+		"dross:phase11:1,0,0",
+		"dross:phase11:2,0,0",
+	]), "path preview did not highlight authoritative map cells")
 	check(demo.request_previewed_move(), "integrated demo rejected MoveTo")
 	for tick in range(4):
 		check(demo.advance_authoritative_tick(), "integrated movement tick failed")
@@ -21,7 +33,7 @@ func _initialize() -> void:
 			"diagnostic tick did not follow authoritative fixed ticks")
 	check(demo.get_node("DrossWorldHost").get_movement_column() == 2,
 			"integrated player did not reach the authoritative destination")
-	check(demo.get_node("Player").position.x == 1.0,
+	check(is_equal_approx(demo.get_node("Player").position.x, sqrt(3.0) * 2.0),
 			"player view did not follow the authoritative cell")
 
 	check(demo.toggle_door(), "integrated demo rejected OpenDoor")

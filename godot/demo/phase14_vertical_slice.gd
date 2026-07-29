@@ -4,6 +4,7 @@ const TICK_SECONDS := 1.0 / 30.0
 const MAX_CATCH_UP_TICKS := 4
 
 @onready var host: DrossWorldHost = $DrossWorldHost
+@onready var grid_overlay: DrossHexGridOverlay3D = $GridOverlay
 @onready var player_view: MeshInstance3D = $Player
 @onready var mouse_view: MeshInstance3D = $FieldMouse
 @onready var door_view: Node3D = $SideDoor
@@ -21,6 +22,7 @@ func _ready() -> void:
 	if not host.start_movement_scenario():
 		_fail_startup("movement scenario")
 		return
+	grid_overlay.compiled_map = host.get_movement_compiled_map()
 
 	var door := DrossDoorDefinition.new()
 	door.door_id = "demo:side_door"
@@ -81,6 +83,7 @@ func preview_destination(destination_q: int) -> bool:
 		preview.get_cost(),
 		preview.get_duration_ticks(),
 	]
+	grid_overlay.path_cell_keys = preview.get_path_cell_keys()
 	return true
 
 
@@ -145,7 +148,7 @@ func toggle_door() -> bool:
 
 
 func _refresh_views() -> void:
-	player_view.position.x = -3.0 + float(host.get_movement_column()) * 2.0
+	player_view.position.x = sqrt(3.0) * float(host.get_movement_column())
 	_refresh_diagnostics()
 
 

@@ -5,6 +5,7 @@
 #include "dross_actor_definition.hpp"
 #include "dross_door_definition.hpp"
 #include "dross_entity_view.hpp"
+#include "dross_grid_resources.hpp"
 #include "dross_script_runtime.hpp"
 
 #include <godot_cpp/classes/node.hpp>
@@ -48,6 +49,7 @@ public:
   [[nodiscard]] godot::PackedByteArray save_script_state() const;
   [[nodiscard]] bool restore_script_state(const godot::PackedByteArray& bytes);
   [[nodiscard]] bool start_movement_scenario();
+  [[nodiscard]] godot::Ref<DrossCompiledHexMap> get_movement_compiled_map() const;
   [[nodiscard]] godot::Ref<DrossMovementPreview> preview_movement(std::int64_t destination_q) const;
   [[nodiscard]] bool move_to(std::int64_t destination_q);
   [[nodiscard]] bool cancel_movement();
