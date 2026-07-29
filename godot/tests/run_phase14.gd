@@ -63,6 +63,17 @@ func _initialize() -> void:
 	check(demo.toggle_door(), "integrated demo rejected OpenDoor")
 	check(demo.get_node("DrossWorldHost").is_door_open(),
 			"integrated door view preceded authoritative door state")
+	check(demo.get_node("DrossWorldHost").is_door_presentation_pending(),
+			"integrated door animation was acknowledged before presentation")
+	check(is_zero_approx(demo.get_node("SideDoor").rotation_degrees.y),
+			"integrated door view changed before its post-commit animation")
+	check(not demo.toggle_door(),
+			"integrated door accepted another command during presentation gating")
+	await create_timer(0.3).timeout
+	check(is_equal_approx(demo.get_node("SideDoor").rotation_degrees.y, 90.0),
+			"integrated door animation did not reach the committed open state")
+	check(not demo.get_node("DrossWorldHost").is_door_presentation_pending(),
+			"integrated door animation did not acknowledge completion")
 	check(demo.perform_thump_action(), "integrated demo rejected Thump")
 	check(demo.get_node("DrossWorldHost").is_mouse_killed(),
 			"integrated demo did not commit mouse death")

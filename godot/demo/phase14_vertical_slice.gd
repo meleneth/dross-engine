@@ -3,6 +3,7 @@ extends Node3D
 const TICK_SECONDS := 1.0 / 30.0
 const MAX_CATCH_UP_TICKS := 4
 const DEMO_SEED := 12345
+const DOOR_ANIMATION_SECONDS := 0.25
 
 @onready var host: DrossWorldHost = $DrossWorldHost
 @onready var grid_overlay: DrossHexGridOverlay3D = $GridOverlay
@@ -19,6 +20,7 @@ var _destination_q := 0
 var _last_command := "startup"
 var _last_event := "world initialized"
 var _selected_cell_facts := "none"
+var _door_tween: Tween
 
 
 func _ready() -> void:
@@ -167,16 +169,34 @@ func perform_thump_action() -> bool:
 
 
 func toggle_door() -> bool:
+	if host.is_door_presentation_pending():
+		_last_event = "door presentation still running"
+		_refresh_diagnostics()
+		return false
 	_last_command = "CloseDoor" if host.is_door_open() else "OpenDoor"
 	var committed := host.close_door() if host.is_door_open() else host.open_door()
 	if not committed:
 		_last_event = "door command rejected"
 		return false
-	door_view.rotation_degrees.y = 90.0 if host.is_door_open() else 0.0
-	host.acknowledge_door_presentation(host.get_door_presentation_acknowledgement_id())
-	_last_event = "door state committed"
+	var target_degrees := 90.0 if host.is_door_open() else 0.0
+	var acknowledgement_id := host.get_door_presentation_acknowledgement_id()
+	_door_tween = create_tween()
+	_door_tween.tween_property(
+			door_view, "rotation_degrees:y", target_degrees, DOOR_ANIMATION_SECONDS)
+	_door_tween.tween_callback(
+			_finish_door_presentation.bind(target_degrees, acknowledgement_id))
+	_last_event = "door state committed; presentation running"
 	_refresh_diagnostics()
 	return true
+
+
+func _finish_door_presentation(target_degrees: float, acknowledgement_id: int) -> void:
+	door_view.rotation_degrees.y = target_degrees
+	if host.acknowledge_door_presentation(acknowledgement_id):
+		_last_event = "door presentation complete"
+	else:
+		_last_event = "door presentation acknowledgement rejected"
+	_refresh_diagnostics()
 
 
 func _refresh_views() -> void:
