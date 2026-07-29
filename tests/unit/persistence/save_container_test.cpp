@@ -567,6 +567,35 @@ TEST_CASE("world component snapshot round trips through a fresh world") {
   CHECK(loaded_ref->world_instance() != entity.world_instance());
 }
 
+TEST_CASE("unchanged authoritative world produces byte-identical repeated saves") {
+  dross::WorldStorage world{dross::WorldConfig{
+      .lineage = 9,
+      .instance_id = dross::WorldInstanceId{1},
+  }};
+  const auto first = world.write().spawn(
+      dross::SpawnPlan::runtime(dross::EntityAlias{content_id("dross_demo:field_mouse")}));
+  const auto second = world.write().spawn(dross::SpawnPlan::runtime());
+  REQUIRE(first);
+  REQUIRE(second);
+  world.write().commit_pose(*first,
+                            dross::HexPose{
+                                .anchor =
+                                    dross::HexCellId{
+                                        .region = dross::RegionId{content_id("dross_demo:field")},
+                                        .coord = {.q = 1, .r = -1},
+                                        .layer = 0,
+                                    },
+                                .facing = dross::HexFacing::southwest,
+                            });
+
+  auto first_save = container_with(dross::snapshot_world_components(world));
+  first_save.header.allocator = world.allocator_snapshot();
+  auto second_save = container_with(dross::snapshot_world_components(world));
+  second_save.header.allocator = world.allocator_snapshot();
+
+  CHECK(dross::encode_save_container(first_save) == dross::encode_save_container(second_save));
+}
+
 TEST_CASE("save bytes restore random streams and machine snapshots through production APIs") {
   auto expected = container_with({});
   dross::RandomHub source{dross::MasterSeed{12345}};
