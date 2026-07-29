@@ -170,6 +170,54 @@ TEST_CASE("replay divergence localizes the first differing random stream") {
   CHECK(*divergence->detail == "stream/dross:combat");
 }
 
+TEST_CASE("replay divergence localizes the first differing combat actor") {
+  dross::WorldStorage world{
+      dross::WorldConfig{.lineage = 7, .instance_id = dross::WorldInstanceId{9}}};
+  dross::OccupancyIndex occupancy;
+  dross::RandomHub random{dross::MasterSeed{12345}};
+  dross::NullMachineTrace trace;
+  dross::WorldLifecycle lifecycle{trace};
+  dross::SimulationMode mode{trace};
+  REQUIRE(lifecycle.restore(
+      dross::WorldLifecycleSnapshot{.state = dross::WorldLifecycleState::running}));
+
+  const auto actor_pose = dross::HexPose{
+      .anchor =
+          dross::HexCellId{
+              .region = dross::RegionId{content_id("demo:thump_room")},
+              .coord = {.q = 1, .r = 0},
+              .layer = 0,
+          },
+      .facing = dross::HexFacing::east,
+  };
+  const auto expected_actors = dross::AbilityResolverSnapshot{
+      .actors =
+          {
+              {.entity = dross::EntityId{7, 1}, .pose = actor_pose, .health = dross::HitPoints{8}},
+              {.entity = dross::EntityId{7, 2}, .pose = actor_pose, .health = dross::HitPoints{3}},
+          },
+  };
+  auto actual_actors = expected_actors;
+  actual_actors.actors.back().health = dross::HitPoints{1};
+
+  const auto expected = dross::canonical_checkpoint(
+      dross::Tick{4}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
+      {},
+      {.movement = {}, .combat = {}, .combat_actors = expected_actors, .door = {}, .script = {}});
+  const auto actual = dross::canonical_checkpoint(
+      dross::Tick{4}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
+      {}, {.movement = {}, .combat = {}, .combat_actors = actual_actors, .door = {}, .script = {}});
+
+  const std::array expected_values{expected};
+  const std::array actual_values{actual};
+  const auto divergence = dross::first_divergence(expected_values, actual_values);
+
+  REQUIRE(divergence);
+  CHECK(divergence->section == dross::CheckpointSection::capabilities);
+  REQUIRE(divergence->detail);
+  CHECK(*divergence->detail == "combat/actors/7/2");
+}
+
 TEST_CASE("replay divergence localizes the first differing script state key") {
   dross::WorldStorage world{
       dross::WorldConfig{.lineage = 7, .instance_id = dross::WorldInstanceId{9}}};

@@ -312,7 +312,15 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
   if (capabilities.combat_actors) {
     ByteWriter actors;
     encode_ability_resolver_snapshot(actors, *capabilities.combat_actors);
-    add_capability("combat/actors", actors.bytes());
+    add_capability("combat/actors", actors.bytes(), false);
+    for (const auto& actor : capabilities.combat_actors->actors) {
+      ByteWriter actor_state;
+      encode_ability_resolver_snapshot(actor_state, AbilityResolverSnapshot{.actors = {actor}});
+      details[CheckpointSection::capabilities].emplace(
+          "combat/actors/" + std::to_string(actor.entity.lineage()) + "/" +
+              std::to_string(actor.entity.sequence()),
+          hash_bytes(actor_state.bytes()));
+    }
   }
   if (capabilities.door) {
     ByteWriter door;
