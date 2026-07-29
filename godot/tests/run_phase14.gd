@@ -49,6 +49,18 @@ func _initialize() -> void:
 	check(demo.perform_thump_action(), "integrated demo rejected Thump")
 	check(demo.get_node("DrossWorldHost").is_mouse_killed(),
 			"integrated demo did not commit mouse death")
+	check(demo.get_node("DrossWorldHost").get_script_state_bool(
+			"demo:field_mouse", 2, "rule_checked"),
+			"field mouse did not contribute its typed ability rule")
+	check(demo.get_node("DrossWorldHost").get_script_state_bool(
+			"demo:field_mouse", 2, "attacked"),
+			"field mouse did not react to committed damage")
+	check(demo.get_node("DrossWorldHost").get_script_state_bool(
+			"demo:field_mouse", 2, "killed"),
+			"field mouse did not react to committed death")
+	check(demo.get_node("DrossWorldHost").get_script_state_int(
+			"demo:field_mouse", 2, "reaction_roll") >= 0,
+			"field mouse reaction did not use deterministic RandomHub access")
 	check(not demo.get_node("FieldMouse").visible,
 			"mouse view did not react to committed death")
 	check(not demo.get_node("UI/Diagnostics").text.is_empty(),

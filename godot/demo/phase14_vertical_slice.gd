@@ -2,6 +2,7 @@ extends Node3D
 
 const TICK_SECONDS := 1.0 / 30.0
 const MAX_CATCH_UP_TICKS := 4
+const DEMO_SEED := 12345
 
 @onready var host: DrossWorldHost = $DrossWorldHost
 @onready var grid_overlay: DrossHexGridOverlay3D = $GridOverlay
@@ -23,6 +24,17 @@ func _ready() -> void:
 		_fail_startup("movement scenario")
 		return
 	grid_overlay.compiled_map = host.get_movement_compiled_map()
+
+	var mouse_module := DrossScriptModuleDefinition.new()
+	mouse_module.module_id = "demo:field_mouse"
+	mouse_module.scope_kind = 1
+	mouse_module.entity_sequence = 2
+	mouse_module.state_schema_version = 1
+	mouse_module.script = load("res://scripts/phase12_field_mouse.gd")
+	var mouse_modules: Array[DrossScriptModuleDefinition] = [mouse_module]
+	if not host.start_script_scenario(mouse_modules, DEMO_SEED):
+		_fail_startup("field mouse script")
+		return
 
 	var door := DrossDoorDefinition.new()
 	door.door_id = "demo:side_door"
@@ -164,6 +176,8 @@ func _refresh_diagnostics() -> void:
 		"actor cell: q=%d r=0" % host.get_movement_column(),
 		"last command: %s" % _last_command,
 		"last event: %s" % _last_event,
+		"script callback: %s" % host.get_script_call_order(),
+		"seed: %d" % DEMO_SEED,
 		"door: %s" % ("open" if host.is_door_open() else "closed"),
 		"mouse HP: %d" % host.get_mouse_health(),
 	])
