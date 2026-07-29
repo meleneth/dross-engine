@@ -84,6 +84,49 @@ dross::OccupancyIndex rebuild_occupancy(const dross::WorldStorage& world) {
   return occupancy;
 }
 
+class CanonicalCombatEvents final : public dross::CombatSession::EventSink,
+                                    public dross::AbilityResolver::EventSink {
+public:
+  void publish(const dross::combat::CombatStarted& event) override {
+    trace_.push_back("combat_started/" + entity_text(event.active_actor.id()));
+  }
+
+  void publish(const dross::combat::TurnStarted& event) override {
+    trace_.push_back("turn_started/" + entity_text(event.actor.id()) + "/" +
+                     std::to_string(event.action_points));
+  }
+
+  void publish(const dross::combat::ActionPointsSpent& event) override {
+    trace_.push_back("action_points_spent/" + entity_text(event.actor.id()) + "/" +
+                     std::to_string(event.amount) + "/" + std::to_string(event.remaining));
+  }
+
+  void publish(const dross::combat::AbilityCommitted& event) override {
+    trace_.push_back("ability_committed/" + entity_text(event.actor.id()) + "/" +
+                     entity_text(event.target.id()) + "/" + std::string{event.ability.canonical()});
+  }
+
+  void publish(const dross::combat::DamageApplied& event) override {
+    trace_.push_back("damage_applied/" + entity_text(event.source.id()) + "/" +
+                     entity_text(event.target.id()) + "/" + std::to_string(event.amount.value()) +
+                     "/" + std::string{event.damage_type.canonical()});
+  }
+
+  void publish(const dross::combat::ActorKilled& event) override {
+    trace_.push_back("actor_killed/" + entity_text(event.killer.id()) + "/" +
+                     entity_text(event.target.id()) + "/" + std::string{event.ability.canonical()});
+  }
+
+  [[nodiscard]] const std::vector<std::string>& trace() const noexcept { return trace_; }
+
+private:
+  static std::string entity_text(const dross::EntityId entity) {
+    return std::to_string(entity.lineage()) + "/" + std::to_string(entity.sequence());
+  }
+
+  std::vector<std::string> trace_;
+};
+
 struct SaveCheckpoint {
   std::string name;
   dross::SaveContainer save;
@@ -96,6 +139,7 @@ struct ScenarioResult {
   bool killed;
   dross::CombatSessionSnapshot combat;
   dross::AbilityResolverSnapshot actors;
+  std::vector<std::string> events;
 };
 
 enum class ResumeBoundary : std::uint8_t {
@@ -114,6 +158,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   world->write().commit_pose(mouse, pose(1));
 
   dross::NullMachineTrace trace;
+  CanonicalCombatEvents events;
   dross::WorldLifecycle lifecycle{trace};
   dross::SimulationMode mode{trace};
   if (!lifecycle.begin_load() || !lifecycle.load_succeeded() || !lifecycle.begin_run()) {
@@ -194,10 +239,12 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   if (!mode.request_combat() || !mode.reach_safe_boundary()) {
     throw std::logic_error{"Thump scenario combat-mode setup failed"};
   }
-  combat = std::make_unique<dross::CombatSession>(std::vector<dross::CombatantDefinition>{
-      {.entity = player, .initiative = 10, .maximum_action_points = 3},
-      {.entity = mouse, .initiative = 5, .maximum_action_points = 2},
-  });
+  combat = std::make_unique<dross::CombatSession>(
+      std::vector<dross::CombatantDefinition>{
+          {.entity = player, .initiative = 10, .maximum_action_points = 3},
+          {.entity = mouse, .initiative = 5, .maximum_action_points = 2},
+      },
+      &events);
   if (!combat->start()) {
     throw std::logic_error{"Thump scenario combat start failed"};
   }
@@ -208,7 +255,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
           {.entity = player, .pose = pose(0), .health = dross::HitPoints{8}},
           {.entity = mouse, .pose = pose(1), .health = dross::HitPoints{3}},
       },
-      nullptr, damage_random);
+      &events, damage_random);
   auto occupancy = rebuild_occupancy(*world);
   std::vector<dross::CanonicalCheckpoint> checkpoints;
   checkpoints.push_back(dross::canonical_checkpoint(
@@ -232,14 +279,15 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
     if (!random->restore(decoded->runtime.random)) {
       throw std::logic_error{"Thump combat-boundary random restore failed"};
     }
-    auto restored_combat = dross::CombatSession::from_snapshot(decoded->combat->session, instance);
+    auto restored_combat =
+        dross::CombatSession::from_snapshot(decoded->combat->session, instance, &events);
     if (!restored_combat) {
       throw std::logic_error{"Thump combat session restore failed"};
     }
     combat = std::move(*restored_combat);
     damage_random = &random->stream(dross::RandomStreamId{content_id("dross:combat_damage")});
     auto restored_resolver = dross::AbilityResolver::from_snapshot(
-        *combat, decoded->combat->actors, instance, nullptr, damage_random);
+        *combat, decoded->combat->actors, instance, &events, damage_random);
     if (!restored_resolver) {
       throw std::logic_error{"Thump ability state restore failed"};
     }
@@ -281,6 +329,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       .killed = result.killed,
       .combat = combat->snapshot(),
       .actors = resolver->snapshot(),
+      .events = events.trace(),
   };
 }
 
@@ -326,7 +375,7 @@ int run_thump_scenario(const std::uint64_t seed, const std::string& record_path,
     const auto matches = [&](const ScenarioResult& resumed) {
       return uninterrupted.mouse_health == resumed.mouse_health &&
              uninterrupted.killed == resumed.killed && uninterrupted.combat == resumed.combat &&
-             uninterrupted.actors == resumed.actors;
+             uninterrupted.actors == resumed.actors && uninterrupted.events == resumed.events;
     };
     if (exploration_divergence || combat_divergence || !matches(exploration_resumed) ||
         !matches(combat_resumed)) {
