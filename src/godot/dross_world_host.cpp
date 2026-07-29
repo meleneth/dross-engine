@@ -627,6 +627,13 @@ bool DrossWorldHost::perform_thump() {
   return !combat_state_->script_fault;
 }
 
+std::int64_t DrossWorldHost::get_player_action_points() const {
+  return combat_state_
+             ? static_cast<std::int64_t>(
+                   combat_state_->session.action_points(combat_state_->player.id()))
+             : -1;
+}
+
 std::int64_t DrossWorldHost::get_mouse_health() const {
   return combat_state_ ? combat_state_->resolver.health(combat_state_->mouse.id()).value() : -1;
 }
@@ -736,6 +743,8 @@ void DrossWorldHost::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("start_thump_scenario", "ability_definition"),
                               &DrossWorldHost::start_thump_scenario);
   godot::ClassDB::bind_method(godot::D_METHOD("perform_thump"), &DrossWorldHost::perform_thump);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_player_action_points"),
+                              &DrossWorldHost::get_player_action_points);
   godot::ClassDB::bind_method(godot::D_METHOD("get_mouse_health"),
                               &DrossWorldHost::get_mouse_health);
   godot::ClassDB::bind_method(godot::D_METHOD("is_mouse_killed"), &DrossWorldHost::is_mouse_killed);

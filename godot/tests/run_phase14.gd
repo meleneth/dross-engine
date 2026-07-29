@@ -74,7 +74,13 @@ func _initialize() -> void:
 			"integrated door animation did not reach the committed open state")
 	check(not demo.get_node("DrossWorldHost").is_door_presentation_pending(),
 			"integrated door animation did not acknowledge completion")
+	check(demo.get_node("DrossWorldHost").get_player_action_points() == 3,
+			"integrated combat did not begin with authoritative player AP")
 	check(demo.perform_thump_action(), "integrated demo rejected Thump")
+	check(demo.get_node("DrossWorldHost").get_player_action_points() == 1,
+			"integrated Thump did not spend authoritative player AP")
+	check("player AP: 1" in demo.get_node("UI/Diagnostics").text,
+			"integrated diagnostics did not expose committed player AP")
 	check(demo.get_node("DrossWorldHost").is_mouse_killed(),
 			"integrated demo did not commit mouse death")
 	check(demo.get_node("DrossWorldHost").get_script_state_bool(

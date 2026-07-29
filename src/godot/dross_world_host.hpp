@@ -65,6 +65,7 @@ public:
   [[nodiscard]] bool
   start_thump_scenario(const godot::Ref<DrossAbilityDefinition>& ability_definition);
   [[nodiscard]] bool perform_thump();
+  [[nodiscard]] std::int64_t get_player_action_points() const;
   [[nodiscard]] std::int64_t get_mouse_health() const;
   [[nodiscard]] bool is_mouse_killed() const;
   [[nodiscard]] godot::String get_last_presentation_cue() const;

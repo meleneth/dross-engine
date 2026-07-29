@@ -21,6 +21,7 @@ var _last_command := "startup"
 var _last_event := "world initialized"
 var _selected_cell_facts := "none"
 var _door_tween: Tween
+var _combat_started := false
 
 
 func _ready() -> void:
@@ -141,19 +142,16 @@ func advance_authoritative_tick() -> bool:
 	if advanced:
 		_last_event = "authoritative movement tick"
 		_refresh_views()
+		if host.get_movement_mode() == "combat" and not _ensure_combat_started():
+			_last_event = "combat definition rejected"
 	return advanced
 
 
 func perform_thump_action() -> bool:
 	_last_command = "PerformAbility(dross_demo:thump)"
-	var thump := DrossAbilityDefinition.new()
-	thump.ability_id = "dross_demo:thump"
-	thump.range = 1
-	thump.action_point_cost = 2
-	thump.damage = 3
-	thump.presentation_cue = "dross_demo:thump"
-	if not host.start_thump_scenario(thump):
-		_last_event = "Thump definition rejected"
+	if not _ensure_combat_started():
+		_last_event = "Thump unavailable outside combat"
+		_refresh_diagnostics()
 		return false
 	var accepted := host.perform_thump()
 	if accepted:
@@ -166,6 +164,22 @@ func perform_thump_action() -> bool:
 		_last_event = "Thump rejected"
 	_refresh_diagnostics()
 	return accepted
+
+
+func _ensure_combat_started() -> bool:
+	if _combat_started:
+		return true
+	var thump := DrossAbilityDefinition.new()
+	thump.ability_id = "dross_demo:thump"
+	thump.range = 1
+	thump.action_point_cost = 2
+	thump.damage = 3
+	thump.presentation_cue = "dross_demo:thump"
+	if not host.start_thump_scenario(thump):
+		return false
+	_combat_started = true
+	_refresh_diagnostics()
+	return true
 
 
 func toggle_door() -> bool:
@@ -228,6 +242,7 @@ func _refresh_diagnostics() -> void:
 		"seed: %d" % DEMO_SEED,
 		"hash: %s" % host.get_canonical_capability_hash(),
 		"door: %s" % ("open" if host.is_door_open() else "closed"),
+		"player AP: %d" % host.get_player_action_points(),
 		"mouse HP: %d" % host.get_mouse_health(),
 	])
 
