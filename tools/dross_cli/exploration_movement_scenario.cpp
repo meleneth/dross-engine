@@ -295,8 +295,11 @@ int verify_exploration_movement_replay(const dross::ReplayLog& recorded) {
     const auto replayed = execute(recorded.header.master_seed.value());
     const auto divergence =
         dross::first_divergence(recorded.checkpoints, replayed.replay.checkpoints);
-    if (recorded.canonical_events != replayed.replay.canonical_events) {
-      std::cerr << "movement event trace divergence\n";
+    if (const auto event = dross::first_event_divergence(recorded.canonical_events,
+                                                         replayed.replay.canonical_events)) {
+      std::cerr << "movement event divergence index=" << event->index
+                << " expected=" << event->expected.value_or("<missing>")
+                << " actual=" << event->actual.value_or("<missing>") << '\n';
       return scenario_error;
     }
     if (divergence) {

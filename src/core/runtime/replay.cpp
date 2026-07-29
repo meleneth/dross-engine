@@ -655,4 +655,27 @@ first_divergence(const std::span<const CanonicalCheckpoint> expected,
   return std::nullopt;
 }
 
+std::optional<ReplayEventDivergence>
+first_event_divergence(const std::span<const std::string> expected,
+                       const std::span<const std::string> actual) {
+  const auto count = std::min(expected.size(), actual.size());
+  for (std::size_t index = 0; index < count; ++index) {
+    if (expected[index] != actual[index]) {
+      return ReplayEventDivergence{
+          .index = index,
+          .expected = expected[index],
+          .actual = actual[index],
+      };
+    }
+  }
+  if (expected.size() == actual.size()) {
+    return std::nullopt;
+  }
+  return ReplayEventDivergence{
+      .index = count,
+      .expected = count < expected.size() ? std::optional{expected[count]} : std::nullopt,
+      .actual = count < actual.size() ? std::optional{actual[count]} : std::nullopt,
+  };
+}
+
 } // namespace dross

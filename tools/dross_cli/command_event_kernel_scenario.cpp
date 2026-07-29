@@ -240,8 +240,11 @@ int run_replay_verification(const std::string& path) {
         execute_scenario(recorded->header.master_seed.value(), &recorded->external_commands);
     const auto divergence =
         dross::first_divergence(recorded->checkpoints, replayed.replay.checkpoints);
-    if (recorded->canonical_events != replayed.replay.canonical_events) {
-      std::cerr << "replay event trace divergence\n";
+    if (const auto event = dross::first_event_divergence(recorded->canonical_events,
+                                                         replayed.replay.canonical_events)) {
+      std::cerr << "replay event divergence index=" << event->index
+                << " expected=" << event->expected.value_or("<missing>")
+                << " actual=" << event->actual.value_or("<missing>") << '\n';
       return scenario_error;
     }
     if (divergence) {
@@ -280,8 +283,11 @@ int compare_runs(const std::string& expected_path, const std::string& actual_pat
     std::cerr << "run divergence machine_trace\n";
     return scenario_error;
   }
-  if (expected->canonical_events != actual->canonical_events) {
-    std::cerr << "run divergence canonical_events\n";
+  if (const auto event =
+          dross::first_event_divergence(expected->canonical_events, actual->canonical_events)) {
+    std::cerr << "run divergence canonical_events index=" << event->index
+              << " expected=" << event->expected.value_or("<missing>")
+              << " actual=" << event->actual.value_or("<missing>") << '\n';
     return scenario_error;
   }
   const auto divergence = dross::first_divergence(expected->checkpoints, actual->checkpoints);

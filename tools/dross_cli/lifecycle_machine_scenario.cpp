@@ -129,8 +129,11 @@ int verify_lifecycle_replay(const dross::ReplayLog& recorded) {
       std::cerr << "lifecycle machine trace divergence\n";
       return scenario_error;
     }
-    if (recorded.canonical_events != replayed.canonical_events) {
-      std::cerr << "lifecycle event trace divergence\n";
+    if (const auto event =
+            dross::first_event_divergence(recorded.canonical_events, replayed.canonical_events)) {
+      std::cerr << "lifecycle event divergence index=" << event->index
+                << " expected=" << event->expected.value_or("<missing>")
+                << " actual=" << event->actual.value_or("<missing>") << '\n';
       return scenario_error;
     }
     std::cout << "replay verified checkpoints=" << recorded.checkpoints.size()

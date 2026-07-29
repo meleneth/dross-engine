@@ -100,4 +100,13 @@ struct ReplayDivergence {
 first_divergence(std::span<const CanonicalCheckpoint> expected,
                  std::span<const CanonicalCheckpoint> actual);
 
+struct ReplayEventDivergence {
+  std::size_t index;
+  std::optional<std::string> expected;
+  std::optional<std::string> actual;
+};
+
+[[nodiscard]] std::optional<ReplayEventDivergence>
+first_event_divergence(std::span<const std::string> expected, std::span<const std::string> actual);
+
 } // namespace dross

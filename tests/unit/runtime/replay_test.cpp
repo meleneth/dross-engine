@@ -191,6 +191,29 @@ TEST_CASE("replay DTO has a deterministic round trip") {
   CHECK(compatibility.error() == dross::ContentManifestError::content_hash_mismatch);
 }
 
+TEST_CASE("replay event divergence identifies changed and missing facts") {
+  const std::vector<std::string> expected{
+      "combat_started/52/1",
+      "ability_committed/52/1/52/2/dross_demo:thump",
+  };
+  auto changed = expected;
+  changed[1] = "damage_applied/52/2/1";
+
+  const auto mismatch = dross::first_event_divergence(expected, changed);
+  REQUIRE(mismatch);
+  CHECK(mismatch->index == 1);
+  CHECK(mismatch->expected == expected[1]);
+  CHECK(mismatch->actual == changed[1]);
+
+  changed.pop_back();
+  const auto missing = dross::first_event_divergence(expected, changed);
+  REQUIRE(missing);
+  CHECK(missing->index == 1);
+  CHECK(missing->expected == expected[1]);
+  CHECK_FALSE(missing->actual);
+  CHECK_FALSE(dross::first_event_divergence(expected, expected));
+}
+
 TEST_CASE("first replay divergence reports its tick and canonical section") {
   auto expected = checkpoint_for({1, 2}, 12345);
   auto actual = expected;
