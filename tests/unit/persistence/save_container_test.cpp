@@ -403,6 +403,25 @@ TEST_CASE("component migration rejects unknown types and unsupported future vers
   CHECK(future_result.error() == dross::ComponentCodecError::unsupported_version);
 }
 
+TEST_CASE("world load rejects an unknown required component record") {
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+  auto save = container_with({
+      dross::ComponentRecord{
+          .type_id = content_id("dross_demo:unknown_required"),
+          .version = 1,
+          .entity = dross::EntityId{9, 1},
+          .payload = {},
+      },
+  });
+
+  const auto plan =
+      dross::build_world_load_plan(save, registry, save.header.map_id, save.header.map_hash);
+
+  REQUIRE_FALSE(plan);
+  CHECK(plan.error() == dross::WorldLoadError::component_invalid);
+}
+
 TEST_CASE("current component validation rejects malformed payloads") {
   dross::ComponentCodecRegistry registry;
   REQUIRE(dross::register_current_component_codecs(registry));
