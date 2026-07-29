@@ -16,6 +16,7 @@
 #include <godot_cpp/core/class_db.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -117,23 +118,45 @@ struct DrossWorldHost::ScriptScenarioState {
 };
 
 struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
-  MovementScenarioState()
+  explicit MovementScenarioState(const MovementSnapshot* restored = nullptr)
       : map{make_movement_map()},
         footprint{
             FootprintDefinition::create(
                 FootprintId{ContentId::parse("dross:phase11_actor").value()}, {{.q = 0, .r = 0}})
                 .value()},
+        entity{WorldInstanceId{synthetic_instance}, EntityId{7, 1}},
+        occupancy{make_occupancy(entity.id(), footprint, restored)},
         movement{map,
                  occupancy,
                  planner,
                  footprint,
                  entity,
-                 movement_pose(0),
+                 restored ? restored->pose : movement_pose(0),
                  MovementConfig{.ticks_per_transition = movement_transition_ticks},
                  this} {
-    if (!occupancy.place(entity.id(), {movement_cell(0)})) {
+    if (restored != nullptr && !movement.restore(*restored)) {
+      throw std::logic_error{"movement boundary snapshot restore failed"};
+    }
+  }
+
+  static OccupancyIndex make_occupancy(const EntityId entity, const FootprintDefinition& footprint,
+                                       const MovementSnapshot* restored) {
+    OccupancyIndex result;
+    if (restored != nullptr) {
+      const std::array placement{OccupancyPlacement{
+          .entity = entity,
+          .cells = footprint.expand(restored->pose),
+      }};
+      const auto revision = restored->state == MovementLifecycleState::idle
+                                ? 1U
+                                : restored->expected_occupancy_revision;
+      if (!result.restore(placement, revision)) {
+        throw std::logic_error{"movement boundary occupancy restore failed"};
+      }
+    } else if (!result.place(entity, {movement_cell(0)})) {
       throw std::logic_error{"movement boundary occupancy setup failed"};
     }
+    return result;
   }
 
   void publish(const movement::MovementStarted&) override {}
@@ -141,10 +164,10 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
   void publish(const movement::MovementCompleted&) override {}
 
   CompiledHexMap map;
+  FootprintDefinition footprint;
+  EntityRef entity;
   OccupancyIndex occupancy;
   WeightedAStarPathPlanner planner;
-  FootprintDefinition footprint;
-  EntityRef entity{WorldInstanceId{synthetic_instance}, EntityId{7, 1}};
   MovementRuntime movement;
   Tick tick{0};
   bool combat_pending{false};
@@ -171,6 +194,44 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
     if (!session.start()) {
       throw std::logic_error{"Godot Thump scenario combat start failed"};
     }
+  }
+
+  CombatScenarioState(AbilityDefinition definition, ScriptScenarioState* script_scenario,
+                      const CombatBoundarySnapshot& restored)
+      : ability{std::move(definition)}, scripts{script_scenario},
+        session{combatant_definitions(restored.session)},
+        resolver{session, actor_states(restored.actors), this, nullptr, this} {
+    if (restored.ability != ability.id || !session.restore(restored.session)) {
+      throw std::logic_error{"Godot Thump combat snapshot restore failed"};
+    }
+    killed = resolver.health(mouse.id()).value() == 0;
+  }
+
+  static std::vector<CombatantDefinition>
+  combatant_definitions(const CombatSessionSnapshot& snapshot) {
+    std::vector<CombatantDefinition> result;
+    result.reserve(snapshot.combatants.size());
+    for (const auto& combatant : snapshot.combatants) {
+      result.push_back({
+          .entity = EntityRef{WorldInstanceId{synthetic_instance}, combatant.entity},
+          .initiative = combatant.initiative,
+          .maximum_action_points = combatant.maximum_action_points,
+      });
+    }
+    return result;
+  }
+
+  static std::vector<AbilityActorState> actor_states(const AbilityResolverSnapshot& snapshot) {
+    std::vector<AbilityActorState> result;
+    result.reserve(snapshot.actors.size());
+    for (const auto& actor : snapshot.actors) {
+      result.push_back({
+          .entity = EntityRef{WorldInstanceId{synthetic_instance}, actor.entity},
+          .pose = actor.pose,
+          .health = actor.health,
+      });
+    }
+    return result;
   }
 
   bool allows(const AbilityDefinition& definition, const EntityRef& actor,
@@ -219,10 +280,11 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
 };
 
 struct DrossWorldHost::DoorScenarioState final : DoorRuntime::EventSink {
-  explicit DoorScenarioState(CompiledDoorDefinition definition)
+  explicit DoorScenarioState(CompiledDoorDefinition definition,
+                             const DoorState initial_state = DoorState::closed)
       : definition_id{definition.id}, edges{definition.footprint.edges()},
         edge{definition.footprint.edges().front()},
-        runtime{entity, std::move(definition.footprint), DoorState::closed, this, 2} {}
+        runtime{entity, std::move(definition.footprint), initial_state, this, 2} {}
 
   void publish(const door::DoorOpened&) override { last_event = "dross:door_opened"; }
   void publish(const door::DoorClosed&) override { last_event = "dross:door_closed"; }
@@ -599,7 +661,9 @@ godot::String DrossWorldHost::get_canonical_capability_hash() const {
 
 godot::PackedByteArray DrossWorldHost::save_integrated_state() const {
   godot::PackedByteArray output;
-  if (!movement_state_ || !script_state_ || !door_state_) {
+  if (!movement_state_ || !script_state_ || !door_state_ ||
+      movement_state_->movement.state() != MovementLifecycleState::idle ||
+      door_state_->runtime.presentation_pending()) {
     return output;
   }
   const auto mode = movement_state_->combat           ? SimulationModeState::combat
@@ -659,6 +723,130 @@ godot::PackedByteArray DrossWorldHost::save_integrated_state() const {
     output.set(static_cast<std::int64_t>(index), std::to_integer<std::uint8_t>(encoded[index]));
   }
   return output;
+}
+
+bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& bytes) {
+  const auto reject = [this](const char* message) {
+    last_load_error_ = message;
+    return false;
+  };
+  if (!movement_state_ || !script_state_ || !door_state_ || bytes.is_empty()) {
+    return reject("integrated world and non-empty save bytes are required");
+  }
+  std::vector<std::byte> encoded(static_cast<std::size_t>(bytes.size()));
+  for (std::int64_t index = 0; index < bytes.size(); ++index) {
+    encoded[static_cast<std::size_t>(index)] = static_cast<std::byte>(bytes[index]);
+  }
+  auto decoded = decode_save_container(encoded);
+  if (!decoded) {
+    return reject("save container is malformed or truncated");
+  }
+  const auto expected_map_id = ContentId::parse("dross:phase11").value();
+  if (decoded->header.container_version != 1 || decoded->header.simulation_schema_version != 1 ||
+      decoded->header.ticks_per_second != 30 ||
+      decoded->header.world_lineage != synthetic_lineage ||
+      decoded->header.map_id != expected_map_id ||
+      decoded->header.map_hash != canonical_map_hash(movement_state_->map)) {
+    return reject("save header or compiled map identity does not match the running demo");
+  }
+  if (!validate_content_manifest(decoded->content_manifest, first_slice_content_manifest())) {
+    return reject("save content manifest does not match installed content");
+  }
+  if (decoded->runtime.lifecycle.state != WorldLifecycleState::running ||
+      decoded->components.size() != 0 || !decoded->movement || !decoded->door || !decoded->script) {
+    return reject("save omits a required integrated capability boundary");
+  }
+  if (decoded->movement->actor != movement_state_->entity.id() ||
+      decoded->movement->footprint != movement_state_->footprint.id().content_id()) {
+    return reject("save movement actor or footprint identity does not match");
+  }
+  if (decoded->door->door != door_state_->entity.id() ||
+      decoded->door->definition != door_state_->definition_id ||
+      decoded->door->edges != door_state_->edges) {
+    return reject("save door identity or edge footprint does not match");
+  }
+  if (decoded->script->modules != script_state_->runtime.modules()) {
+    return reject("save script modules do not match installed scripts");
+  }
+  if (decoded->runtime.random.master_seed != script_state_->random.snapshot().master_seed) {
+    return reject("save random seed does not match the running scenario");
+  }
+  RandomHub validated_random{decoded->runtime.random.master_seed};
+  if (!validated_random.restore(decoded->runtime.random)) {
+    return reject("save random streams are invalid");
+  }
+
+  std::unique_ptr<MovementScenarioState> next_movement;
+  std::unique_ptr<DoorScenarioState> next_door;
+  std::unique_ptr<CombatScenarioState> next_combat;
+  try {
+    next_movement = std::make_unique<MovementScenarioState>(&decoded->movement->runtime);
+    for (const auto& pose : decoded->movement->runtime.path) {
+      if (!next_movement->map.cell(pose.anchor)) {
+        return reject("save movement path contains a cell outside the compiled map");
+      }
+    }
+    auto footprint = EdgeFootprint::create(decoded->door->edges);
+    if (!footprint) {
+      return reject("save door edge footprint is invalid");
+    }
+    next_door = std::make_unique<DoorScenarioState>(
+        CompiledDoorDefinition{
+            .id = decoded->door->definition,
+            .footprint = std::move(*footprint),
+        },
+        decoded->door->runtime.state);
+
+    if (decoded->combat) {
+      const auto player = EntityId{7, 1};
+      const auto mouse = EntityId{7, 2};
+      const auto valid_actor = [player, mouse](const AbilityActorSnapshot& actor) {
+        return (actor.entity == player || actor.entity == mouse) && actor.health.value() >= 0;
+      };
+      if (decoded->combat->actors.actors.size() != 2 ||
+          !std::ranges::all_of(decoded->combat->actors.actors, valid_actor) ||
+          std::ranges::count(decoded->combat->actors.actors, player,
+                             &AbilityActorSnapshot::entity) != 1 ||
+          std::ranges::count(decoded->combat->actors.actors, mouse,
+                             &AbilityActorSnapshot::entity) != 1 ||
+          std::ranges::count(decoded->combat->session.combatants, player,
+                             &CombatantSnapshot::entity) != 1 ||
+          std::ranges::count(decoded->combat->session.combatants, mouse,
+                             &CombatantSnapshot::entity) != 1) {
+        return reject("save combat actors do not match the installed demo definition");
+      }
+      auto ability = AbilityDefinition{
+          .id = ContentId::parse("dross_demo:thump").value(),
+          .range = 1,
+          .action_point_cost = 2,
+          .damage = HitPoints{3},
+          .presentation_cue = ContentId::parse("dross_demo:thump").value(),
+      };
+      next_combat = std::make_unique<CombatScenarioState>(std::move(ability), script_state_.get(),
+                                                          *decoded->combat);
+    }
+  } catch (const std::logic_error&) {
+    return reject("save capability snapshot failed deterministic reconstruction");
+  }
+
+  const auto saved_mode = decoded->runtime.mode.state;
+  if ((saved_mode == SimulationModeState::combat) != static_cast<bool>(next_combat)) {
+    return reject("save mode and combat capability disagree");
+  }
+  next_movement->tick = decoded->header.current_tick;
+  next_movement->combat_pending = saved_mode == SimulationModeState::combat_pending;
+  next_movement->combat = saved_mode == SimulationModeState::combat;
+
+  movement_state_ = std::move(next_movement);
+  door_state_ = std::move(next_door);
+  combat_state_ = std::move(next_combat);
+  script_state_->runtime.restore_state(decoded->script->state);
+  if (!script_state_->random.restore(decoded->runtime.random)) {
+    return reject("validated random streams could not be installed");
+  }
+  script_state_->tick = decoded->header.current_tick;
+  last_load_error_ = godot::String{};
+  return true;
 }
 
 bool DrossWorldHost::start_thump_scenario(
@@ -809,6 +997,10 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::get_canonical_capability_hash);
   godot::ClassDB::bind_method(godot::D_METHOD("save_integrated_state"),
                               &DrossWorldHost::save_integrated_state);
+  godot::ClassDB::bind_method(godot::D_METHOD("restore_integrated_state", "bytes"),
+                              &DrossWorldHost::restore_integrated_state);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_last_load_error"),
+                              &DrossWorldHost::get_last_load_error);
   godot::ClassDB::bind_method(godot::D_METHOD("start_thump_scenario", "ability_definition"),
                               &DrossWorldHost::start_thump_scenario);
   godot::ClassDB::bind_method(godot::D_METHOD("perform_thump"), &DrossWorldHost::perform_thump);

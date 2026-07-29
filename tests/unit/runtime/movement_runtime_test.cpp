@@ -154,6 +154,17 @@ TEST_CASE("movement snapshot restores a partially elapsed edge") {
   CHECK(original.occupancy.entries() == restored.occupancy.entries());
 }
 
+TEST_CASE("idle movement snapshot restores independently of inactive occupancy revision") {
+  Fixture original;
+  const auto saved = original.movement.snapshot();
+  REQUIRE(saved.state == dross::MovementLifecycleState::idle);
+  REQUIRE(saved.expected_occupancy_revision != original.occupancy.revision());
+
+  Fixture restored;
+  REQUIRE(restored.movement.restore(saved));
+  CHECK(restored.movement.snapshot() == saved);
+}
+
 TEST_CASE("movement snapshot codec resumes to the same final state") {
   Fixture original;
   REQUIRE(original.movement.move_to(pose(2, 0)));

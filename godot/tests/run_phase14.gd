@@ -29,6 +29,15 @@ func _initialize() -> void:
 	check(demo.save_game(), "repeated integrated exploration save was rejected")
 	check(demo.get_saved_state() == exploration_save,
 			"unchanged integrated state did not produce canonical save bytes")
+	var invalid_save := exploration_save.slice(0, exploration_save.size() - 1)
+	var before_invalid_load: String = demo.get_node(
+			"DrossWorldHost").get_canonical_capability_hash()
+	check(not demo.get_node("DrossWorldHost").restore_integrated_state(invalid_save),
+			"truncated integrated save was accepted")
+	check(not demo.get_node("DrossWorldHost").get_last_load_error().is_empty(),
+			"rejected integrated save did not expose a useful diagnostic")
+	check(demo.get_node("DrossWorldHost").get_canonical_capability_hash() ==
+			before_invalid_load, "rejected integrated save mutated authoritative state")
 	check(demo.hover_world_position(Vector3(sqrt(3.0), 0.0, 0.0)),
 			"pointer hover did not query a reachable authoritative cell")
 	check(overlay.path_cell_keys == PackedStringArray([
@@ -48,6 +57,19 @@ func _initialize() -> void:
 	check(demo.advance_authoritative_tick(), "first integrated movement tick failed")
 	check(is_equal_approx(demo.get_node("Player").position.x, sqrt(3.0) * 0.5),
 			"player view did not interpolate within the authoritative edge")
+	check(demo.get_node("DrossWorldHost").save_integrated_state().is_empty(),
+			"integrated save accepted a non-quiescent movement boundary")
+	check(demo.load_game(), "integrated exploration reload was rejected: %s" %
+			demo.get_node("DrossWorldHost").get_last_load_error())
+	check(demo.get_node("DrossWorldHost").get_movement_tick() == 0,
+			"integrated exploration reload did not restore the saved tick")
+	check(demo.get_node("DrossWorldHost").get_movement_column() == 0,
+			"integrated exploration reload did not restore the saved actor cell")
+	check(is_zero_approx(demo.get_node("Player").position.x),
+			"integrated exploration reload did not reconstruct the player view")
+	check(demo.preview_destination(2), "reloaded demo did not preview a reachable path")
+	check(demo.request_previewed_move(), "reloaded demo rejected MoveTo")
+	check(demo.advance_authoritative_tick(), "reloaded first movement tick failed")
 	for tick in range(3):
 		check(demo.advance_authoritative_tick(), "integrated movement tick failed")
 	check(demo.get_node("DrossWorldHost").get_movement_tick() == 4,
@@ -104,6 +126,22 @@ func _initialize() -> void:
 	check(demo.get_node("DrossWorldHost").get_script_state_int(
 			"demo:field_mouse", 2, "reaction_roll") >= 0,
 			"field mouse reaction did not use deterministic RandomHub access")
+	var completed_hash: String = demo.get_node(
+			"DrossWorldHost").get_canonical_capability_hash()
+	check(demo.toggle_door(), "post-combat CloseDoor was rejected")
+	await create_timer(0.3).timeout
+	check(not demo.get_node("DrossWorldHost").is_door_open(),
+			"post-combat door mutation did not commit before reload")
+	check(demo.load_game(), "integrated completed-state reload was rejected: %s" %
+			demo.get_node("DrossWorldHost").get_last_load_error())
+	check(demo.get_node("DrossWorldHost").get_canonical_capability_hash() == completed_hash,
+			"completed-state reload did not restore the canonical capability hash")
+	check(demo.get_node("DrossWorldHost").is_door_open(),
+			"completed-state reload did not restore the authoritative door")
+	check(demo.get_node("DrossWorldHost").get_player_action_points() == 1,
+			"completed-state reload did not restore combat AP")
+	check(demo.get_node("DrossWorldHost").is_mouse_killed(),
+			"completed-state reload did not restore mouse death")
 	check(not demo.get_node("FieldMouse").visible,
 			"mouse view did not react to committed death")
 	check(not demo.get_node("UI/Diagnostics").text.is_empty(),

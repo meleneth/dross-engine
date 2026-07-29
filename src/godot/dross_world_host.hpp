@@ -63,6 +63,8 @@ public:
   [[nodiscard]] godot::String get_movement_mode() const;
   [[nodiscard]] godot::String get_canonical_capability_hash() const;
   [[nodiscard]] godot::PackedByteArray save_integrated_state() const;
+  [[nodiscard]] bool restore_integrated_state(const godot::PackedByteArray& bytes);
+  [[nodiscard]] godot::String get_last_load_error() const { return last_load_error_; }
   [[nodiscard]] bool
   start_thump_scenario(const godot::Ref<DrossAbilityDefinition>& ability_definition);
   [[nodiscard]] bool perform_thump();
@@ -94,6 +96,7 @@ private:
   std::unique_ptr<MovementScenarioState> movement_state_;
   std::unique_ptr<CombatScenarioState> combat_state_;
   std::unique_ptr<DoorScenarioState> door_state_;
+  godot::String last_load_error_;
 };
 
 } // namespace dross::godot_adapter

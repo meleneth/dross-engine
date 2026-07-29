@@ -313,7 +313,7 @@ bool MovementRuntime::restore(const MovementSnapshot& restored) {
                             restored.transition_ticks < config_.ticks_per_transition &&
                             restored.path[restored.next_pose - 1] == restored.pose;
   if ((!valid_idle && !valid_active) || restored.pose != pose_ ||
-      restored.expected_occupancy_revision != occupancy_->revision() ||
+      (valid_active && restored.expected_occupancy_revision != occupancy_->revision()) ||
       !lifecycle_.restore(restored.state)) {
     return false;
   }

@@ -94,6 +94,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			toggle_door()
 		elif event.keycode == KEY_S:
 			save_game()
+		elif event.keycode == KEY_L:
+			load_game()
 		elif event.keycode == KEY_ESCAPE:
 			cancel_movement()
 
@@ -231,6 +233,23 @@ func save_game() -> bool:
 
 func get_saved_state() -> PackedByteArray:
 	return _saved_state
+
+
+func load_game() -> bool:
+	_last_command = "LoadGame"
+	if not host.restore_integrated_state(_saved_state):
+		_last_event = "load rejected: %s" % host.get_last_load_error()
+		status.text = _last_event
+		_refresh_diagnostics()
+		return false
+	_accumulator = 0.0
+	_combat_started = host.get_player_action_points() >= 0
+	mouse_view.visible = not host.is_mouse_killed()
+	door_view.rotation_degrees.y = 90.0 if host.is_door_open() else 0.0
+	_last_event = "save loaded; authoritative views reconstructed"
+	status.text = "Loaded integrated state"
+	_refresh_views()
+	return true
 
 
 func _refresh_views() -> void:
