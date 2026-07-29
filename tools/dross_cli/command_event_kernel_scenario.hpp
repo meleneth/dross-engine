@@ -6,3 +6,4 @@
 [[nodiscard]] int run_command_event_kernel_scenario(std::uint64_t seed,
                                                     const std::string& record_path);
 [[nodiscard]] int run_replay_verification(const std::string& path);
+[[nodiscard]] int compare_runs(const std::string& expected_path, const std::string& actual_path);

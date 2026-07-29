@@ -196,6 +196,14 @@ set_tests_properties(
   headless.replay_fixture
   PROPERTIES PASS_REGULAR_EXPRESSION "^replay verified checkpoints=2")
 add_test(
+  NAME headless.compare_runs
+  COMMAND dross_headless compare-runs
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/thump-v1.dross-replay"
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/thump-v1.dross-replay")
+set_tests_properties(
+  headless.compare_runs
+  PROPERTIES PASS_REGULAR_EXPRESSION "^runs match checkpoints=2")
+add_test(
   NAME headless.thump_save_checkpoints
   COMMAND dross_headless scenario thump-on-field-mouse --seed 12345
           --save-checkpoints "${CMAKE_CURRENT_BINARY_DIR}/thump-saves")

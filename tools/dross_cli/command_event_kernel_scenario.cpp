@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -175,6 +176,22 @@ bool write_replay(const std::string& path, const dross::ReplayLog& replay) {
   return output.good();
 }
 
+std::optional<dross::ReplayLog> read_replay(const std::string& path) {
+  std::ifstream input{path, std::ios::binary};
+  const std::vector<char> characters{std::istreambuf_iterator<char>{input},
+                                     std::istreambuf_iterator<char>{}};
+  std::vector<std::byte> bytes;
+  bytes.reserve(characters.size());
+  for (const auto value : characters) {
+    bytes.push_back(static_cast<std::byte>(value));
+  }
+  const auto replay = dross::decode_replay(bytes);
+  if (!replay) {
+    return std::nullopt;
+  }
+  return *replay;
+}
+
 } // namespace
 
 int run_command_event_kernel_scenario(const std::uint64_t seed, const std::string& record_path) {
@@ -196,15 +213,7 @@ int run_command_event_kernel_scenario(const std::uint64_t seed, const std::strin
 }
 
 int run_replay_verification(const std::string& path) {
-  std::ifstream input{path, std::ios::binary};
-  const std::vector<char> characters{std::istreambuf_iterator<char>{input},
-                                     std::istreambuf_iterator<char>{}};
-  std::vector<std::byte> bytes;
-  bytes.reserve(characters.size());
-  for (const auto value : characters) {
-    bytes.push_back(static_cast<std::byte>(value));
-  }
-  const auto recorded = dross::decode_replay(bytes);
+  const auto recorded = read_replay(path);
   if (!recorded) {
     std::cerr << "invalid replay\n";
     return scenario_error;
@@ -245,4 +254,37 @@ int run_replay_verification(const std::string& path) {
     std::cerr << "replay failed: " << error.what() << '\n';
     return scenario_error;
   }
+}
+
+int compare_runs(const std::string& expected_path, const std::string& actual_path) {
+  const auto expected = read_replay(expected_path);
+  const auto actual = read_replay(actual_path);
+  if (!expected || !actual) {
+    std::cerr << "invalid run trace\n";
+    return scenario_error;
+  }
+  if (expected->header != actual->header) {
+    std::cerr << "run divergence header\n";
+    return scenario_error;
+  }
+  if (expected->external_commands != actual->external_commands) {
+    std::cerr << "run divergence external_commands\n";
+    return scenario_error;
+  }
+  if (expected->machine_trace != actual->machine_trace) {
+    std::cerr << "run divergence machine_trace\n";
+    return scenario_error;
+  }
+  const auto divergence = dross::first_divergence(expected->checkpoints, actual->checkpoints);
+  if (divergence) {
+    std::cerr << "run divergence tick=" << divergence->tick.value()
+              << " section=" << static_cast<unsigned int>(divergence->section);
+    if (divergence->detail) {
+      std::cerr << " detail=" << *divergence->detail;
+    }
+    std::cerr << '\n';
+    return scenario_error;
+  }
+  std::cout << "runs match checkpoints=" << expected->checkpoints.size() << '\n';
+  return 0;
 }

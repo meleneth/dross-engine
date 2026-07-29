@@ -47,7 +47,8 @@ void print_usage(std::ostream& output) {
             "  dross_headless scenario persistence-foundation [--seed N] --save PATH\n"
             "  dross_headless inspect-save PATH\n"
             "  dross_headless resume PATH --commands PATH\n"
-            "  dross_headless replay --verify-checkpoints PATH\n";
+            "  dross_headless replay --verify-checkpoints PATH\n"
+            "  dross_headless compare-runs EXPECTED ACTUAL\n";
 }
 
 [[nodiscard]] bool foundation_self_check() {
@@ -356,6 +357,9 @@ int main(const int argument_count, const char* const arguments[]) {
   if (argument_count == 4 && std::string_view{arguments[1]} == "replay" &&
       std::string_view{arguments[2]} == "--verify-checkpoints") {
     return run_replay_verification(arguments[3]);
+  }
+  if (argument_count == 4 && std::string_view{arguments[1]} == "compare-runs") {
+    return compare_runs(arguments[2], arguments[3]);
   }
 
   print_usage(std::cerr);
