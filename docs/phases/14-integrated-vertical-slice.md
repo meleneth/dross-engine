@@ -1,5 +1,12 @@
 # Phase 14: Integrated Vertical Slice and Hardening
 
+## Status
+
+**Active.** Phase 14 began with Phase 13's cross-platform validation evidence
+still open. Phase 14 may proceed, but its final validation must close that
+carryover; neither Phase 13 nor the vertical slice may be reported complete
+until the missing evidence is recorded.
+
 ## Goal
 
 Assemble the complete Godot demo, remove remaining rough architectural edges, validate every acceptance criterion, and leave Dross as a clean foundation for the next real game capability.

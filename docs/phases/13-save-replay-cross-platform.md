@@ -1,5 +1,16 @@
 # Phase 13: Complete Save, Reload, and Cross-Platform Replay
 
+## Status
+
+**Not finished.** Local Linux debug validation passes, but the required
+cross-platform evidence is incomplete. In particular, Phase 13 does not yet
+have recorded proof for every required compiler, sanitizer, Windows, Godot,
+and Steam Deck validation target.
+
+Work is proceeding to Phase 14 by explicit project-owner direction. These
+requirements remain open carryover and must be completed before the integrated
+vertical slice can be declared complete.
+
 ## Goal
 
 Extend persistence and replay across every first-slice capability, add committed fixtures and migrations, and prove deterministic equivalence on Linux, Windows, and Steam Deck-compatible Linux builds.
