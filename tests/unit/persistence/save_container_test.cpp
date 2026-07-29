@@ -179,6 +179,10 @@ TEST_CASE("equivalent save records encode to byte-identical canonical containers
 
 TEST_CASE("content manifest enforces package version dependency order and hash") {
   const auto required = container_with({}).content_manifest;
+  REQUIRE(required.size() == 2);
+  CHECK(required[0].package_id == content_id("dross:base"));
+  CHECK(required[1].package_id == content_id("dross_demo:demo"));
+  CHECK(required[1].dependencies == std::vector{content_id("dross:base")});
   REQUIRE(dross::validate_content_manifest(required, required));
 
   auto missing = required;
@@ -195,6 +199,19 @@ TEST_CASE("content manifest enforces package version dependency order and hash")
   std::ranges::reverse(wrong_order);
   CHECK(dross::validate_content_manifest(wrong_order, required).error() ==
         dross::ContentManifestError::dependency_order_mismatch);
+}
+
+TEST_CASE("world load rejects a save missing the required demo package") {
+  auto save = container_with({});
+  save.content_manifest.pop_back();
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+
+  const auto plan =
+      dross::build_world_load_plan(save, registry, save.header.map_id, save.header.map_hash);
+
+  REQUIRE_FALSE(plan);
+  CHECK(plan.error() == dross::WorldLoadError::content_manifest_mismatch);
 }
 
 TEST_CASE("save container round trip preserves required header and component records") {
