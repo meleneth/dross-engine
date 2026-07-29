@@ -9,6 +9,7 @@ const DEMO_SEED := 12345
 @onready var player_view: DrossEntityView = $Player
 @onready var mouse_view: MeshInstance3D = $FieldMouse
 @onready var door_view: Node3D = $SideDoor
+@onready var camera: Camera3D = $Camera3D
 @onready var path_preview: Label = $UI/PathPreview
 @onready var diagnostics: Label = $UI/Diagnostics
 @onready var status: Label = $UI/Status
@@ -66,7 +67,16 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_left"):
+	if event is InputEventMouseMotion:
+		var origin := camera.project_ray_origin(event.position)
+		var direction := camera.project_ray_normal(event.position)
+		var intersection = Plane(Vector3.UP, 0.0).intersects_ray(origin, direction)
+		if intersection != null:
+			hover_world_position(intersection)
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			request_previewed_move()
+	elif event.is_action_pressed("ui_left"):
 		preview_destination(maxi(0, _destination_q - 1))
 	elif event.is_action_pressed("ui_right"):
 		preview_destination(mini(3, _destination_q + 1))
@@ -79,6 +89,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			toggle_door()
 		elif event.keycode == KEY_ESCAPE:
 			cancel_movement()
+
+
+func hover_world_position(world_position: Vector3) -> bool:
+	var destination_q := clampi(roundi(world_position.x / sqrt(3.0)), 0, 3)
+	return preview_destination(destination_q)
 
 
 func preview_destination(destination_q: int) -> bool:

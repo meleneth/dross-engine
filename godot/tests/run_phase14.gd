@@ -23,6 +23,12 @@ func _initialize() -> void:
 	var initial_hash: String = demo.get_node(
 			"DrossWorldHost").get_canonical_capability_hash()
 	check(initial_hash.length() == 64, "diagnostic canonical hash is not BLAKE3-256")
+	check(demo.hover_world_position(Vector3(sqrt(3.0), 0.0, 0.0)),
+			"pointer hover did not query a reachable authoritative cell")
+	check(overlay.path_cell_keys == PackedStringArray([
+		"dross:phase11:0,0,0",
+		"dross:phase11:1,0,0",
+	]), "pointer hover did not update the authoritative path preview")
 	check(demo.preview_destination(2), "integrated demo did not preview a reachable path")
 	check(overlay.path_cell_keys == PackedStringArray([
 		"dross:phase11:0,0,0",
