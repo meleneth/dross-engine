@@ -212,11 +212,20 @@ set_tests_properties(
   PROPERTIES
     FIXTURES_SETUP thump_save_checkpoints
     PASS_REGULAR_EXPRESSION
-      "^thump-on-field-mouse seed=12345 .* checkpoints=2 resumed=match")
+      "^thump-on-field-mouse seed=12345 .* checkpoints=2 exploration_resumed=match combat_resumed=match")
+add_test(
+  NAME headless.inspect_thump_exploration_save
+  COMMAND dross_headless inspect-save
+          "${CMAKE_CURRENT_BINARY_DIR}/thump-saves/exploration-tick-0.dross-save")
+set_tests_properties(
+  headless.inspect_thump_exploration_save
+  PROPERTIES
+    FIXTURES_REQUIRED thump_save_checkpoints
+    PASS_REGULAR_EXPRESSION "^save version=1 tick=0 components=4 streams=0")
 add_test(
   NAME headless.inspect_thump_combat_save
   COMMAND dross_headless inspect-save
-          "${CMAKE_CURRENT_BINARY_DIR}/thump-saves/tick-0.dross-save")
+          "${CMAKE_CURRENT_BINARY_DIR}/thump-saves/combat-tick-0.dross-save")
 set_tests_properties(
   headless.inspect_thump_combat_save
   PROPERTIES
@@ -225,7 +234,7 @@ set_tests_properties(
 add_test(
   NAME headless.inspect_thump_completed_save
   COMMAND dross_headless inspect-save
-          "${CMAKE_CURRENT_BINARY_DIR}/thump-saves/tick-1.dross-save")
+          "${CMAKE_CURRENT_BINARY_DIR}/thump-saves/completed-tick-1.dross-save")
 set_tests_properties(
   headless.inspect_thump_completed_save
   PROPERTIES
