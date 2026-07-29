@@ -18,6 +18,7 @@ var _accumulator := 0.0
 var _destination_q := 0
 var _last_command := "startup"
 var _last_event := "world initialized"
+var _selected_cell_facts := "none"
 
 
 func _ready() -> void:
@@ -101,6 +102,8 @@ func preview_destination(destination_q: int) -> bool:
 	_destination_q = destination_q
 	if not preview.is_accepted():
 		path_preview.text = "Cell %d is unreachable" % destination_q
+		_selected_cell_facts = "unreachable"
+		_refresh_diagnostics()
 		return false
 	var columns: PackedStringArray = []
 	for column in preview.get_path_columns():
@@ -111,6 +114,8 @@ func preview_destination(destination_q: int) -> bool:
 		preview.get_duration_ticks(),
 	]
 	grid_overlay.path_cell_keys = preview.get_path_cell_keys()
+	_selected_cell_facts = _compiled_cell_facts(destination_q)
+	_refresh_diagnostics()
 	return true
 
 
@@ -195,6 +200,7 @@ func _refresh_diagnostics() -> void:
 		"tick: %d" % host.get_movement_tick(),
 		"mode: %s" % host.get_movement_mode(),
 		"selected cell: q=%d r=0" % _destination_q,
+		"selected facts: %s" % _selected_cell_facts,
 		"actor cell: q=%d r=0" % host.get_movement_column(),
 		"last command: %s" % _last_command,
 		"last event: %s" % _last_event,
@@ -204,6 +210,18 @@ func _refresh_diagnostics() -> void:
 		"door: %s" % ("open" if host.is_door_open() else "closed"),
 		"mouse HP: %d" % host.get_mouse_health(),
 	])
+
+
+func _compiled_cell_facts(destination_q: int) -> String:
+	var compiled_map := host.get_movement_compiled_map()
+	var cell_keys := compiled_map.get_cell_keys()
+	var traversability := compiled_map.get_traversability()
+	var provenance := compiled_map.get_provenance()
+	if destination_q < 0 or destination_q >= cell_keys.size():
+		return "unavailable"
+	var traversal_text := "traversable" if traversability[destination_q] != 0 else "blocked"
+	var provenance_text := "automatic" if provenance[destination_q] == 0 else "override"
+	return "%s %s %s" % [cell_keys[destination_q], traversal_text, provenance_text]
 
 
 func _fail_startup(surface: String) -> void:

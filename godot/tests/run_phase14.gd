@@ -29,6 +29,9 @@ func _initialize() -> void:
 		"dross:phase11:0,0,0",
 		"dross:phase11:1,0,0",
 	]), "pointer hover did not update the authoritative path preview")
+	check("selected facts: dross:phase11:1,0,0 traversable automatic" in
+			demo.get_node("UI/Diagnostics").text,
+			"pointer hover did not expose compiled cell facts in diagnostics")
 	check(demo.preview_destination(2), "integrated demo did not preview a reachable path")
 	check(overlay.path_cell_keys == PackedStringArray([
 		"dross:phase11:0,0,0",
