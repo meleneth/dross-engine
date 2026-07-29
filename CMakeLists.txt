@@ -148,7 +148,7 @@ catch_discover_tests(dross_tests DISCOVERY_MODE PRE_TEST)
 add_test(NAME headless.version COMMAND dross_headless version)
 set_tests_properties(
   headless.version
-  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-11")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^dross-engine 0.1.0 phase-13")
 add_test(NAME headless.validate_id COMMAND dross_headless validate-id dross:thump)
 set_tests_properties(
   headless.validate_id
