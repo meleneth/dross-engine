@@ -1,0 +1,9 @@
+type dross:hex_pose
+version 0
+lineage 9
+sequence 2
+region dross:field_mouse
+q -2
+r 3
+layer 1
+legacy_format anchor_without_facing

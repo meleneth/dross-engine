@@ -95,13 +95,29 @@ Result<void, ComponentCodecError> validate_pose(const ComponentRecord& record) {
 }
 
 Result<ComponentRecord, ComponentCodecError> migrate_pose(const ComponentRecord& record) {
-  if (record.version != 1U) {
+  if (record.version > 1U) {
     return tl::unexpected{ComponentCodecError::unsupported_version};
   }
-  if (!validate_pose(record)) {
+  if (record.version == 1U) {
+    if (!validate_pose(record)) {
+      return tl::unexpected{ComponentCodecError::invalid_payload};
+    }
+    return record;
+  }
+
+  ByteReader reader{record.payload};
+  const auto anchor = decode_hex_cell(reader);
+  if (!anchor || reader.remaining() != 0U) {
     return tl::unexpected{ComponentCodecError::invalid_payload};
   }
-  return record;
+  ByteWriter writer;
+  generated::encode_hex_pose(writer, HexPose{.anchor = *anchor, .facing = HexFacing::east});
+  return ComponentRecord{
+      .type_id = record.type_id,
+      .version = 1U,
+      .entity = record.entity,
+      .payload = {writer.bytes().begin(), writer.bytes().end()},
+  };
 }
 
 Result<void, ComponentCodecError> validate_generic(const ComponentRecord& record) {

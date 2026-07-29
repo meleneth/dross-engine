@@ -91,6 +91,44 @@ dross::ComponentRecord legacy_identity_fixture() {
   };
 }
 
+dross::ComponentRecord legacy_pose_fixture() {
+  std::ifstream input{std::string{DROSS_SOURCE_DIR} +
+                      "/tests/fixtures/hex-pose-v0.dross-component"};
+  std::string label;
+  std::string type;
+  std::string region;
+  std::string legacy_format;
+  std::uint32_t version = 0;
+  std::uint64_t lineage = 0;
+  std::uint64_t sequence = 0;
+  std::int32_t q = 0;
+  std::int32_t r = 0;
+  std::int32_t layer = 0;
+  input >> label >> type;
+  input >> label >> version;
+  input >> label >> lineage;
+  input >> label >> sequence;
+  input >> label >> region;
+  input >> label >> q;
+  input >> label >> r;
+  input >> label >> layer;
+  input >> label >> legacy_format;
+  REQUIRE(input);
+  REQUIRE(legacy_format == "anchor_without_facing");
+
+  dross::ByteWriter writer;
+  writer.write(content_id(region.c_str()));
+  writer.write_u32(static_cast<std::uint32_t>(q));
+  writer.write_u32(static_cast<std::uint32_t>(r));
+  writer.write_u32(static_cast<std::uint32_t>(layer));
+  return dross::ComponentRecord{
+      .type_id = content_id(type.c_str()),
+      .version = version,
+      .entity = dross::EntityId{lineage, sequence},
+      .payload = {writer.bytes().begin(), writer.bytes().end()},
+  };
+}
+
 } // namespace
 
 TEST_CASE("component codec registry rejects duplicate stable type IDs") {
@@ -298,6 +336,31 @@ TEST_CASE("persistent identity V0 migrates purely to the current V1 payload") {
                                  std::byte{0x00},
                                  std::byte{0x00},
                              });
+  CHECK(registry.validate(*migrated));
+}
+
+TEST_CASE("hex pose V0 migration supplies the facing introduced by V1") {
+  dross::ComponentCodecRegistry registry;
+  REQUIRE(dross::register_current_component_codecs(registry));
+  const auto legacy = legacy_pose_fixture();
+
+  const auto migrated = registry.migrate_to_current(legacy);
+
+  REQUIRE(migrated);
+  CHECK(migrated->version == 1);
+  dross::ByteReader reader{migrated->payload};
+  const auto pose = dross::generated::decode_hex_pose(reader);
+  REQUIRE(pose);
+  CHECK(reader.remaining() == 0);
+  CHECK(*pose == dross::HexPose{
+                     .anchor =
+                         dross::HexCellId{
+                             .region = dross::RegionId{content_id("dross:field_mouse")},
+                             .coord = {.q = -2, .r = 3},
+                             .layer = 1,
+                         },
+                     .facing = dross::HexFacing::east,
+                 });
   CHECK(registry.validate(*migrated));
 }
 
