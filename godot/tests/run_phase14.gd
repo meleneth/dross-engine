@@ -35,6 +35,13 @@ func _initialize() -> void:
 			"integrated player did not reach the authoritative destination")
 	check(is_equal_approx(demo.get_node("Player").position.x, sqrt(3.0) * 2.0),
 			"player view did not follow the authoritative cell")
+	check(demo.get_node("DrossWorldHost").get_movement_mode() == "combat_pending",
+			"approaching the mouse did not request combat")
+	check(not demo.perform_thump_action(),
+			"Thump bypassed the combat-pending safe boundary")
+	check(demo.advance_authoritative_tick(), "combat safe-boundary tick failed")
+	check(demo.get_node("DrossWorldHost").get_movement_mode() == "combat",
+			"safe boundary did not enter combat")
 
 	check(demo.toggle_door(), "integrated demo rejected OpenDoor")
 	check(demo.get_node("DrossWorldHost").is_door_open(),

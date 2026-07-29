@@ -45,7 +45,7 @@ func _process(delta: float) -> void:
 	while _accumulator >= TICK_SECONDS and ticks < MAX_CATCH_UP_TICKS:
 		_accumulator -= TICK_SECONDS
 		ticks += 1
-		if host.get_movement_state() != "idle":
+		if host.get_movement_state() != "idle" or host.get_movement_mode() == "combat_pending":
 			advance_authoritative_tick()
 	if ticks == MAX_CATCH_UP_TICKS and _accumulator >= TICK_SECONDS:
 		_accumulator = 0.0
@@ -149,6 +149,10 @@ func toggle_door() -> bool:
 
 func _refresh_views() -> void:
 	player_view.position.x = sqrt(3.0) * float(host.get_movement_column())
+	if host.get_movement_column() == 2 and host.get_movement_mode() == "exploration":
+		if host.request_movement_combat():
+			_last_command = "RequestCombatStart"
+			_last_event = "combat pending until safe boundary"
 	_refresh_diagnostics()
 
 

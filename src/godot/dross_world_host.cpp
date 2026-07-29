@@ -549,6 +549,9 @@ bool DrossWorldHost::start_thump_scenario(
   if (movement_state_ && movement_state_->movement.state() != MovementLifecycleState::idle) {
     return false;
   }
+  if (movement_state_ && !movement_state_->combat) {
+    return false;
+  }
   auto ability = ability_definition->compile_core();
   if (!ability) {
     return false;
