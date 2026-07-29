@@ -578,40 +578,55 @@ first_divergence(const std::span<const CanonicalCheckpoint> expected,
     if (expected[index] == actual[index]) {
       continue;
     }
-    for (const auto& [section, hash] : expected[index].sections) {
-      const auto found = actual[index].sections.find(section);
-      if (found == actual[index].sections.end() || found->second != hash) {
+    auto expected_section = expected[index].sections.begin();
+    auto actual_section = actual[index].sections.begin();
+    while (expected_section != expected[index].sections.end() ||
+           actual_section != actual[index].sections.end()) {
+      const auto section = actual_section == actual[index].sections.end() ||
+                                   (expected_section != expected[index].sections.end() &&
+                                    expected_section->first < actual_section->first)
+                               ? expected_section->first
+                               : actual_section->first;
+      const bool section_matches = expected_section != expected[index].sections.end() &&
+                                   actual_section != actual[index].sections.end() &&
+                                   expected_section->first == actual_section->first &&
+                                   expected_section->second == actual_section->second;
+      if (!section_matches) {
         std::optional<std::string> detail;
         const auto expected_details = expected[index].details.find(section);
         const auto actual_details = actual[index].details.find(section);
-        if (expected_details != expected[index].details.end() &&
-            actual_details != actual[index].details.end()) {
-          auto expected_entry = expected_details->second.begin();
-          auto actual_entry = actual_details->second.begin();
-          while (expected_entry != expected_details->second.end() ||
-                 actual_entry != actual_details->second.end()) {
-            if (actual_entry == actual_details->second.end() ||
-                (expected_entry != expected_details->second.end() &&
-                 expected_entry->first < actual_entry->first)) {
-              detail = expected_entry->first;
-              break;
-            }
-            if (expected_entry == expected_details->second.end() ||
-                actual_entry->first < expected_entry->first) {
-              detail = actual_entry->first;
-              break;
-            }
-            if (expected_entry->second != actual_entry->second) {
-              detail = expected_entry->first;
-              break;
-            }
-            ++expected_entry;
-            ++actual_entry;
+        const std::map<std::string, CheckpointHash> no_details;
+        const auto& expected_entries = expected_details == expected[index].details.end()
+                                           ? no_details
+                                           : expected_details->second;
+        const auto& actual_entries =
+            actual_details == actual[index].details.end() ? no_details : actual_details->second;
+        auto expected_entry = expected_entries.begin();
+        auto actual_entry = actual_entries.begin();
+        while (expected_entry != expected_entries.end() || actual_entry != actual_entries.end()) {
+          if (actual_entry == actual_entries.end() ||
+              (expected_entry != expected_entries.end() &&
+               expected_entry->first < actual_entry->first)) {
+            detail = expected_entry->first;
+            break;
           }
+          if (expected_entry == expected_entries.end() ||
+              actual_entry->first < expected_entry->first) {
+            detail = actual_entry->first;
+            break;
+          }
+          if (expected_entry->second != actual_entry->second) {
+            detail = expected_entry->first;
+            break;
+          }
+          ++expected_entry;
+          ++actual_entry;
         }
         return ReplayDivergence{
             .tick = expected[index].tick, .section = section, .detail = std::move(detail)};
       }
+      ++expected_section;
+      ++actual_section;
     }
     return ReplayDivergence{
         .tick = expected[index].tick, .section = CheckpointSection::clock, .detail = {}};
