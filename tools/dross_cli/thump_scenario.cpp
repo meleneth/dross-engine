@@ -18,6 +18,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -32,6 +33,13 @@ constexpr std::uint32_t ticks_per_second = 30;
 constexpr std::int32_t player_initiative = 10;
 constexpr std::int32_t mouse_initiative = 5;
 constexpr std::int32_t player_health = 8;
+
+template <class Value> const Value* checked_optional(const std::optional<Value>& value) {
+  if (!value.has_value()) {
+    return nullptr;
+  }
+  return std::addressof(value.value());
+}
 
 dross::ContentId content_id(const char* value) { return dross::ContentId::parse(value).value(); }
 
@@ -365,15 +373,18 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
                                                                 .mode = mode});
     inventory =
         std::make_unique<dross::InventoryRuntime>(instance, std::vector{player.id()}, &events);
-    if (!inventory->restore(save_checkpoints.back().save.inventory.value())) {
+    const auto* saved_inventory = checked_optional(save_checkpoints.back().save.inventory);
+    const auto* saved_quest = checked_optional(save_checkpoints.back().save.quest);
+    const auto* saved_dialogue = checked_optional(save_checkpoints.back().save.dialogue);
+    if (saved_inventory == nullptr || !inventory->restore(*saved_inventory)) {
       throw std::logic_error{"Thump exploration-boundary inventory restore failed"};
     }
-    if (!quests.restore(save_checkpoints.back().save.quest.value())) {
+    if (saved_quest == nullptr || !quests.restore(*saved_quest)) {
       throw std::logic_error{"Thump exploration-boundary quest restore failed"};
     }
     dialogue = std::make_unique<dross::DialogueRuntime>(
         instance, std::vector{player.id(), caretaker.id()}, trace, &events);
-    if (!dialogue->restore(save_checkpoints.back().save.dialogue.value())) {
+    if (saved_dialogue == nullptr || !dialogue->restore(*saved_dialogue)) {
       throw std::logic_error{"Thump exploration-boundary dialogue restore failed"};
     }
   }
@@ -441,13 +452,16 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       throw std::logic_error{"Thump ability state restore failed"};
     }
     resolver = std::move(*restored_resolver);
-    if (!decoded->inventory || !inventory->restore(*decoded->inventory)) {
+    const auto* saved_inventory = checked_optional(decoded->inventory);
+    const auto* saved_quest = checked_optional(decoded->quest);
+    const auto* saved_dialogue = checked_optional(decoded->dialogue);
+    if (saved_inventory == nullptr || !inventory->restore(*saved_inventory)) {
       throw std::logic_error{"Thump combat-boundary inventory restore failed"};
     }
-    if (!decoded->quest || !quests.restore(*decoded->quest)) {
+    if (saved_quest == nullptr || !quests.restore(*saved_quest)) {
       throw std::logic_error{"Thump combat-boundary quest restore failed"};
     }
-    if (!decoded->dialogue || !dialogue->restore(*decoded->dialogue)) {
+    if (saved_dialogue == nullptr || !dialogue->restore(*saved_dialogue)) {
       throw std::logic_error{"Thump combat-boundary dialogue restore failed"};
     }
   }

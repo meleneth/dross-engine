@@ -3,6 +3,8 @@
 #include <boost/sml.hpp>
 
 #include <algorithm>
+#include <memory>
+#include <optional>
 #include <set>
 #include <utility>
 
@@ -10,6 +12,20 @@ namespace dross {
 namespace {
 
 namespace sml = boost::sml;
+
+template <class Value> Value* checked_optional(std::optional<Value>& value) {
+  if (!value.has_value()) {
+    return nullptr;
+  }
+  return std::addressof(value.value());
+}
+
+template <class Value> const Value* checked_optional(const std::optional<Value>& value) {
+  if (!value.has_value()) {
+    return nullptr;
+  }
+  return std::addressof(value.value());
+}
 
 struct Inactive {};
 struct Active {};
@@ -180,13 +196,17 @@ DialogueRuntime::handle(const dialogue::ChooseDialogueOption& command) {
   if (!impl_->matches(command.initiator, command.partner, command.dialogue)) {
     return tl::unexpected{DialogueRejection::wrong_session};
   }
-  if (!std::ranges::binary_search(impl_->session->offered_options, command.option)) {
+  auto* session = checked_optional(impl_->session);
+  if (session == nullptr) {
+    return tl::unexpected{DialogueRejection::wrong_session};
+  }
+  if (!std::ranges::binary_search(session->offered_options, command.option)) {
     return tl::unexpected{DialogueRejection::option_not_offered};
   }
   if (!impl_->process(Choose{}, MachineEventId::dialogue_option_chosen)) {
     return tl::unexpected{DialogueRejection::unexpected_transition};
   }
-  impl_->session->offered_options.clear();
+  session->offered_options.clear();
   if (impl_->events != nullptr) {
     impl_->events->publish(dialogue::DialogueOptionChosen{
         .initiator = command.initiator,
@@ -217,12 +237,14 @@ Result<void, DialogueRejection> DialogueRuntime::handle(const dialogue::EndDialo
 }
 
 Result<void, DialogueRejection> DialogueRuntime::offer_options(std::vector<ContentId> options) {
-  if (!impl_->active() || !impl_->session) {
+  auto* session = checked_optional(impl_->session);
+  if (!impl_->active() || session == nullptr) {
     return tl::unexpected{DialogueRejection::wrong_session};
   }
   std::ranges::sort(options);
-  options.erase(std::unique(options.begin(), options.end()), options.end());
-  impl_->session->offered_options = std::move(options);
+  const auto duplicates = std::ranges::unique(options);
+  options.erase(duplicates.begin(), duplicates.end());
+  session->offered_options = std::move(options);
   return {};
 }
 
@@ -230,7 +252,8 @@ bool DialogueRuntime::active() const { return impl_->active(); }
 
 const std::vector<ContentId>& DialogueRuntime::offered_options() const {
   static const std::vector<ContentId> empty;
-  return impl_->session ? impl_->session->offered_options : empty;
+  const auto* session = checked_optional(impl_->session);
+  return session != nullptr ? session->offered_options : empty;
 }
 
 DialogueSnapshot DialogueRuntime::snapshot() const { return {.session = impl_->session}; }
