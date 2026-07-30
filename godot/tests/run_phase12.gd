@@ -11,11 +11,11 @@ func check(condition: bool, message: String) -> void:
 func _initialize() -> void:
 	check(ClassDB.class_exists("DrossAbilityDefinition"), "ability definition is not registered")
 	var thump := DrossAbilityDefinition.new()
-	thump.ability_id = "dross_demo:thump"
+	thump.ability_id = "thump_demo:thump"
 	thump.range = 1
 	thump.action_point_cost = 2
 	thump.damage = 3
-	thump.presentation_cue = "dross_demo:thump"
+	thump.presentation_cue = "thump_demo:thump"
 	check(thump.is_valid(), "typed Thump definition did not compile")
 
 	thump.damage = 0
@@ -23,12 +23,12 @@ func _initialize() -> void:
 	thump.damage = 3
 	thump.ability_id = "Thump"
 	check(not thump.is_valid(), "non-canonical ability identity was accepted")
-	thump.ability_id = "dross_demo:thump"
+	thump.ability_id = "thump_demo:thump"
 
 	var host := DrossWorldHost.new()
 	get_root().add_child(host)
 	var mouse_module := DrossScriptModuleDefinition.new()
-	mouse_module.module_id = "demo:field_mouse"
+	mouse_module.module_id = "thump_demo:field_mouse"
 	mouse_module.scope_kind = 1
 	mouse_module.entity_sequence = 2
 	mouse_module.state_schema_version = 1
@@ -38,17 +38,21 @@ func _initialize() -> void:
 	check(host.start_thump_scenario(thump), "Godot combat host rejected typed Thump")
 	check(host.get_mouse_health() == 3, "mouse did not start with authoritative health")
 	check(host.perform_thump(), "generic PerformAbility rejected Thump")
-	check(host.get_script_state_bool("demo:field_mouse", 2, "rule_checked"),
+	check(host.get_script_state_bool("thump_demo:field_mouse", 2, "rule_checked"),
 			"field mouse did not contribute a typed pre-resolution ability rule")
 	check(host.get_mouse_health() == 0, "Thump presentation preceded committed damage")
 	check(host.is_mouse_killed(), "lethal Thump did not commit mouse death")
-	check(host.get_last_presentation_cue() == "dross_demo:thump",
+	check(host.get_last_presentation_cue() == "thump_demo:thump",
 			"committed Thump did not expose its presentation cue")
-	check(host.get_script_state_bool("demo:field_mouse", 2, "attacked"),
+	check(host.get_script_state_bool("thump_demo:field_mouse", 2, "attacked"),
 			"field mouse did not react to typed DamageApplied")
-	check(host.get_script_state_bool("demo:field_mouse", 2, "killed"),
+	check(host.get_script_state_bool("thump_demo:field_mouse", 2, "killed"),
 			"field mouse did not react to typed ActorKilled")
-	check(host.get_script_state_int("demo:field_mouse", 2, "reaction_roll") >= 0,
+	check(host.get_script_state_bool("thump_demo:field_mouse", 2, "reward_submitted"),
+			"field mouse did not submit its deferred typed reward")
+	check(host.get_inventory_count(1, "thump_demo:mouse_tail") == 1,
+			"deferred mouse-tail reward did not commit")
+	check(host.get_script_state_int("thump_demo:field_mouse", 2, "reaction_roll") >= 0,
 			"field mouse reaction did not use deterministic RandomHub access")
 	host.queue_free()
 

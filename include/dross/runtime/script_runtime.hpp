@@ -4,6 +4,7 @@
 #include <dross/generated/actor_killed.hpp>
 #include <dross/generated/damage_applied.hpp>
 #include <dross/generated/entity_placed.hpp>
+#include <dross/generated/grant_item.hpp>
 #include <dross/generated/perform_ability.hpp>
 #include <dross/generated/place_entity.hpp>
 #include <dross/identity/content_id.hpp>
@@ -123,6 +124,7 @@ public:
   void add_rule(ScriptRuleContribution contribution);
   void submit(PlaceEntityEnvelope command);
   void request_combat();
+  void submit(inventory::GrantItem command);
   void set_state(ScriptStateKey key, ScriptStateValue value);
   [[nodiscard]] const ScriptStateValue* state(const ScriptStateKey& key) const;
 
@@ -136,6 +138,9 @@ public:
   [[nodiscard]] const std::vector<ScriptModeCommand>& mode_commands() const noexcept {
     return mode_commands_;
   }
+  [[nodiscard]] const std::vector<inventory::GrantItem>& inventory_commands() const noexcept {
+    return inventory_commands_;
+  }
 
 private:
   const ScriptModule* module_;
@@ -144,6 +149,7 @@ private:
   std::vector<PlaceEntityEnvelope> commands_;
   std::vector<ScriptStateWrite> state_writes_;
   std::vector<ScriptModeCommand> mode_commands_;
+  std::vector<inventory::GrantItem> inventory_commands_;
 };
 
 struct ScriptCallbackError {
@@ -189,12 +195,14 @@ struct ScriptRuleResult {
   std::optional<ContentId> reason;
   std::vector<PlaceEntityEnvelope> deferred_commands;
   std::vector<ScriptModeCommand> deferred_mode_commands;
+  std::vector<inventory::GrantItem> deferred_inventory_commands;
   std::optional<ScriptCallbackError> fault;
 };
 
 struct ScriptEventResult {
   std::vector<PlaceEntityEnvelope> deferred_commands;
   std::vector<ScriptModeCommand> deferred_mode_commands;
+  std::vector<inventory::GrantItem> deferred_inventory_commands;
   std::optional<ScriptCallbackError> fault;
 };
 

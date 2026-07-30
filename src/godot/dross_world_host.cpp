@@ -109,13 +109,17 @@ struct DrossWorldHost::RuntimeState {
 
 struct DrossWorldHost::ScriptScenarioState {
   explicit ScriptScenarioState(const MasterSeed seed)
-      : random{seed}, runtime{port, random}, mode{machine_trace} {}
+      : random{seed}, runtime{port, random}, mode{machine_trace},
+        inventory{WorldInstanceId{synthetic_instance}, {EntityId{7, 1}}} {
+    port.set_world_instance(WorldInstanceId{synthetic_instance});
+  }
 
   GodotScriptRuntime port;
   RandomHub random;
   TypedScriptRuntime runtime;
   NullMachineTrace machine_trace;
   SimulationMode mode;
+  InventoryRuntime inventory;
   Tick tick{0};
 };
 
@@ -283,8 +287,16 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
     record_event("dross:actor_killed");
     if (scripts != nullptr) {
       scripts->port.set_tick(scripts->tick);
-      script_fault =
-          script_fault || scripts->runtime.on_actor_killed(event, scripts->tick).fault.has_value();
+      const auto result = scripts->runtime.on_actor_killed(event, scripts->tick);
+      script_fault = script_fault || result.fault.has_value();
+      if (!script_fault) {
+        for (const auto& command : result.deferred_inventory_commands) {
+          if (!scripts->inventory.handle(command)) {
+            script_fault = true;
+            break;
+          }
+        }
+      }
     }
   }
 
@@ -498,6 +510,20 @@ std::int64_t DrossWorldHost::get_script_state_int(const godot::String& module_id
                                     : nullptr;
   return value && std::holds_alternative<std::int64_t>(*value) ? std::get<std::int64_t>(*value)
                                                                : -1;
+}
+
+std::int64_t DrossWorldHost::get_inventory_count(const std::int64_t owner_sequence,
+                                                 const godot::String& item) const {
+  const auto item_text = item.utf8();
+  const auto parsed = ContentId::parse(
+      std::string_view{item_text.get_data(), static_cast<std::size_t>(item_text.length())});
+  if (!script_state_ || !parsed || owner_sequence <= 0) {
+    return 0;
+  }
+  return static_cast<std::int64_t>(script_state_->inventory.count(
+      EntityRef{WorldInstanceId{synthetic_instance},
+                EntityId{7, static_cast<std::uint64_t>(owner_sequence)}},
+      *parsed));
 }
 
 godot::PackedByteArray DrossWorldHost::save_script_state() const {
@@ -755,7 +781,7 @@ godot::PackedByteArray DrossWorldHost::save_integrated_state() const {
               .modules = script_state_->runtime.modules(),
               .state = script_state_->runtime.state(),
           },
-      .inventory = {},
+      .inventory = script_state_->inventory.snapshot(),
       .quest = {},
       .dialogue = {},
       .components = {},
@@ -803,7 +829,8 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
     return reject("save content manifest does not match installed content");
   }
   if (decoded->runtime.lifecycle.state != WorldLifecycleState::running ||
-      decoded->components.size() != 0 || !decoded->movement || !decoded->door || !decoded->script) {
+      decoded->components.size() != 0 || !decoded->movement || !decoded->door || !decoded->script ||
+      !decoded->inventory) {
     return reject("save omits a required integrated capability boundary");
   }
   if (decoded->movement->actor != movement_state_->entity.id() ||
@@ -824,6 +851,10 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
   RandomHub validated_random{decoded->runtime.random.master_seed};
   if (!validated_random.restore(decoded->runtime.random)) {
     return reject("save random streams are invalid");
+  }
+  InventoryRuntime validated_inventory{WorldInstanceId{synthetic_instance}, {EntityId{7, 1}}};
+  if (!validated_inventory.restore(*decoded->inventory)) {
+    return reject("save inventory snapshot is invalid");
   }
 
   std::unique_ptr<MovementScenarioState> next_movement;
@@ -892,6 +923,9 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
   door_state_ = std::move(next_door);
   combat_state_ = std::move(next_combat);
   script_state_->runtime.restore_state(decoded->script->state);
+  if (!script_state_->inventory.restore(*decoded->inventory)) {
+    return reject("validated inventory could not be installed");
+  }
   if (!script_state_->random.restore(decoded->runtime.random)) {
     return reject("validated random streams could not be installed");
   }
@@ -1040,6 +1074,8 @@ void DrossWorldHost::_bind_methods() {
   godot::ClassDB::bind_method(
       godot::D_METHOD("get_script_state_int", "module_id", "entity_sequence", "key"),
       &DrossWorldHost::get_script_state_int);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_inventory_count", "owner_sequence", "item"),
+                              &DrossWorldHost::get_inventory_count);
   godot::ClassDB::bind_method(godot::D_METHOD("save_script_state"),
                               &DrossWorldHost::save_script_state);
   godot::ClassDB::bind_method(godot::D_METHOD("restore_script_state", "bytes"),

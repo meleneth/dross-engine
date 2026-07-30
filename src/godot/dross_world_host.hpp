@@ -47,6 +47,8 @@ public:
   [[nodiscard]] std::int64_t get_script_state_int(const godot::String& module_id,
                                                   std::int64_t entity_sequence,
                                                   const godot::String& key) const;
+  [[nodiscard]] std::int64_t get_inventory_count(std::int64_t owner_sequence,
+                                                 const godot::String& item) const;
   [[nodiscard]] godot::PackedByteArray save_script_state() const;
   [[nodiscard]] bool restore_script_state(const godot::PackedByteArray& bytes);
   [[nodiscard]] bool start_movement_scenario();

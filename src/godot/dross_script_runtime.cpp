@@ -122,8 +122,28 @@ void DrossCommandApi::request_combat() {
   }
 }
 
+bool DrossCommandApi::grant_item(const std::int64_t owner_lineage,
+                                 const std::int64_t owner_sequence, const godot::String& item,
+                                 const std::int64_t count) {
+  auto parsed = ContentId::parse(utf8(item));
+  if (!transaction_ || !parsed || owner_lineage < 0 || owner_sequence <= 0 || count <= 0 ||
+      count > std::numeric_limits<std::uint32_t>::max()) {
+    return false;
+  }
+  transaction_->submit(inventory::GrantItem{
+      .owner = EntityRef{world_instance_, EntityId{static_cast<std::uint64_t>(owner_lineage),
+                                                   static_cast<std::uint64_t>(owner_sequence)}},
+      .item = *std::move(parsed),
+      .count = static_cast<std::uint32_t>(count),
+  });
+  return true;
+}
+
 void DrossCommandApi::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("request_combat"), &DrossCommandApi::request_combat);
+  godot::ClassDB::bind_method(
+      godot::D_METHOD("grant_item", "owner_lineage", "owner_sequence", "item", "count"),
+      &DrossCommandApi::grant_item);
 }
 
 bool DrossQueryApi::is_owner(const std::int64_t lineage, const std::int64_t sequence) const {
@@ -157,19 +177,20 @@ std::int64_t DrossScriptContext::get_owner_sequence() const {
 }
 
 void DrossScriptContext::attach(const ScriptModule& module, ScriptCallbackTransaction& transaction,
-                                RandomStream& random, const Tick tick) {
+                                RandomStream& random, const Tick tick,
+                                const WorldInstanceId world_instance) {
   module_ = &module;
   tick_ = static_cast<std::int64_t>(tick.value());
   state_->attach(&transaction);
   random_->attach(&random);
-  commands_->attach(&transaction);
+  commands_->attach(&transaction, world_instance);
   query_->attach(&module.scope);
 }
 
 void DrossScriptContext::detach() {
   state_->attach(nullptr);
   random_->attach(nullptr);
-  commands_->attach(nullptr);
+  commands_->attach(nullptr, WorldInstanceId{0});
   query_->attach(nullptr);
   module_ = nullptr;
 }
@@ -270,7 +291,7 @@ Result<void, std::string> GodotScriptRuntime::invoke(const ScriptModule& module,
   }
   godot::Ref<DrossScriptContext> context;
   context.instantiate();
-  context->attach(module, transaction, random, tick_);
+  context->attach(module, transaction, random, tick_, world_instance_);
   auto call_args = args;
   call_args.push_back(context);
   godot::Ref<DrossCallbackLogger> logger;

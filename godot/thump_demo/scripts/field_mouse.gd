@@ -16,3 +16,7 @@ func on_damage_applied(event: DrossDamageAppliedEvent, context: DrossScriptConte
 func on_actor_killed(event: DrossActorKilledEvent, context: DrossScriptContext) -> void:
 	if event.target_sequence == context.owner_sequence:
 		context.state.set_bool("killed", true)
+		var submitted := context.commands.grant_item(
+			event.killer_lineage, event.killer_sequence, "thump_demo:mouse_tail", 1
+		)
+		context.state.set_bool("reward_submitted", submitted)

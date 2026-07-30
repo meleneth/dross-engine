@@ -81,13 +81,19 @@ class DrossCommandApi final : public godot::RefCounted {
 
 public:
   void request_combat();
-  void attach(ScriptCallbackTransaction* transaction) { transaction_ = transaction; }
+  [[nodiscard]] bool grant_item(std::int64_t owner_lineage, std::int64_t owner_sequence,
+                                const godot::String& item, std::int64_t count);
+  void attach(ScriptCallbackTransaction* transaction, WorldInstanceId world_instance) {
+    transaction_ = transaction;
+    world_instance_ = world_instance;
+  }
 
 protected:
   static void _bind_methods();
 
 private:
   ScriptCallbackTransaction* transaction_{nullptr};
+  WorldInstanceId world_instance_{0};
 };
 
 class DrossQueryApi final : public godot::RefCounted {
@@ -117,7 +123,7 @@ public:
   [[nodiscard]] std::int64_t get_owner_lineage() const;
   [[nodiscard]] std::int64_t get_owner_sequence() const;
   void attach(const ScriptModule& module, ScriptCallbackTransaction& transaction,
-              RandomStream& random, Tick tick);
+              RandomStream& random, Tick tick, WorldInstanceId world_instance);
   void detach();
 
 protected:
@@ -176,6 +182,7 @@ public:
                                                           ScriptCallbackTransaction& transaction,
                                                           RandomStream& random) override;
   void set_tick(Tick tick) { tick_ = tick; }
+  void set_world_instance(WorldInstanceId value) { world_instance_ = value; }
   [[nodiscard]] const std::vector<std::string>& calls() const noexcept { return calls_; }
 
 private:
@@ -195,6 +202,7 @@ private:
   std::map<std::pair<ScriptScope, ContentId>, Installed> installed_;
   std::vector<std::string> calls_;
   Tick tick_{0};
+  WorldInstanceId world_instance_{0};
 };
 
 } // namespace dross::godot_adapter

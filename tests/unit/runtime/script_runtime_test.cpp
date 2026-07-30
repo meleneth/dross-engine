@@ -34,6 +34,7 @@ public:
   bool fault_rule{false};
   bool fault_event{false};
   bool request_combat{false};
+  bool grant_reward{false};
   std::vector<std::string> calls;
   std::vector<std::uint64_t> rolls;
 
@@ -75,6 +76,23 @@ public:
                                                     dross::RandomStream&) override {
     calls.push_back("event:" + std::string{module.module_id.canonical()});
     transaction.set_state(dross::ScriptStateKey::parse("observed").value(), true);
+    if (fault_event) {
+      return tl::unexpected{std::string{"event failed"}};
+    }
+    return {};
+  }
+
+  dross::Result<void, std::string> on_actor_killed(const dross::ScriptModule&,
+                                                   const dross::combat::ActorKilled& event,
+                                                   dross::ScriptCallbackTransaction& transaction,
+                                                   dross::RandomStream&) override {
+    if (grant_reward) {
+      transaction.submit(dross::inventory::GrantItem{
+          .owner = event.killer,
+          .item = id("thump_demo:mouse_tail"),
+          .count = 1,
+      });
+    }
     if (fault_event) {
       return tl::unexpected{std::string{"event failed"}};
     }
@@ -253,4 +271,28 @@ TEST_CASE("script state has a canonical durable codec") {
 
   const std::vector<std::byte> truncated{encoded.begin(), encoded.end() - 1};
   CHECK_FALSE(dross::decode_script_state(truncated));
+}
+
+TEST_CASE("script inventory commands are deferred and discarded on callback fault") {
+  RecordingPort port;
+  port.grant_reward = true;
+  dross::RandomHub random{dross::MasterSeed{9}};
+  dross::TypedScriptRuntime runtime{port, random};
+  REQUIRE(runtime.install(entity_module("thump_demo:field_mouse", 2)));
+  const auto killed = dross::combat::ActorKilled{
+      .killer = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 1}},
+      .target = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 2}},
+      .ability = id("thump_demo:thump"),
+  };
+
+  const auto accepted = runtime.on_actor_killed(killed, dross::Tick{1});
+  REQUIRE_FALSE(accepted.fault);
+  REQUIRE(accepted.deferred_inventory_commands.size() == 1);
+  CHECK(accepted.deferred_inventory_commands.front().owner == killed.killer);
+  CHECK(accepted.deferred_inventory_commands.front().item == id("thump_demo:mouse_tail"));
+
+  port.fault_event = true;
+  const auto rejected = runtime.on_actor_killed(killed, dross::Tick{2});
+  REQUIRE(rejected.fault);
+  CHECK(rejected.deferred_inventory_commands.empty());
 }
