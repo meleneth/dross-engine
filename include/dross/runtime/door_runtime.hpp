@@ -2,8 +2,10 @@
 
 #include <dross/foundation/byte_codec.hpp>
 #include <dross/foundation/result.hpp>
+#include <dross/generated/close_door.hpp>
 #include <dross/generated/door_closed.hpp>
 #include <dross/generated/door_opened.hpp>
+#include <dross/generated/open_door.hpp>
 #include <dross/hex/traversal.hpp>
 #include <dross/identity/entity_ref.hpp>
 
@@ -37,6 +39,11 @@ enum class DoorState : std::uint8_t {
   open,
 };
 
+enum class DoorCommandRejection : std::uint8_t {
+  wrong_entity,
+  rejected,
+};
+
 struct DoorSnapshot {
   DoorState state;
 
@@ -65,6 +72,8 @@ public:
 
   [[nodiscard]] bool open();
   [[nodiscard]] bool close();
+  [[nodiscard]] Result<void, DoorCommandRejection> handle(const door::OpenDoor& command);
+  [[nodiscard]] Result<void, DoorCommandRejection> handle(const door::CloseDoor& command);
   [[nodiscard]] DoorState state() const;
   [[nodiscard]] bool allows(const EdgeKey& edge) const override;
   [[nodiscard]] DoorSnapshot snapshot() const;

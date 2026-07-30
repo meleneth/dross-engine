@@ -101,6 +101,26 @@ DoorRuntime::~DoorRuntime() = default;
 DoorRuntime::DoorRuntime(DoorRuntime&&) noexcept = default;
 DoorRuntime& DoorRuntime::operator=(DoorRuntime&&) noexcept = default;
 
+Result<void, DoorCommandRejection> DoorRuntime::handle(const door::OpenDoor& command) {
+  if (command.door != impl_->entity) {
+    return tl::unexpected{DoorCommandRejection::wrong_entity};
+  }
+  if (!open()) {
+    return tl::unexpected{DoorCommandRejection::rejected};
+  }
+  return {};
+}
+
+Result<void, DoorCommandRejection> DoorRuntime::handle(const door::CloseDoor& command) {
+  if (command.door != impl_->entity) {
+    return tl::unexpected{DoorCommandRejection::wrong_entity};
+  }
+  if (!close()) {
+    return tl::unexpected{DoorCommandRejection::rejected};
+  }
+  return {};
+}
+
 bool DoorRuntime::open() {
   if (!impl_->machine.process_event(Open{})) {
     return false;

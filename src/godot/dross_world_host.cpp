@@ -918,8 +918,15 @@ bool DrossWorldHost::start_door_scenario(const godot::Ref<DrossDoorDefinition>& 
   return true;
 }
 
-bool DrossWorldHost::open_door() { return door_state_ && door_state_->runtime.open(); }
-bool DrossWorldHost::close_door() { return door_state_ && door_state_->runtime.close(); }
+bool DrossWorldHost::open_door() {
+  return door_state_ &&
+         door_state_->runtime.handle(door::OpenDoor{.door = door_state_->entity}).has_value();
+}
+
+bool DrossWorldHost::close_door() {
+  return door_state_ &&
+         door_state_->runtime.handle(door::CloseDoor{.door = door_state_->entity}).has_value();
+}
 bool DrossWorldHost::is_door_open() const {
   return door_state_ && door_state_->runtime.state() == DoorState::open;
 }

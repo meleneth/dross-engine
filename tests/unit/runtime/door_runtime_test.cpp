@@ -81,6 +81,20 @@ TEST_CASE("door lifecycle commits open and closed traversal state through SML") 
   CHECK_FALSE(door.close());
 }
 
+TEST_CASE("typed door commands validate door identity before changing state") {
+  auto footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
+  dross::DoorRuntime door{door_entity(), std::move(footprint), dross::DoorState::closed};
+  const dross::EntityRef stranger{dross::WorldInstanceId{1}, dross::EntityId{7, 99}};
+
+  const auto rejected = door.handle(dross::door::OpenDoor{.door = stranger});
+  REQUIRE_FALSE(rejected);
+  CHECK(rejected.error() == dross::DoorCommandRejection::wrong_entity);
+  CHECK(door.state() == dross::DoorState::closed);
+
+  REQUIRE(door.handle(dross::door::OpenDoor{.door = door_entity()}));
+  REQUIRE(door.handle(dross::door::CloseDoor{.door = door_entity()}));
+}
+
 TEST_CASE("authoritative planner consumes committed door traversal state") {
   dross::CompiledHexMapBuilder builder;
   REQUIRE(builder.add_cell(cell_facts(cell(0))));
