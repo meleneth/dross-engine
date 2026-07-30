@@ -103,13 +103,17 @@ void encode_combat_session_snapshot(ByteWriter& writer, const CombatSessionSnaps
 }
 
 Result<CombatSessionSnapshot, DecodeError> decode_combat_session_snapshot(ByteReader& reader) {
-  auto state = reader.read_u16();
-  auto active_index = reader.read_u64();
-  auto count = reader.read_u64();
-  if (!state || !active_index || !count) {
-    const auto error =
-        !state ? state.error() : (!active_index ? active_index.error() : count.error());
-    return tl::unexpected{error};
+  const auto state = reader.read_u16();
+  if (!state) {
+    return tl::unexpected{state.error()};
+  }
+  const auto active_index = reader.read_u64();
+  if (!active_index) {
+    return tl::unexpected{active_index.error()};
+  }
+  const auto count = reader.read_u64();
+  if (!count) {
+    return tl::unexpected{count.error()};
   }
   if (*state > static_cast<std::uint16_t>(CombatSessionState::completed) ||
       *active_index > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()) ||
@@ -120,18 +124,25 @@ Result<CombatSessionSnapshot, DecodeError> decode_combat_session_snapshot(ByteRe
   std::vector<CombatantSnapshot> combatants;
   combatants.reserve(static_cast<std::size_t>(*count));
   for (std::uint64_t index = 0; index < *count; ++index) {
-    auto entity = reader.read_entity_id();
-    auto initiative = reader.read_u32();
-    auto maximum_action_points = reader.read_u32();
-    auto action_points = reader.read_u32();
-    auto alive = reader.read_u16();
-    if (!entity || !initiative || !maximum_action_points || !action_points || !alive) {
-      const auto error = !entity                  ? entity.error()
-                         : !initiative            ? initiative.error()
-                         : !maximum_action_points ? maximum_action_points.error()
-                         : !action_points         ? action_points.error()
-                                                  : alive.error();
-      return tl::unexpected{error};
+    const auto entity = reader.read_entity_id();
+    if (!entity) {
+      return tl::unexpected{entity.error()};
+    }
+    const auto initiative = reader.read_u32();
+    if (!initiative) {
+      return tl::unexpected{initiative.error()};
+    }
+    const auto maximum_action_points = reader.read_u32();
+    if (!maximum_action_points) {
+      return tl::unexpected{maximum_action_points.error()};
+    }
+    const auto action_points = reader.read_u32();
+    if (!action_points) {
+      return tl::unexpected{action_points.error()};
+    }
+    const auto alive = reader.read_u16();
+    if (!alive) {
+      return tl::unexpected{alive.error()};
     }
     if (*alive > 1) {
       return tl::unexpected{
@@ -375,12 +386,17 @@ Result<AbilityResolverSnapshot, DecodeError> decode_ability_resolver_snapshot(By
   std::vector<AbilityActorSnapshot> actors;
   actors.reserve(static_cast<std::size_t>(*count));
   for (std::uint64_t index = 0; index < *count; ++index) {
-    auto entity = reader.read_entity_id();
+    const auto entity = reader.read_entity_id();
+    if (!entity) {
+      return tl::unexpected{entity.error()};
+    }
     auto pose = generated::decode_hex_pose(reader);
-    auto health = reader.read_u32();
-    if (!entity || !pose || !health) {
-      const auto error = !entity ? entity.error() : (!pose ? pose.error() : health.error());
-      return tl::unexpected{error};
+    if (!pose) {
+      return tl::unexpected{pose.error()};
+    }
+    const auto health = reader.read_u32();
+    if (!health) {
+      return tl::unexpected{health.error()};
     }
     actors.push_back({
         .entity = *entity,

@@ -99,13 +99,17 @@ void encode_movement_snapshot(ByteWriter& writer, const MovementSnapshot& snapsh
 }
 
 Result<MovementSnapshot, DecodeError> decode_movement_snapshot(ByteReader& reader) {
-  auto state = reader.read_u16();
+  const auto state = reader.read_u16();
+  if (!state) {
+    return tl::unexpected{state.error()};
+  }
   auto restored_pose = generated::decode_hex_pose(reader);
-  auto path_size = reader.read_u64();
-  if (!state || !restored_pose || !path_size) {
-    const auto error =
-        !state ? state.error() : (!restored_pose ? restored_pose.error() : path_size.error());
-    return tl::unexpected{error};
+  if (!restored_pose) {
+    return tl::unexpected{restored_pose.error()};
+  }
+  const auto path_size = reader.read_u64();
+  if (!path_size) {
+    return tl::unexpected{path_size.error()};
   }
   if (*state > static_cast<std::uint16_t>(MovementLifecycleState::blocked) ||
       *path_size > reader.remaining() ||
@@ -121,22 +125,25 @@ Result<MovementSnapshot, DecodeError> decode_movement_snapshot(ByteReader& reade
     }
     path.push_back(*std::move(path_pose));
   }
-  auto next_pose = reader.read_u64();
-  auto transition_ticks = reader.read_u32();
-  auto occupancy_revision = reader.read_u64();
-  auto cancel_requested = reader.read_u16();
-  auto combat_stop_requested = reader.read_u16();
-  if (!next_pose || !transition_ticks || !occupancy_revision || !cancel_requested ||
-      !combat_stop_requested) {
-    const auto error =
-        !next_pose
-            ? next_pose.error()
-            : (!transition_ticks
-                   ? transition_ticks.error()
-                   : (!occupancy_revision ? occupancy_revision.error()
-                                          : (!cancel_requested ? cancel_requested.error()
-                                                               : combat_stop_requested.error())));
-    return tl::unexpected{error};
+  const auto next_pose = reader.read_u64();
+  if (!next_pose) {
+    return tl::unexpected{next_pose.error()};
+  }
+  const auto transition_ticks = reader.read_u32();
+  if (!transition_ticks) {
+    return tl::unexpected{transition_ticks.error()};
+  }
+  const auto occupancy_revision = reader.read_u64();
+  if (!occupancy_revision) {
+    return tl::unexpected{occupancy_revision.error()};
+  }
+  const auto cancel_requested = reader.read_u16();
+  if (!cancel_requested) {
+    return tl::unexpected{cancel_requested.error()};
+  }
+  const auto combat_stop_requested = reader.read_u16();
+  if (!combat_stop_requested) {
+    return tl::unexpected{combat_stop_requested.error()};
   }
   if (*next_pose > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()) ||
       *cancel_requested > 1 || *combat_stop_requested > 1) {
