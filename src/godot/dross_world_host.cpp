@@ -58,6 +58,10 @@ HexPose movement_pose(const std::int32_t q, const std::int32_t r = 0) {
   return {.anchor = movement_cell(q, r), .facing = HexFacing::east};
 }
 
+bool movement_cell_is_traversable(const std::int32_t q, const std::int32_t r) {
+  return q != 0 || r != -1;
+}
+
 CompiledHexMap make_movement_map() {
   CompiledHexMapBuilder builder;
   for (std::int32_t r = -1; r <= 1; ++r) {
@@ -68,7 +72,7 @@ CompiledHexMap make_movement_map() {
           .terrain = ContentId::parse("dross:floor").value(),
           .base_cost = MovementCost{1},
           .clearance = Clearance::open,
-          .traversable = true,
+          .traversable = movement_cell_is_traversable(q, r),
           .semantic_tags = {},
       }));
     }
@@ -83,6 +87,10 @@ CompiledHexMap make_movement_map() {
       for (const auto direction : forward_directions) {
         const auto adjacent = neighbor(HexCoord{.q = q, .r = r}, direction);
         if (adjacent.q < 0 || adjacent.q > 3 || adjacent.r < -1 || adjacent.r > 1) {
+          continue;
+        }
+        if (!movement_cell_is_traversable(q, r) ||
+            !movement_cell_is_traversable(adjacent.q, adjacent.r)) {
           continue;
         }
         static_cast<void>(

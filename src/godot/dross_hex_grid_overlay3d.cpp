@@ -5,6 +5,7 @@
 #include <godot_cpp/variant/color.hpp>
 #include <godot_cpp/variant/vector3.hpp>
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <string>
@@ -58,10 +59,14 @@ void DrossHexGridOverlay3D::rebuild() {
   for (const auto& cell : compiled_->core()->map.cell_ids()) {
     const auto center = center_for(cell, cell_radius_);
     const auto facts = compiled_->core()->map.cell(cell).value();
-    const auto on_path = path_cell_keys_.has(key_for(cell));
-    const auto color = on_path ? godot::Color{1.0F, 0.8F, 0.1F, 1.0F}
-                               : (facts.traversable ? godot::Color{0.2F, 0.9F, 0.4F, 1.0F}
-                                                    : godot::Color{0.9F, 0.2F, 0.2F, 1.0F});
+    const auto key = key_for(cell);
+    const auto hovered = key == hover_cell_key_;
+    const auto on_path = path_cell_keys_.has(key);
+    const auto color = hovered && hover_state_ == 1   ? godot::Color{0.15F, 1.0F, 0.3F, 1.0F}
+                       : hovered && hover_state_ == 2 ? godot::Color{1.0F, 0.15F, 0.15F, 1.0F}
+                       : on_path                      ? godot::Color{1.0F, 0.8F, 0.1F, 1.0F}
+                                 : (facts.traversable ? godot::Color{0.35F, 0.55F, 0.7F, 0.8F}
+                                                      : godot::Color{0.3F, 0.3F, 0.35F, 0.65F});
     std::array<godot::Vector3, 6> corners{};
     for (std::size_t index = 0; index < corners.size(); ++index) {
       const auto angle = pi / 6.0 + pi / 3.0 * static_cast<double>(index);
@@ -92,6 +97,13 @@ godot::PackedStringArray DrossHexGridOverlay3D::get_path_cell_keys() const {
   return path_cell_keys_;
 }
 
+void DrossHexGridOverlay3D::set_hover_cell(const godot::String& cell_key,
+                                           const std::int64_t state) {
+  hover_cell_key_ = cell_key;
+  hover_state_ = cell_key.is_empty() ? 0 : std::clamp<std::int64_t>(state, 0, 2);
+  rebuild();
+}
+
 void DrossHexGridOverlay3D::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("set_compiled_map", "value"),
                               &DrossHexGridOverlay3D::set_compiled_map);
@@ -108,6 +120,12 @@ void DrossHexGridOverlay3D::_bind_methods() {
                               &DrossHexGridOverlay3D::set_path_cell_keys);
   godot::ClassDB::bind_method(godot::D_METHOD("get_path_cell_keys"),
                               &DrossHexGridOverlay3D::get_path_cell_keys);
+  godot::ClassDB::bind_method(godot::D_METHOD("set_hover_cell", "cell_key", "state"),
+                              &DrossHexGridOverlay3D::set_hover_cell);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_hover_cell_key"),
+                              &DrossHexGridOverlay3D::get_hover_cell_key);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_hover_state"),
+                              &DrossHexGridOverlay3D::get_hover_state);
   ADD_PROPERTY(godot::PropertyInfo(godot::Variant::OBJECT, "compiled_map",
                                    godot::PROPERTY_HINT_RESOURCE_TYPE, "DrossCompiledHexMap"),
                "set_compiled_map", "get_compiled_map");

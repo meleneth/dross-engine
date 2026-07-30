@@ -130,16 +130,24 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func hover_world_position(world_position: Vector3) -> bool:
 	var destination := _world_to_hex(world_position)
-	return preview_destination(clampi(destination.x, 0, 3), clampi(destination.y, -1, 1))
+	return preview_destination(destination.x, destination.y)
 
 
 func preview_destination(destination_q: int, destination_r: int = 0) -> bool:
+	var destination_key := "dross:phase11:%d,%d,0" % [destination_q, destination_r]
+	if not host.get_movement_compiled_map().get_cell_keys().has(destination_key):
+		_clear_hover()
+		_selected_cell_facts = "off-world"
+		_refresh_diagnostics()
+		return false
 	var preview: DrossMovementPreview = host.preview_movement(destination_q, destination_r)
 	_destination_q = destination_q
 	_destination_r = destination_r
 	if not preview.is_accepted():
 		path_preview.text = "Cell (%d, %d) is unreachable" % [destination_q, destination_r]
-		_selected_cell_facts = "unreachable"
+		grid_overlay.path_cell_keys = PackedStringArray()
+		grid_overlay.set_hover_cell(destination_key, 2)
+		_selected_cell_facts = _compiled_cell_facts(destination_q, destination_r)
 		_refresh_diagnostics()
 		return false
 	var cells: PackedStringArray = []
@@ -153,9 +161,16 @@ func preview_destination(destination_q: int, destination_r: int = 0) -> bool:
 		preview.get_duration_ticks(),
 	]
 	grid_overlay.path_cell_keys = preview.get_path_cell_keys()
+	grid_overlay.set_hover_cell(destination_key, 1)
 	_selected_cell_facts = _compiled_cell_facts(destination_q, destination_r)
 	_refresh_diagnostics()
 	return true
+
+
+func _clear_hover() -> void:
+	grid_overlay.path_cell_keys = PackedStringArray()
+	grid_overlay.set_hover_cell("", 0)
+	path_preview.text = ""
 
 
 func request_previewed_move() -> bool:

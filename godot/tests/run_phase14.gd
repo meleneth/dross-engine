@@ -47,6 +47,9 @@ func _initialize() -> void:
 			before_invalid_load, "rejected integrated save mutated authoritative state")
 	check(demo.hover_world_position(Vector3(sqrt(3.0), 0.0, 0.0)),
 			"pointer hover did not query a reachable authoritative cell")
+	check(overlay.get_hover_cell_key() == "dross:phase11:1,0,0" and
+			overlay.get_hover_state() == 1,
+			"reachable hover did not expose a green destination outline")
 	check(overlay.path_cell_keys == PackedStringArray([
 		"dross:phase11:0,0,0",
 		"dross:phase11:1,0,0",
@@ -54,6 +57,17 @@ func _initialize() -> void:
 	check("selected facts: dross:phase11:1,0,0 traversable automatic" in
 			demo.get_node("UI/Diagnostics").text,
 			"pointer hover did not expose compiled cell facts in diagnostics")
+	check(not demo.preview_destination(0, -1),
+			"blocked in-world destination unexpectedly produced a valid move")
+	check(overlay.get_hover_cell_key() == "dross:phase11:0,-1,0" and
+			overlay.get_hover_state() == 2,
+			"blocked in-world hover did not expose a red destination outline")
+	check(not demo.hover_world_position(Vector3(-100.0, 0.0, -100.0)),
+			"off-world pointer position unexpectedly resolved to a destination")
+	check(overlay.get_hover_cell_key().is_empty() and overlay.get_hover_state() == 0,
+			"off-world pointer position retained a destination outline")
+	check(overlay.path_cell_keys.is_empty(),
+			"off-world pointer position retained a path highlight")
 	check(demo.preview_destination(1, 1),
 			"integrated demo did not preview movement into another hex row")
 	check(overlay.path_cell_keys.has("dross:phase11:1,1,0"),
