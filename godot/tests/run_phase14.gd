@@ -54,6 +54,9 @@ func _initialize() -> void:
 		"dross:phase11:2,0,0",
 	]), "path preview did not highlight authoritative map cells")
 	check(demo.request_previewed_move(), "integrated demo rejected MoveTo")
+	check(demo.get_node("DrossWorldHost").get_recent_movement_events() ==
+			PackedStringArray(["dross:movement_started"]),
+			"movement diagnostics did not consume the committed start event")
 	check(demo.advance_authoritative_tick(), "first integrated movement tick failed")
 	check(is_equal_approx(demo.get_node("Player").position.x, sqrt(3.0) * 0.5),
 			"player view did not interpolate within the authoritative edge")
@@ -76,6 +79,13 @@ func _initialize() -> void:
 			"diagnostic tick did not follow authoritative fixed ticks")
 	check(demo.get_node("DrossWorldHost").get_movement_column() == 2,
 			"integrated player did not reach the authoritative destination")
+	check(demo.get_node("DrossWorldHost").get_recent_movement_events() ==
+			PackedStringArray([
+				"dross:movement_started",
+				"dross:actor_entered_cell",
+				"dross:actor_entered_cell",
+				"dross:movement_completed",
+			]), "movement diagnostics did not preserve committed event order")
 	check(demo.get_node("DrossWorldHost").get_canonical_capability_hash() != initial_hash,
 			"authoritative movement did not change the diagnostic hash")
 	check(is_equal_approx(demo.get_node("Player").position.x, sqrt(3.0) * 2.0),

@@ -10,6 +10,7 @@
 
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/variant/packed_byte_array.hpp>
+#include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
 
 #include <cstdint>
@@ -61,6 +62,7 @@ public:
   [[nodiscard]] double get_movement_presentation_alpha() const;
   [[nodiscard]] godot::String get_movement_state() const;
   [[nodiscard]] godot::String get_movement_mode() const;
+  [[nodiscard]] godot::PackedStringArray get_recent_movement_events() const;
   [[nodiscard]] godot::String get_canonical_capability_hash() const;
   [[nodiscard]] godot::PackedByteArray save_integrated_state() const;
   [[nodiscard]] bool restore_integrated_state(const godot::PackedByteArray& bytes);

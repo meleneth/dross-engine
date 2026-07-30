@@ -160,9 +160,23 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
     return result;
   }
 
-  void publish(const movement::MovementStarted&) override {}
-  void publish(const movement::ActorEnteredCell&) override {}
-  void publish(const movement::MovementCompleted&) override {}
+  void publish(const movement::MovementStarted&) override {
+    record_event("dross:movement_started");
+  }
+  void publish(const movement::ActorEnteredCell&) override {
+    record_event("dross:actor_entered_cell");
+  }
+  void publish(const movement::MovementCompleted&) override {
+    record_event("dross:movement_completed");
+  }
+
+  void record_event(const godot::String& event_id) {
+    constexpr std::size_t diagnostic_event_limit = 8;
+    if (recent_events.size() == diagnostic_event_limit) {
+      recent_events.erase(recent_events.begin());
+    }
+    recent_events.push_back(event_id);
+  }
 
   CompiledHexMap map;
   FootprintDefinition footprint;
@@ -173,6 +187,7 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
   NullMachineTrace machine_trace;
   SimulationMode mode;
   Tick tick{0};
+  std::vector<godot::String> recent_events;
 };
 
 struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
@@ -645,6 +660,16 @@ godot::String DrossWorldHost::get_movement_mode() const {
                                                                               : "exploration";
 }
 
+godot::PackedStringArray DrossWorldHost::get_recent_movement_events() const {
+  godot::PackedStringArray events;
+  if (movement_state_) {
+    for (const auto& event : movement_state_->recent_events) {
+      events.push_back(event);
+    }
+  }
+  return events;
+}
+
 godot::String DrossWorldHost::get_canonical_capability_hash() const {
   CanonicalCapabilitySnapshot capabilities;
   if (movement_state_) {
@@ -1015,6 +1040,8 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::get_movement_state);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_mode"),
                               &DrossWorldHost::get_movement_mode);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_recent_movement_events"),
+                              &DrossWorldHost::get_recent_movement_events);
   godot::ClassDB::bind_method(godot::D_METHOD("get_canonical_capability_hash"),
                               &DrossWorldHost::get_canonical_capability_hash);
   godot::ClassDB::bind_method(godot::D_METHOD("save_integrated_state"),
