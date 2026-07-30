@@ -279,22 +279,26 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   if (resume_boundary == ResumeBoundary::combat) {
     const auto& save = save_checkpoints.back().save;
     const auto decoded = dross::decode_save_container(dross::encode_save_container(save));
-    if (!decoded || !decoded->combat || decoded->combat->ability != thump.id) {
+    if (!decoded) {
       throw std::logic_error{"Thump combat-boundary save decode failed"};
+    }
+    const auto& combat_boundary = decoded->combat;
+    if (!combat_boundary || combat_boundary->ability != thump.id) {
+      throw std::logic_error{"Thump combat-boundary snapshot invalid"};
     }
     random = std::make_unique<dross::RandomHub>(decoded->runtime.random.master_seed);
     if (!random->restore(decoded->runtime.random)) {
       throw std::logic_error{"Thump combat-boundary random restore failed"};
     }
     auto restored_combat =
-        dross::CombatSession::from_snapshot(decoded->combat->session, instance, &events);
+        dross::CombatSession::from_snapshot(combat_boundary->session, instance, &events);
     if (!restored_combat) {
       throw std::logic_error{"Thump combat session restore failed"};
     }
     combat = std::move(*restored_combat);
     damage_random = &random->stream(dross::RandomStreamId{content_id("dross:combat_damage")});
     auto restored_resolver = dross::AbilityResolver::from_snapshot(
-        *combat, decoded->combat->actors, instance, &events, damage_random);
+        *combat, combat_boundary->actors, instance, &events, damage_random);
     if (!restored_resolver) {
       throw std::logic_error{"Thump ability state restore failed"};
     }
