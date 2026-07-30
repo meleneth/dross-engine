@@ -157,7 +157,7 @@ ScenarioResult execute(const std::uint64_t seed) {
                   .lifecycle = lifecycle.snapshot(),
                   .mode = mode.snapshot(),
               },
-          .content_manifest = dross::first_slice_content_manifest(),
+          .content_manifest = dross::engine_content_manifest(),
           .combat = {},
           .movement =
               dross::MovementBoundarySnapshot{
@@ -189,7 +189,8 @@ ScenarioResult execute(const std::uint64_t seed) {
     throw std::logic_error{"movement scenario codec registration failed"};
   }
   const auto load_plan = dross::build_world_load_plan(
-      *save, codecs, content_id("demo:movement_room"), dross::canonical_map_hash(map));
+      *save, codecs, content_id("demo:movement_room"), dross::canonical_map_hash(map),
+      dross::engine_content_manifest());
   if (!load_plan) {
     throw std::logic_error{"movement scenario load plan failed"};
   }
@@ -258,7 +259,7 @@ ScenarioResult execute(const std::uint64_t seed) {
                       .engine_version = dross::engine_version(),
                       .schema_version = 1,
                       .scenario = content_id("dross:exploration_movement"),
-                      .content_manifest = dross::first_slice_content_manifest(),
+                      .content_manifest = dross::engine_content_manifest(),
                       .master_seed = dross::MasterSeed{seed},
                       .random_algorithm_version = dross::random_algorithm_version,
                   },

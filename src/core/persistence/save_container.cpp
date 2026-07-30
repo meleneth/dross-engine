@@ -389,7 +389,7 @@ Result<void, ContentManifestError> validate_content_manifest(const ContentManife
   return {};
 }
 
-ContentManifest first_slice_content_manifest() {
+ContentManifest engine_content_manifest() {
   const auto package_hash = [](const std::string_view release_id) {
     const auto stable = ContentId::parse(release_id).value().stable_hash();
     CheckpointHash result{};
@@ -404,12 +404,6 @@ ContentManifest first_slice_content_manifest() {
           .version = {.major = 1, .minor = 0, .patch = 0},
           .dependencies = {},
           .content_hash = package_hash("dross:base_content_v1"),
-      },
-      ContentPackageRecord{
-          .package_id = ContentId::parse("dross_demo:demo").value(),
-          .version = {.major = 1, .minor = 0, .patch = 0},
-          .dependencies = {ContentId::parse("dross:base").value()},
-          .content_hash = package_hash("dross_demo:demo_content_v1"),
       },
   };
 }
@@ -833,8 +827,9 @@ decode_save_container(const std::span<const std::byte> bytes) {
 
 Result<WorldLoadPlan, WorldLoadError>
 build_world_load_plan(const SaveContainer& container, const ComponentCodecRegistry& registry,
-                      const ContentId& expected_map_id, const CheckpointHash& expected_map_hash) {
-  if (!validate_content_manifest(container.content_manifest, first_slice_content_manifest())) {
+                      const ContentId& expected_map_id, const CheckpointHash& expected_map_hash,
+                      const ContentManifest& required_content_manifest) {
+  if (!validate_content_manifest(container.content_manifest, required_content_manifest)) {
     return tl::unexpected{WorldLoadError::content_manifest_mismatch};
   }
   if (container.header.map_id != expected_map_id ||

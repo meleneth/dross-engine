@@ -23,7 +23,7 @@ struct ContentPackageRecord {
 
 using ContentManifest = std::vector<ContentPackageRecord>;
 
-[[nodiscard]] ContentManifest first_slice_content_manifest();
+[[nodiscard]] ContentManifest engine_content_manifest();
 
 enum class ContentManifestError : std::uint8_t {
   missing_package,

@@ -75,7 +75,7 @@ dross::ReplayLog execute_lifecycle_scenario() {
               .engine_version = dross::engine_version(),
               .schema_version = 1,
               .scenario = content_id("dross:lifecycle_machines"),
-              .content_manifest = dross::first_slice_content_manifest(),
+              .content_manifest = dross::engine_content_manifest(),
               .master_seed = dross::MasterSeed{lifecycle_seed},
               .random_algorithm_version = dross::random_algorithm_version,
           },

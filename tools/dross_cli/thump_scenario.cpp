@@ -173,7 +173,8 @@ void resume_from_exploration_save(const dross::SaveContainer& save,
     throw std::logic_error{"Thump exploration-boundary save decode failed"};
   }
   const auto plan = dross::build_world_load_plan(*decoded, registry, content_id("demo:thump_room"),
-                                                 dross::canonical_map_hash(thump_map()));
+                                                 dross::canonical_map_hash(thump_map()),
+                                                 dross::engine_content_manifest());
   if (!plan) {
     throw std::logic_error{"Thump exploration-boundary load plan failed"};
   }
@@ -236,7 +237,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
         .runtime = {.random = random->snapshot(),
                     .lifecycle = lifecycle.snapshot(),
                     .mode = mode.snapshot()},
-        .content_manifest = dross::first_slice_content_manifest(),
+        .content_manifest = dross::engine_content_manifest(),
         .combat = include_combat ? std::optional{dross::CombatBoundarySnapshot{
                                        .ability = thump.id,
                                        .session = combat->snapshot(),
@@ -347,7 +348,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
                       .engine_version = dross::engine_version(),
                       .schema_version = 1,
                       .scenario = content_id("dross:thump_on_field_mouse"),
-                      .content_manifest = dross::first_slice_content_manifest(),
+                      .content_manifest = dross::engine_content_manifest(),
                       .master_seed = dross::MasterSeed{seed},
                       .random_algorithm_version = dross::random_algorithm_version,
                   },

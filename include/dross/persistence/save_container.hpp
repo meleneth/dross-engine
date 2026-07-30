@@ -180,7 +180,8 @@ private:
   friend Result<WorldLoadPlan, WorldLoadError> build_world_load_plan(const SaveContainer&,
                                                                      const ComponentCodecRegistry&,
                                                                      const ContentId&,
-                                                                     const CheckpointHash&);
+                                                                     const CheckpointHash&,
+                                                                     const ContentManifest&);
 
   std::uint64_t lineage_;
   EntityIdAllocatorSnapshot allocator_;
@@ -189,7 +190,8 @@ private:
 
 [[nodiscard]] Result<WorldLoadPlan, WorldLoadError>
 build_world_load_plan(const SaveContainer& container, const ComponentCodecRegistry& registry,
-                      const ContentId& expected_map_id, const CheckpointHash& expected_map_hash);
+                      const ContentId& expected_map_id, const CheckpointHash& expected_map_hash,
+                      const ContentManifest& required_content_manifest);
 [[nodiscard]] std::vector<ComponentRecord> snapshot_world_components(const WorldStorage& world);
 
 } // namespace dross

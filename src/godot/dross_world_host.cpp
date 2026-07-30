@@ -733,7 +733,7 @@ godot::PackedByteArray DrossWorldHost::save_integrated_state() const {
               .lifecycle = WorldLifecycleSnapshot{.state = WorldLifecycleState::running},
               .mode = movement_state_->mode.snapshot(),
           },
-      .content_manifest = first_slice_content_manifest(),
+      .content_manifest = engine_content_manifest(),
       .combat = {},
       .movement =
           MovementBoundarySnapshot{
@@ -794,7 +794,7 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
       decoded->header.map_hash != canonical_map_hash(movement_state_->map)) {
     return reject("save header or compiled map identity does not match the running demo");
   }
-  if (!validate_content_manifest(decoded->content_manifest, first_slice_content_manifest())) {
+  if (!validate_content_manifest(decoded->content_manifest, engine_content_manifest())) {
     return reject("save content manifest does not match installed content");
   }
   if (decoded->runtime.lifecycle.state != WorldLifecycleState::running ||

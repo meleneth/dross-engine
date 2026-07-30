@@ -155,7 +155,7 @@ ScenarioResult execute_scenario(const std::uint64_t seed,
                       .engine_version = dross::engine_version(),
                       .schema_version = 1,
                       .scenario = content_id("dross:command_event_kernel"),
-                      .content_manifest = dross::first_slice_content_manifest(),
+                      .content_manifest = dross::engine_content_manifest(),
                       .master_seed = dross::MasterSeed{seed},
                       .random_algorithm_version = dross::random_algorithm_version,
                   },
@@ -220,7 +220,7 @@ int run_replay_verification(const std::string& path) {
     return scenario_error;
   }
   const auto manifest = dross::validate_content_manifest(recorded->header.content_manifest,
-                                                         dross::first_slice_content_manifest());
+                                                         dross::engine_content_manifest());
   if (!manifest) {
     std::cerr << "replay content manifest mismatch=" << static_cast<unsigned int>(manifest.error())
               << '\n';

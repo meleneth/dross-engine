@@ -175,7 +175,8 @@ ContinuationResult load_and_continue(const dross::SaveContainer& save, const Tai
     throw std::logic_error{"persistence codec registration failed"};
   }
   const auto plan = dross::build_world_load_plan(
-      save, registry, content_id("demo:persistence_arena"), dross::canonical_map_hash(make_map()));
+      save, registry, content_id("demo:persistence_arena"), dross::canonical_map_hash(make_map()),
+      dross::engine_content_manifest());
   if (!plan) {
     throw std::logic_error{"persistence load plan failed"};
   }
@@ -248,7 +249,7 @@ int run_persistence_scenario(const std::uint64_t seed, const std::string& save_p
                 .lifecycle = lifecycle.snapshot(),
                 .mode = mode.snapshot(),
             },
-        .content_manifest = dross::first_slice_content_manifest(),
+        .content_manifest = dross::engine_content_manifest(),
         .combat = {},
         .movement = {},
         .door = {},
