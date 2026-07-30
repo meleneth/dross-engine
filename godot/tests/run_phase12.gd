@@ -54,6 +54,11 @@ func _initialize() -> void:
 			"caretaker did not submit the typed quest command")
 	check(host.get_quest_status("thump_demo:mouse_quest") == "active",
 			"caretaker quest command did not commit")
+	check("thump_demo:caretaker_dialogue:contribute_dialogue_options" in
+			host.get_script_call_order(),
+			"caretaker did not contribute dialogue options through the typed query")
+	check(not host.accept_mouse_quest_dialogue(),
+			"already-active quest still offered the acceptance option")
 	check(host.start_thump_scenario(thump), "Godot combat host rejected typed Thump")
 	check(host.get_mouse_health() == 3, "mouse did not start with authoritative health")
 	check(host.perform_thump(), "generic PerformAbility rejected Thump")

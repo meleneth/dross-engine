@@ -283,6 +283,53 @@ void DrossQueryApi::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("quest_stage", "quest"), &DrossQueryApi::quest_stage);
 }
 
+std::int64_t DrossDialogueOptionQuery::get_initiator_lineage() const {
+  return query_ ? static_cast<std::int64_t>(query_->initiator.id().lineage()) : -1;
+}
+std::int64_t DrossDialogueOptionQuery::get_initiator_sequence() const {
+  return query_ ? static_cast<std::int64_t>(query_->initiator.id().sequence()) : -1;
+}
+std::int64_t DrossDialogueOptionQuery::get_partner_lineage() const {
+  return query_ ? static_cast<std::int64_t>(query_->partner.id().lineage()) : -1;
+}
+std::int64_t DrossDialogueOptionQuery::get_partner_sequence() const {
+  return query_ ? static_cast<std::int64_t>(query_->partner.id().sequence()) : -1;
+}
+godot::String DrossDialogueOptionQuery::get_dialogue() const {
+  return query_ ? godot::String{query_->dialogue.canonical().data()} : godot::String{};
+}
+bool DrossDialogueOptionQuery::add_option(const godot::String& option) {
+  auto parsed = ContentId::parse(utf8(option));
+  if (!transaction_ || !parsed) {
+    return false;
+  }
+  transaction_->add_dialogue_option(*std::move(parsed));
+  return true;
+}
+void DrossDialogueOptionQuery::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_lineage"),
+                              &DrossDialogueOptionQuery::get_initiator_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_sequence"),
+                              &DrossDialogueOptionQuery::get_initiator_sequence);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_lineage"),
+                              &DrossDialogueOptionQuery::get_partner_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_sequence"),
+                              &DrossDialogueOptionQuery::get_partner_sequence);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_dialogue"),
+                              &DrossDialogueOptionQuery::get_dialogue);
+  godot::ClassDB::bind_method(godot::D_METHOD("add_option", "option"),
+                              &DrossDialogueOptionQuery::add_option);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_lineage"), "",
+               "get_initiator_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_sequence"), "",
+               "get_initiator_sequence");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_lineage"), "",
+               "get_partner_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_sequence"), "",
+               "get_partner_sequence");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "dialogue"), "", "get_dialogue");
+}
+
 DrossScriptContext::DrossScriptContext() {
   state_.instantiate();
   random_.instantiate();
@@ -404,8 +451,10 @@ bool GodotScriptRuntime::discover_callbacks(const ScriptModule& module) {
   installed->damage_applied = installed->instance->has_method("on_damage_applied");
   installed->actor_killed = installed->instance->has_method("on_actor_killed");
   installed->dialogue_option_chosen = installed->instance->has_method("on_dialogue_option_chosen");
+  installed->dialogue_options = installed->instance->has_method("contribute_dialogue_options");
   return installed->placement || installed->ability || installed->entity_placed ||
-         installed->damage_applied || installed->actor_killed || installed->dialogue_option_chosen;
+         installed->damage_applied || installed->actor_killed ||
+         installed->dialogue_option_chosen || installed->dialogue_options;
 }
 
 Result<void, std::string> GodotScriptRuntime::invoke(const ScriptModule& module,
@@ -520,6 +569,23 @@ Result<void, std::string> GodotScriptRuntime::on_dialogue_option_chosen(
   godot::Array args;
   args.push_back(generated::godot_api::DrossDialogueOptionChosenEvent::from_core(event));
   return invoke(module, "on_dialogue_option_chosen", args, transaction, random);
+}
+
+Result<void, std::string> GodotScriptRuntime::contribute_dialogue_options(
+    const ScriptModule& module, const ScriptDialogueOptionQuery& query,
+    ScriptCallbackTransaction& transaction, RandomStream& random) {
+  auto* installed = find(module);
+  if (!installed || !installed->dialogue_options) {
+    return {};
+  }
+  godot::Ref<DrossDialogueOptionQuery> wrapper;
+  wrapper.instantiate();
+  wrapper->attach(&query, &transaction);
+  godot::Array args;
+  args.push_back(wrapper);
+  const auto result = invoke(module, "contribute_dialogue_options", args, transaction, random);
+  wrapper->attach(nullptr, nullptr);
+  return result;
 }
 
 } // namespace dross::godot_adapter

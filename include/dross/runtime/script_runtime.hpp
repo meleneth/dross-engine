@@ -122,6 +122,12 @@ enum class ScriptModeCommand : std::uint8_t {
   request_combat,
 };
 
+struct ScriptDialogueOptionQuery {
+  EntityRef initiator;
+  EntityRef partner;
+  ContentId dialogue;
+};
+
 using ScriptQuestCommand =
     std::variant<quest::StartQuest, quest::AdvanceQuest, quest::CompleteQuest>;
 using ScriptInventoryCommand = std::variant<inventory::GrantItem, inventory::RemoveItem>;
@@ -135,6 +141,7 @@ public:
   void request_combat();
   void submit(ScriptInventoryCommand command);
   void submit(ScriptQuestCommand command);
+  void add_dialogue_option(ContentId option);
   void set_state(ScriptStateKey key, ScriptStateValue value);
   [[nodiscard]] const ScriptStateValue* state(const ScriptStateKey& key) const;
 
@@ -154,6 +161,9 @@ public:
   [[nodiscard]] const std::vector<ScriptQuestCommand>& quest_commands() const noexcept {
     return quest_commands_;
   }
+  [[nodiscard]] const std::vector<ContentId>& dialogue_options() const noexcept {
+    return dialogue_options_;
+  }
 
 private:
   const ScriptModule* module_;
@@ -164,6 +174,7 @@ private:
   std::vector<ScriptModeCommand> mode_commands_;
   std::vector<ScriptInventoryCommand> inventory_commands_;
   std::vector<ScriptQuestCommand> quest_commands_;
+  std::vector<ContentId> dialogue_options_;
 };
 
 struct ScriptCallbackError {
@@ -207,6 +218,11 @@ public:
                             ScriptCallbackTransaction&, RandomStream&) {
     return {};
   }
+  [[nodiscard]] virtual Result<void, std::string>
+  contribute_dialogue_options(const ScriptModule&, const ScriptDialogueOptionQuery&,
+                              ScriptCallbackTransaction&, RandomStream&) {
+    return {};
+  }
 };
 
 struct ScriptRuleResult {
@@ -227,6 +243,11 @@ struct ScriptEventResult {
   std::optional<ScriptCallbackError> fault;
 };
 
+struct ScriptDialogueOptionResult {
+  std::vector<ContentId> options;
+  std::optional<ScriptCallbackError> fault;
+};
+
 class TypedScriptRuntime {
 public:
   TypedScriptRuntime(ScriptRuntimePort& port, RandomHub& random) : port_{&port}, random_{&random} {}
@@ -240,6 +261,8 @@ public:
   [[nodiscard]] ScriptEventResult on_actor_killed(const combat::ActorKilled& event, Tick tick);
   [[nodiscard]] ScriptEventResult
   on_dialogue_option_chosen(const dialogue::DialogueOptionChosen& event, Tick tick);
+  [[nodiscard]] ScriptDialogueOptionResult
+  contribute_dialogue_options(const ScriptDialogueOptionQuery& query, Tick tick);
 
   [[nodiscard]] const std::vector<ScriptModule>& modules() const noexcept { return modules_; }
   [[nodiscard]] const ScriptStateBag& state() const noexcept { return state_; }

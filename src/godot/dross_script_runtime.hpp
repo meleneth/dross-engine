@@ -135,6 +135,29 @@ private:
   WorldInstanceId world_instance_{0};
 };
 
+class DrossDialogueOptionQuery final : public godot::RefCounted {
+  GDCLASS(DrossDialogueOptionQuery, godot::RefCounted)
+
+public:
+  [[nodiscard]] std::int64_t get_initiator_lineage() const;
+  [[nodiscard]] std::int64_t get_initiator_sequence() const;
+  [[nodiscard]] std::int64_t get_partner_lineage() const;
+  [[nodiscard]] std::int64_t get_partner_sequence() const;
+  [[nodiscard]] godot::String get_dialogue() const;
+  [[nodiscard]] bool add_option(const godot::String& option);
+  void attach(const ScriptDialogueOptionQuery* query, ScriptCallbackTransaction* transaction) {
+    query_ = query;
+    transaction_ = transaction;
+  }
+
+protected:
+  static void _bind_methods();
+
+private:
+  const ScriptDialogueOptionQuery* query_{nullptr};
+  ScriptCallbackTransaction* transaction_{nullptr};
+};
+
 class DrossScriptContext final : public godot::RefCounted {
   GDCLASS(DrossScriptContext, godot::RefCounted)
 
@@ -210,6 +233,10 @@ public:
   [[nodiscard]] Result<void, std::string>
   on_dialogue_option_chosen(const ScriptModule& module, const dialogue::DialogueOptionChosen& event,
                             ScriptCallbackTransaction& transaction, RandomStream& random) override;
+  [[nodiscard]] Result<void, std::string>
+  contribute_dialogue_options(const ScriptModule& module, const ScriptDialogueOptionQuery& query,
+                              ScriptCallbackTransaction& transaction,
+                              RandomStream& random) override;
   void set_tick(Tick tick) { tick_ = tick; }
   void set_world_instance(WorldInstanceId value) { world_instance_ = value; }
   void set_inventory(const InventoryRuntime* value) { inventory_ = value; }
@@ -225,6 +252,7 @@ private:
     bool damage_applied{false};
     bool actor_killed{false};
     bool dialogue_option_chosen{false};
+    bool dialogue_options{false};
   };
   [[nodiscard]] Installed* find(const ScriptModule& module);
   [[nodiscard]] Result<void, std::string>

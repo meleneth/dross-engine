@@ -36,6 +36,7 @@ public:
   bool request_combat{false};
   bool grant_reward{false};
   bool start_mouse_quest{false};
+  bool contribute_dialogue{false};
   std::vector<std::string> calls;
   std::vector<std::uint64_t> rolls;
 
@@ -111,6 +112,22 @@ public:
     }
     if (fault_event) {
       return tl::unexpected{std::string{"event failed"}};
+    }
+    return {};
+  }
+
+  dross::Result<void, std::string> contribute_dialogue_options(
+      const dross::ScriptModule& module, const dross::ScriptDialogueOptionQuery&,
+      dross::ScriptCallbackTransaction& transaction, dross::RandomStream&) override {
+    if (contribute_dialogue) {
+      transaction.add_dialogue_option(id("thump_demo:leave"));
+      transaction.add_dialogue_option(id("thump_demo:accept_mouse_quest"));
+      if (module.module_id == id("thump_demo:second_dialogue")) {
+        transaction.add_dialogue_option(id("thump_demo:leave"));
+      }
+    }
+    if (fault_event) {
+      return tl::unexpected{std::string{"dialogue contribution failed"}};
     }
     return {};
   }
@@ -342,4 +359,28 @@ TEST_CASE("script quest commands are deferred and discarded on callback fault") 
   const auto rejected = runtime.on_dialogue_option_chosen(chosen, dross::Tick{2});
   REQUIRE(rejected.fault);
   CHECK(rejected.deferred_quest_commands.empty());
+}
+
+TEST_CASE("script dialogue options are canonical and discarded on callback fault") {
+  RecordingPort port;
+  port.contribute_dialogue = true;
+  dross::RandomHub random{dross::MasterSeed{11}};
+  dross::TypedScriptRuntime runtime{port, random};
+  REQUIRE(runtime.install(entity_module("thump_demo:caretaker_dialogue", 3)));
+  REQUIRE(runtime.install(entity_module("thump_demo:second_dialogue", 3)));
+  const auto query = dross::ScriptDialogueOptionQuery{
+      .initiator = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 1}},
+      .partner = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 3}},
+      .dialogue = id("thump_demo:caretaker_dialogue"),
+  };
+
+  const auto accepted = runtime.contribute_dialogue_options(query, dross::Tick{1});
+  REQUIRE_FALSE(accepted.fault);
+  CHECK(accepted.options ==
+        std::vector{id("thump_demo:accept_mouse_quest"), id("thump_demo:leave")});
+
+  port.fault_event = true;
+  const auto rejected = runtime.contribute_dialogue_options(query, dross::Tick{2});
+  REQUIRE(rejected.fault);
+  CHECK(rejected.options.empty());
 }

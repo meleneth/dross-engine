@@ -156,6 +156,43 @@ struct DrossWorldHost::ScriptScenarioState final : DialogueRuntime::EventSink {
     return true;
   }
 
+  [[nodiscard]] std::optional<std::vector<ContentId>>
+  dialogue_options(const ContentId& dialogue_id) {
+    port.set_tick(tick);
+    const auto result = runtime.contribute_dialogue_options(
+        ScriptDialogueOptionQuery{
+            .initiator = player,
+            .partner = caretaker,
+            .dialogue = dialogue_id,
+        },
+        tick);
+    if (result.fault) {
+      script_fault = true;
+      return std::nullopt;
+    }
+    return result.options;
+  }
+
+  [[nodiscard]] bool choose_dialogue_option(const ContentId& dialogue_id, const ContentId& option) {
+    const auto before = dialogue.snapshot();
+    const auto offered = dialogue_options(dialogue_id);
+    if (!offered ||
+        !dialogue.handle(dialogue::BeginDialogue{
+            .initiator = player, .partner = caretaker, .dialogue = dialogue_id}) ||
+        !dialogue.offer_options(*offered) ||
+        !dialogue.handle(dialogue::ChooseDialogueOption{.initiator = player,
+                                                        .partner = caretaker,
+                                                        .dialogue = dialogue_id,
+                                                        .option = option}) ||
+        script_fault ||
+        !dialogue.handle(dialogue::EndDialogue{
+            .initiator = player, .partner = caretaker, .dialogue = dialogue_id})) {
+      static_cast<void>(dialogue.restore(before));
+      return false;
+    }
+    return true;
+  }
+
   EntityRef player{WorldInstanceId{synthetic_instance}, EntityId{7, 1}};
   EntityRef caretaker{WorldInstanceId{synthetic_instance}, EntityId{7, 3}};
   GodotScriptRuntime port;
@@ -572,20 +609,7 @@ bool DrossWorldHost::accept_mouse_quest_dialogue() {
   auto& scenario = *script_state_;
   const auto dialogue_id = ContentId::parse("thump_demo:caretaker_dialogue").value();
   const auto option = ContentId::parse("thump_demo:accept_mouse_quest").value();
-  if (!scenario.dialogue.handle(dialogue::BeginDialogue{
-          .initiator = scenario.player, .partner = scenario.caretaker, .dialogue = dialogue_id}) ||
-      !scenario.dialogue.offer_options({option}) ||
-      !scenario.dialogue.handle(dialogue::ChooseDialogueOption{.initiator = scenario.player,
-                                                               .partner = scenario.caretaker,
-                                                               .dialogue = dialogue_id,
-                                                               .option = option})) {
-    return false;
-  }
-  return !scenario.script_fault && scenario.dialogue.handle(dialogue::EndDialogue{
-                                       .initiator = scenario.player,
-                                       .partner = scenario.caretaker,
-                                       .dialogue = dialogue_id,
-                                   });
+  return scenario.choose_dialogue_option(dialogue_id, option);
 }
 
 bool DrossWorldHost::hand_in_mouse_tail_dialogue() {
@@ -598,21 +622,10 @@ bool DrossWorldHost::hand_in_mouse_tail_dialogue() {
   if (scenario.quests.stage(ContentId::parse("thump_demo:mouse_quest").value()) !=
           ContentId::parse("thump_demo:return_tail").value() ||
       !scenario.inventory.has(scenario.player, ContentId::parse("thump_demo:mouse_tail").value(),
-                              1) ||
-      !scenario.dialogue.handle(dialogue::BeginDialogue{
-          .initiator = scenario.player, .partner = scenario.caretaker, .dialogue = dialogue_id}) ||
-      !scenario.dialogue.offer_options({option}) ||
-      !scenario.dialogue.handle(dialogue::ChooseDialogueOption{.initiator = scenario.player,
-                                                               .partner = scenario.caretaker,
-                                                               .dialogue = dialogue_id,
-                                                               .option = option})) {
+                              1)) {
     return false;
   }
-  return !scenario.script_fault && scenario.dialogue.handle(dialogue::EndDialogue{
-                                       .initiator = scenario.player,
-                                       .partner = scenario.caretaker,
-                                       .dialogue = dialogue_id,
-                                   });
+  return scenario.choose_dialogue_option(dialogue_id, option);
 }
 
 godot::String DrossWorldHost::get_quest_status(const godot::String& quest) const {

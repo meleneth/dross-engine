@@ -239,6 +239,10 @@ void ScriptCallbackTransaction::submit(ScriptQuestCommand command) {
   quest_commands_.push_back(std::move(command));
 }
 
+void ScriptCallbackTransaction::add_dialogue_option(ContentId option) {
+  dialogue_options_.push_back(std::move(option));
+}
+
 void ScriptCallbackTransaction::set_state(ScriptStateKey key, ScriptStateValue value) {
   state_writes_.push_back(ScriptStateWrite{
       .address =
@@ -507,6 +511,32 @@ TypedScriptRuntime::on_dialogue_option_chosen(const dialogue::DialogueOptionChos
                                           transaction.quest_commands().begin(),
                                           transaction.quest_commands().end());
   }
+  return result;
+}
+
+ScriptDialogueOptionResult
+TypedScriptRuntime::contribute_dialogue_options(const ScriptDialogueOptionQuery& query,
+                                                const Tick tick) {
+  ScriptDialogueOptionResult result;
+  for (const auto& module : modules_) {
+    ScriptCallbackTransaction transaction{module, state_};
+    auto callback =
+        port_->contribute_dialogue_options(module, query, transaction, stream_for(module));
+    if (!callback) {
+      result.fault = ScriptCallbackError{.module_id = module.module_id,
+                                         .scope = module.scope,
+                                         .callback = "contribute_dialogue_options",
+                                         .tick = tick,
+                                         .message = callback.error()};
+      result.options.clear();
+      return result;
+    }
+    result.options.insert(result.options.end(), transaction.dialogue_options().begin(),
+                          transaction.dialogue_options().end());
+  }
+  std::ranges::sort(result.options);
+  const auto duplicates = std::ranges::unique(result.options);
+  result.options.erase(duplicates.begin(), duplicates.end());
   return result;
 }
 

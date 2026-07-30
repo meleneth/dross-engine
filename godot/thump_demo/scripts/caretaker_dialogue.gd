@@ -1,6 +1,29 @@
 extends DrossEntityScript
 
 
+func contribute_dialogue_options(
+		query: DrossDialogueOptionQuery, context: DrossScriptContext) -> void:
+	if query.dialogue != "thump_demo:caretaker_dialogue":
+		return
+	if not context.query.is_owner(query.partner_lineage, query.partner_sequence):
+		return
+	query.add_option("thump_demo:leave")
+	var quest_status := context.query.quest_status("thump_demo:mouse_quest")
+	if quest_status == "inactive":
+		query.add_option("thump_demo:accept_mouse_quest")
+	elif (
+			quest_status == "active"
+			and context.query.quest_stage("thump_demo:mouse_quest") == "thump_demo:return_tail"
+			and context.query.has_item(
+				query.initiator_lineage,
+				query.initiator_sequence,
+				"thump_demo:mouse_tail",
+				1
+			)
+	):
+		query.add_option("thump_demo:hand_over_mouse_tail")
+
+
 func on_dialogue_option_chosen(
 		event: DrossDialogueOptionChosenEvent, context: DrossScriptContext) -> void:
 	if event.dialogue != "thump_demo:caretaker_dialogue":

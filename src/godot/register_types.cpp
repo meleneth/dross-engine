@@ -41,6 +41,7 @@ void initialize_dross_module(godot::ModuleInitializationLevel level) {
   godot::ClassDB::register_class<dross::godot_adapter::DrossRandomApi>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossCommandApi>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossQueryApi>();
+  godot::ClassDB::register_class<dross::godot_adapter::DrossDialogueOptionQuery>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossScriptContext>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossCallbackLogger>();
   godot::ClassDB::register_class<dross::godot_adapter::DrossWorldHost>();
