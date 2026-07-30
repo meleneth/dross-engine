@@ -40,6 +40,11 @@ engine identities use `dross:`. Test fixtures may use a test-owned namespace,
 but production ThumpDemo code does not use the earlier `demo:` or
 `dross_demo:` identities.
 
+ThumpDemo uses the 42-color
+[LoSpec500 palette](https://lospec.com/palette-list/lospec500). Scene
+materials, environment colors, UI styles, grid lines, paths, and interaction
+feedback must select exact colors from that palette.
+
 ## Build and test
 
 The supported local baseline is CMake 3.25 or newer, Ninja, a C++20 compiler,

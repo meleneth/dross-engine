@@ -27,6 +27,15 @@ func _initialize() -> void:
 			"integrated overlay did not receive the authoritative movement map")
 	check(overlay.get_cell_keys() == compiled_map.get_cell_keys(),
 			"runtime grid differs from the authoritative movement map")
+	var overlay_material: StandardMaterial3D = overlay.mesh.surface_get_material(0)
+	check(overlay_material != null and overlay_material.vertex_color_use_as_albedo,
+			"runtime grid material ignores hover and path vertex colors")
+	check(overlay_material != null and
+			overlay_material.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED,
+			"runtime grid material does not preserve exact palette colors")
+	var player_material: StandardMaterial3D = demo.get_node("Player/Visual").mesh.material
+	check(player_material.albedo_color.is_equal_approx(Color8(51, 136, 222)),
+			"player material is outside the LoSpec500 palette")
 	var initial_hash: String = demo.get_node(
 			"DrossWorldHost").get_canonical_capability_hash()
 	check(initial_hash.length() == 64, "diagnostic canonical hash is not BLAKE3-256")

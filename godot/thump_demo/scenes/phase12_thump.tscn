@@ -1,12 +1,18 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://thump_demo/scenes/phase12_thump.gd" id="1_script"]
 
+[sub_resource type="StandardMaterial3D" id="FloorMaterial"]
+shading_mode = 0
+albedo_color = Color(0.117647, 0.25098, 0.266667, 1)
+
 [sub_resource type="PlaneMesh" id="FloorMesh"]
+material = SubResource("FloorMaterial")
 size = Vector2(10, 7)
 
 [sub_resource type="StandardMaterial3D" id="PlayerMaterial"]
-albedo_color = Color(0.15, 0.45, 0.95, 1)
+shading_mode = 0
+albedo_color = Color(0.2, 0.533333, 0.870588, 1)
 
 [sub_resource type="CapsuleMesh" id="PlayerMesh"]
 material = SubResource("PlayerMaterial")
@@ -14,7 +20,8 @@ radius = 0.45
 height = 1.8
 
 [sub_resource type="StandardMaterial3D" id="MouseMaterial"]
-albedo_color = Color(0.45, 0.24, 0.12, 1)
+shading_mode = 0
+albedo_color = Color(0.635294, 0.427451, 0.247059, 1)
 
 [sub_resource type="SphereMesh" id="MouseMesh"]
 material = SubResource("MouseMaterial")
@@ -22,7 +29,8 @@ radius = 0.42
 height = 0.84
 
 [sub_resource type="StandardMaterial3D" id="DoorMaterial"]
-albedo_color = Color(0.5, 0.28, 0.08, 1)
+shading_mode = 0
+albedo_color = Color(0.807843, 0.572549, 0.282353, 1)
 
 [sub_resource type="BoxMesh" id="DoorMesh"]
 material = SubResource("DoorMaterial")
@@ -30,9 +38,9 @@ size = Vector3(0.18, 2.2, 1.4)
 
 [sub_resource type="Environment" id="Environment"]
 background_mode = 1
-background_color = Color(0.06, 0.075, 0.1, 1)
+background_color = Color(0.0627451, 0.0705882, 0.109804, 1)
 ambient_light_source = 3
-ambient_light_color = Color(0.65, 0.72, 0.85, 1)
+ambient_light_color = Color(0.690196, 0.654902, 0.721569, 1)
 ambient_light_energy = 0.7
 
 [node name="Phase12Thump" type="Node3D"]

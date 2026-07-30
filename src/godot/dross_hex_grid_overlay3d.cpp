@@ -35,6 +35,9 @@ godot::String key_for(const HexCellId& cell) {
 
 DrossHexGridOverlay3D::DrossHexGridOverlay3D() {
   mesh_.instantiate();
+  material_.instantiate();
+  material_->set_shading_mode(godot::BaseMaterial3D::SHADING_MODE_UNSHADED);
+  material_->set_flag(godot::BaseMaterial3D::FLAG_ALBEDO_FROM_VERTEX_COLOR, true);
   set_mesh(mesh_);
 }
 
@@ -55,18 +58,18 @@ void DrossHexGridOverlay3D::rebuild() {
   if (compiled_.is_null() || !compiled_->core()) {
     return;
   }
-  mesh_->surface_begin(godot::Mesh::PRIMITIVE_LINES);
+  mesh_->surface_begin(godot::Mesh::PRIMITIVE_LINES, material_);
   for (const auto& cell : compiled_->core()->map.cell_ids()) {
     const auto center = center_for(cell, cell_radius_);
     const auto facts = compiled_->core()->map.cell(cell).value();
     const auto key = key_for(cell);
     const auto hovered = key == hover_cell_key_;
     const auto on_path = path_cell_keys_.has(key);
-    const auto color = hovered && hover_state_ == 1   ? godot::Color{0.15F, 1.0F, 0.3F, 1.0F}
-                       : hovered && hover_state_ == 2 ? godot::Color{1.0F, 0.15F, 0.15F, 1.0F}
-                       : on_path                      ? godot::Color{1.0F, 0.8F, 0.1F, 1.0F}
-                                 : (facts.traversable ? godot::Color{0.35F, 0.55F, 0.7F, 0.8F}
-                                                      : godot::Color{0.3F, 0.3F, 0.35F, 0.65F});
+    const auto color = hovered && hover_state_ == 1   ? godot::Color::html("5ab552")
+                       : hovered && hover_state_ == 2 ? godot::Color::html("ec273f")
+                       : on_path                      ? godot::Color::html("f3a833")
+                       : facts.traversable            ? godot::Color::html("5e5b8c")
+                                                      : godot::Color::html("3e3b65");
     std::array<godot::Vector3, 6> corners{};
     for (std::size_t index = 0; index < corners.size(); ++index) {
       const auto angle = pi / 6.0 + pi / 3.0 * static_cast<double>(index);

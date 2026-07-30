@@ -4,6 +4,7 @@
 
 #include <godot_cpp/classes/immediate_mesh.hpp>
 #include <godot_cpp/classes/mesh_instance3d.hpp>
+#include <godot_cpp/classes/standard_material3d.hpp>
 
 #include <cstdint>
 
@@ -32,6 +33,7 @@ protected:
 private:
   godot::Ref<DrossCompiledHexMap> compiled_;
   godot::Ref<godot::ImmediateMesh> mesh_;
+  godot::Ref<godot::StandardMaterial3D> material_;
   godot::PackedStringArray path_cell_keys_;
   godot::String hover_cell_key_;
   std::int64_t hover_state_{0};
