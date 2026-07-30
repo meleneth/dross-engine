@@ -23,7 +23,7 @@ The first proving game slice is intentionally tiny:
 - real-time exploration;
 - turn-based combat;
 - one ability named `Thump`;
-- one GDScript-authored reaction;
+- one GDScript-authored dialogue, inventory, and quest loop;
 - save, reload, and deterministic replay.
 
 The small surface is not permission to build disposable internals. Every implemented path must establish the architecture that later content will use.
@@ -35,9 +35,10 @@ The small surface is not permission to build disposable internals. Every impleme
 UI, and behavior scripts are game code rather than generic Dross
 infrastructure. Godot boundary fixtures remain under `godot/tests/`.
 
-New ThumpDemo content uses the `thump_demo:` ContentId namespace. Phase 15 is
-migrating the earlier mixed demo namespaces as the affected save and replay
-fixtures receive explicit replacements.
+New ThumpDemo content uses the `thump_demo:` ContentId namespace. Generic
+engine identities use `dross:`. Test fixtures may use a test-owned namespace,
+but production ThumpDemo code does not use the earlier `demo:` or
+`dross_demo:` identities.
 
 ## Build and test
 
@@ -163,11 +164,83 @@ GDScript contributes rules and reacts to immutable typed events. It does not
 mutate ECS components. Durable values belong in `context.state`, and
 authoritative randomness comes from `context.random`.
 
-The live, tested example is
-`godot/thump_demo/scripts/field_mouse.gd`. It contributes an ability rule, reacts
-to `DrossDamageAppliedEvent` and `DrossActorKilledEvent`, writes durable state,
-and uses a deterministic named random stream. Its boundary assertions are in
-`godot/tests/run_phase12.gd` and `godot/tests/run_phase14.gd`.
+The production examples are deliberately short:
+
+- `godot/thump_demo/scripts/caretaker_dialogue.gd` gates dialogue outcomes with
+  inventory and quest queries, then submits typed quest and inventory commands;
+- `godot/thump_demo/scripts/field_mouse.gd` reacts to committed damage and death
+  and grants the authored mouse-tail item;
+- `godot/thump_demo/scripts/mouse_quest.gd` reacts to committed death and
+  advances the authored quest stage.
+
+Query authoritative inventory; do not mirror it in a node or script field:
+
+```gdscript
+if context.query.has_item(
+        event.initiator_lineage,
+        event.initiator_sequence,
+        "thump_demo:mouse_tail",
+        1):
+    var count := context.query.inventory_count(
+        event.initiator_lineage,
+        event.initiator_sequence,
+        "thump_demo:mouse_tail")
+```
+
+Submit a typed deferred inventory command:
+
+```gdscript
+context.commands.remove_item(
+    event.initiator_lineage,
+    event.initiator_sequence,
+    "thump_demo:mouse_tail",
+    1)
+```
+
+Gate caretaker behavior with authoritative quest state:
+
+```gdscript
+if (
+        context.query.quest_status("thump_demo:mouse_quest") == "active"
+        and context.query.quest_stage("thump_demo:mouse_quest")
+            == "thump_demo:return_tail"
+):
+    context.commands.complete_quest(
+        "thump_demo:mouse_quest", "thump_demo:return_tail")
+```
+
+React to a committed fact in a quest module:
+
+```gdscript
+func on_actor_killed(
+        event: DrossActorKilledEvent, context: DrossScriptContext) -> void:
+    if event.target_sequence != 2:
+        return
+    context.commands.advance_quest(
+        "thump_demo:mouse_quest",
+        "thump_demo:hunt_mouse",
+        "thump_demo:return_tail")
+```
+
+These calls append commands to the callback transaction. Native inventory and
+quest runtimes validate and commit them only after the callback succeeds.
+Multi-command hand-ins roll back as a unit if any command rejects.
+
+### Add game content or an engine capability?
+
+Keep a change in the game project when it uses existing authoritative shapes:
+new dialogue wording and option IDs, quest-specific sequencing, item IDs,
+authored conditions, presentation reactions, scenes, and UI belong under
+`godot/thump_demo/` (or the equivalent folder in another game).
+
+Add a C++ engine capability when the change needs a new authoritative storage
+shape, a new component type, a new command or immutable fact schema, a new
+deterministic query, a new lifecycle machine, or new save/replay data. GDScript
+cannot add ECS component storage, mutate the registry, or make Godot scene
+state authoritative.
+
+The boundary assertions are in `godot/tests/run_phase12.gd` and
+`godot/tests/run_phase14.gd`.
 
 ## Record replay and inspect save failures
 
