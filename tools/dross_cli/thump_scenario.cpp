@@ -283,7 +283,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   const auto mouse_tail = content_id("thump_demo:mouse_tail");
   const auto caretaker_dialogue = content_id("thump_demo:caretaker_dialogue");
   const auto accept_quest = content_id("thump_demo:accept_mouse_quest");
-  const auto hand_over_tail = content_id("thump_demo:hand_over_tail");
+  const auto hand_over_tail = content_id("thump_demo:hand_over_mouse_tail");
   const auto leave = content_id("thump_demo:leave");
   if (!dialogue->handle(dross::dialogue::BeginDialogue{
           .initiator = player,
@@ -470,6 +470,19 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       })) {
     throw std::logic_error{"ThumpDemo mouse quest advance failed"};
   }
+  checkpoints.push_back(dross::canonical_checkpoint(
+      dross::Tick{1}, *world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
+      std::span<const dross::PlaceEntityEnvelope>{},
+      {.movement = {},
+       .combat = combat->snapshot(),
+       .combat_actors = resolver->snapshot(),
+       .door = {},
+       .script = {},
+       .inventory = inventory->snapshot(),
+       .quest = quests.snapshot(),
+       .dialogue = dialogue->snapshot()}));
+  save_checkpoints.push_back(
+      SaveCheckpoint{.name = "tail-held-tick-1", .save = save_checkpoint(dross::Tick{1}, true)});
   if (!dialogue->handle(dross::dialogue::BeginDialogue{
           .initiator = player,
           .partner = caretaker,
@@ -503,7 +516,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
     throw std::logic_error{"ThumpDemo caretaker hand-in commit failed"};
   }
   checkpoints.push_back(dross::canonical_checkpoint(
-      dross::Tick{1}, *world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
+      dross::Tick{2}, *world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
       std::span<const dross::PlaceEntityEnvelope>{},
       {.movement = {},
        .combat = combat->snapshot(),
@@ -514,7 +527,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
        .quest = quests.snapshot(),
        .dialogue = dialogue->snapshot()}));
   save_checkpoints.push_back(
-      SaveCheckpoint{.name = "completed-tick-1", .save = save_checkpoint(dross::Tick{1}, true)});
+      SaveCheckpoint{.name = "completed-tick-2", .save = save_checkpoint(dross::Tick{2}, true)});
   return {
       .replay =
           dross::ReplayLog{

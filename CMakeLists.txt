@@ -223,7 +223,7 @@ add_test(
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/thump-v1.dross-replay")
 set_tests_properties(
   headless.replay_fixture
-  PROPERTIES PASS_REGULAR_EXPRESSION "^replay verified checkpoints=2")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^replay verified checkpoints=3")
 add_test(
   NAME headless.compare_runs
   COMMAND dross_headless compare-runs
@@ -231,7 +231,7 @@ add_test(
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/thump-v1.dross-replay")
 set_tests_properties(
   headless.compare_runs
-  PROPERTIES PASS_REGULAR_EXPRESSION "^runs match checkpoints=2")
+  PROPERTIES PASS_REGULAR_EXPRESSION "^runs match checkpoints=3")
 add_test(
   NAME headless.thump_save_checkpoints
   COMMAND dross_headless scenario thump-on-field-mouse --seed 12345
@@ -241,7 +241,7 @@ set_tests_properties(
   PROPERTIES
     FIXTURES_SETUP thump_save_checkpoints
     PASS_REGULAR_EXPRESSION
-      "^thump-on-field-mouse seed=12345 .* checkpoints=2 exploration_resumed=match combat_resumed=match")
+      "^thump-on-field-mouse seed=12345 .* checkpoints=3 exploration_resumed=match combat_resumed=match")
 add_test(
   NAME headless.inspect_thump_exploration_save
   COMMAND dross_headless inspect-save
@@ -261,14 +261,23 @@ set_tests_properties(
     FIXTURES_REQUIRED thump_save_checkpoints
     PASS_REGULAR_EXPRESSION "^save version=1 tick=0 components=5 streams=1")
 add_test(
+  NAME headless.inspect_thump_tail_held_save
+  COMMAND dross_headless inspect-save
+          "${CMAKE_CURRENT_BINARY_DIR}/thump-saves/tail-held-tick-1.dross-save")
+set_tests_properties(
+  headless.inspect_thump_tail_held_save
+  PROPERTIES
+    FIXTURES_REQUIRED thump_save_checkpoints
+    PASS_REGULAR_EXPRESSION "^save version=1 tick=1 components=5 streams=1")
+add_test(
   NAME headless.inspect_thump_completed_save
   COMMAND dross_headless inspect-save
-          "${CMAKE_CURRENT_BINARY_DIR}/thump-saves/completed-tick-1.dross-save")
+          "${CMAKE_CURRENT_BINARY_DIR}/thump-saves/completed-tick-2.dross-save")
 set_tests_properties(
   headless.inspect_thump_completed_save
   PROPERTIES
     FIXTURES_REQUIRED thump_save_checkpoints
-    PASS_REGULAR_EXPRESSION "^save version=1 tick=1 components=5 streams=1")
+    PASS_REGULAR_EXPRESSION "^save version=1 tick=2 components=5 streams=1")
 add_test(
   NAME headless.persistence_foundation
   COMMAND dross_headless scenario persistence-foundation --seed 12345

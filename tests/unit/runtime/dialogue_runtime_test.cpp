@@ -76,7 +76,7 @@ TEST_CASE("dialogue rejects unoffered stale and foreign choices without mutation
       .initiator = player,
       .partner = caretaker,
       .dialogue = id("thump_demo:caretaker_dialogue"),
-      .option = id("thump_demo:hand_over_tail"),
+      .option = id("thump_demo:hand_over_mouse_tail"),
   });
   const auto foreign = dialogue.handle(dross::dialogue::ChooseDialogueOption{
       .initiator = dross::EntityRef{dross::WorldInstanceId{99}, player.id()},
