@@ -244,10 +244,65 @@ dispatch_persistence_command(const std::span<const char* const> arguments) {
   return std::nullopt;
 }
 
-} // namespace
+[[nodiscard]] int run_exploration_scenario(const std::span<const char* const> arguments) {
+  std::uint64_t seed = default_scenario_seed;
+  std::string record_path;
+  for (std::size_t index = 3; index < arguments.size(); index += 2) {
+    if (index + 1 >= arguments.size()) {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+    const std::string_view option{arguments[index]};
+    if (option == "--record") {
+      record_path = arguments[index + 1];
+      continue;
+    }
+    if (option != "--seed") {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+    const std::string_view value{arguments[index + 1]};
+    const auto parsed = std::from_chars(value.data(), value.data() + value.size(), seed);
+    if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+  }
+  return run_exploration_movement_scenario(seed, record_path);
+}
 
-int main(const int argument_count, const char* const arguments[]) {
-  if (argument_count == 2 && std::string_view{arguments[1]} == "version") {
+[[nodiscard]] int run_thump_command(const std::span<const char* const> arguments) {
+  std::uint64_t seed = default_scenario_seed;
+  std::string record_path;
+  std::string save_checkpoint_directory;
+  for (std::size_t index = 3; index < arguments.size(); index += 2) {
+    if (index + 1 >= arguments.size()) {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+    const std::string_view option{arguments[index]};
+    if (option == "--record") {
+      record_path = arguments[index + 1];
+    } else if (option == "--save-checkpoints") {
+      save_checkpoint_directory = arguments[index + 1];
+    } else if (option == "--seed") {
+      const std::string_view value{arguments[index + 1]};
+      const auto parsed = std::from_chars(value.data(), value.data() + value.size(), seed);
+      if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
+        print_usage(std::cerr);
+        return usage_error;
+      }
+    } else {
+      print_usage(std::cerr);
+      return usage_error;
+    }
+  }
+  return run_thump_scenario(seed, record_path, save_checkpoint_directory);
+}
+
+[[nodiscard]] std::optional<int>
+dispatch_information_command(const std::span<const char* const> arguments) {
+  if (arguments.size() == 2 && std::string_view{arguments[1]} == "version") {
     if (!foundation_self_check()) {
       std::cerr << "foundation self-check failed\n";
       return self_check_error;
@@ -255,111 +310,85 @@ int main(const int argument_count, const char* const arguments[]) {
     std::cout << dross::build_information() << '\n';
     return 0;
   }
-
-  if (argument_count == 3 && std::string_view{arguments[1]} == "validate-id") {
-    const std::string_view input{arguments[2]};
-    const auto parsed = dross::ContentId::parse(input);
-    if (!parsed) {
-      std::cerr << "invalid ContentId at byte " << parsed.error().position << ": "
-                << reason_text(parsed.error().reason) << '\n';
-      return validation_error;
-    }
-    std::cout << parsed->canonical() << '\n';
-    return 0;
+  if (arguments.size() != 3 || std::string_view{arguments[1]} != "validate-id") {
+    return std::nullopt;
   }
+  const std::string_view input{arguments[2]};
+  const auto parsed = dross::ContentId::parse(input);
+  if (!parsed) {
+    std::cerr << "invalid ContentId at byte " << parsed.error().position << ": "
+              << reason_text(parsed.error().reason) << '\n';
+    return validation_error;
+  }
+  std::cout << parsed->canonical() << '\n';
+  return 0;
+}
 
-  if (argument_count == 3 && std::string_view{arguments[1]} == "scenario" &&
-      std::string_view{arguments[2]} == "identity-lifecycle") {
+[[nodiscard]] std::optional<int>
+dispatch_scenario_command(const std::span<const char* const> arguments) {
+  if (arguments.size() < 3 || std::string_view{arguments[1]} != "scenario") {
+    return std::nullopt;
+  }
+  const std::string_view scenario{arguments[2]};
+  if (arguments.size() == 3 && scenario == "identity-lifecycle") {
     return run_identity_lifecycle();
   }
-  if (argument_count == 3 && std::string_view{arguments[1]} == "scenario" &&
-      std::string_view{arguments[2]} == "hex-pathing") {
+  if (arguments.size() == 3 && scenario == "hex-pathing") {
     return run_hex_pathing_scenario();
   }
-  if (argument_count == 3 && std::string_view{arguments[1]} == "scenario" &&
-      std::string_view{arguments[2]} == "grid-bake") {
+  if (arguments.size() == 3 && scenario == "grid-bake") {
     return run_grid_bake();
   }
-  if (argument_count >= 3 && std::string_view{arguments[1]} == "scenario" &&
-      std::string_view{arguments[2]} == "command-event-kernel") {
-    return run_command_scenario({arguments, static_cast<std::size_t>(argument_count)});
+  if (scenario == "command-event-kernel") {
+    return run_command_scenario(arguments);
   }
-  if (argument_count >= 3 && std::string_view{arguments[1]} == "scenario" &&
-      std::string_view{arguments[2]} == "exploration-movement") {
-    std::uint64_t seed = default_scenario_seed;
-    std::string record_path;
-    for (std::size_t index = 3; index < static_cast<std::size_t>(argument_count); index += 2) {
-      if (index + 1 >= static_cast<std::size_t>(argument_count)) {
-        print_usage(std::cerr);
-        return usage_error;
-      }
-      const std::string_view option{arguments[index]};
-      if (option == "--record") {
-        record_path = arguments[index + 1];
-      } else if (option == "--seed") {
-        const std::string_view value{arguments[index + 1]};
-        const auto parsed = std::from_chars(value.data(), value.data() + value.size(), seed);
-        if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
-          print_usage(std::cerr);
-          return usage_error;
-        }
-      } else {
-        print_usage(std::cerr);
-        return usage_error;
-      }
-    }
-    return run_exploration_movement_scenario(seed, record_path);
+  if (scenario == "exploration-movement") {
+    return run_exploration_scenario(arguments);
   }
-  if (argument_count >= 3 && std::string_view{arguments[1]} == "scenario" &&
-      std::string_view{arguments[2]} == "thump-on-field-mouse") {
-    std::uint64_t seed = default_scenario_seed;
-    std::string record_path;
-    std::string save_checkpoint_directory;
-    for (std::size_t index = 3; index < static_cast<std::size_t>(argument_count); index += 2) {
-      if (index + 1 >= static_cast<std::size_t>(argument_count)) {
-        print_usage(std::cerr);
-        return usage_error;
-      }
-      const std::string_view option{arguments[index]};
-      if (option == "--record") {
-        record_path = arguments[index + 1];
-      } else if (option == "--save-checkpoints") {
-        save_checkpoint_directory = arguments[index + 1];
-      } else if (option == "--seed") {
-        const std::string_view value{arguments[index + 1]};
-        const auto parsed = std::from_chars(value.data(), value.data() + value.size(), seed);
-        if (parsed.ec != std::errc{} || parsed.ptr != value.data() + value.size()) {
-          print_usage(std::cerr);
-          return usage_error;
-        }
-      } else {
-        print_usage(std::cerr);
-        return usage_error;
-      }
-    }
-    return run_thump_scenario(seed, record_path, save_checkpoint_directory);
+  if (scenario == "thump-on-field-mouse") {
+    return run_thump_command(arguments);
   }
-  const auto persistence =
-      dispatch_persistence_command({arguments, static_cast<std::size_t>(argument_count)});
-  if (persistence) {
-    return *persistence;
-  }
-  if ((argument_count == 3 || argument_count == lifecycle_record_argument_count) &&
-      std::string_view{arguments[1]} == "scenario" &&
-      std::string_view{arguments[2]} == "lifecycle-machines") {
-    if (argument_count == 3) {
+  if (scenario == "lifecycle-machines" &&
+      (arguments.size() == 3 || arguments.size() == lifecycle_record_argument_count)) {
+    if (arguments.size() == 3) {
       return run_lifecycle_machine_scenario({});
     }
     if (std::string_view{arguments[3]} == "--record") {
       return run_lifecycle_machine_scenario(arguments[4]);
     }
   }
-  if (argument_count == 4 && std::string_view{arguments[1]} == "replay" &&
+  return std::nullopt;
+}
+
+[[nodiscard]] std::optional<int>
+dispatch_replay_command(const std::span<const char* const> arguments) {
+  if (arguments.size() == 4 && std::string_view{arguments[1]} == "replay" &&
       std::string_view{arguments[2]} == "--verify-checkpoints") {
     return run_replay_verification(arguments[3]);
   }
-  if (argument_count == 4 && std::string_view{arguments[1]} == "compare-runs") {
+  if (arguments.size() == 4 && std::string_view{arguments[1]} == "compare-runs") {
     return compare_runs(arguments[2], arguments[3]);
+  }
+  return std::nullopt;
+}
+
+} // namespace
+
+int main(const int argument_count, const char* const arguments[]) {
+  const std::span<const char* const> command_line{arguments,
+                                                  static_cast<std::size_t>(argument_count)};
+  if (const auto information = dispatch_information_command(command_line)) {
+    return *information;
+  }
+  if (const auto scenario = dispatch_scenario_command(command_line)) {
+    return *scenario;
+  }
+  const auto persistence = dispatch_persistence_command(command_line);
+  if (persistence) {
+    return *persistence;
+  }
+  if (const auto replay = dispatch_replay_command(command_line)) {
+    return *replay;
   }
 
   print_usage(std::cerr);
