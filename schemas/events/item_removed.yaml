@@ -1,0 +1,15 @@
+kind: event
+namespace: dross.inventory
+name: ItemRemoved
+version: 1
+id: dross:item_removed
+script_api: true
+fields:
+  - name: owner
+    type: entity_ref
+  - name: item
+    type: content_id
+  - name: count
+    type: uint32
+  - name: new_count
+    type: uint32

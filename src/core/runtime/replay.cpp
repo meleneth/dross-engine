@@ -184,6 +184,11 @@ CheckpointHash canonical_capability_hash(const Tick tick,
   if (capabilities.script) {
     add("script/state", encode_script_state(*capabilities.script));
   }
+  if (capabilities.inventory) {
+    ByteWriter encoded;
+    encode_inventory_snapshot(encoded, *capabilities.inventory);
+    add("inventory", encoded.bytes());
+  }
   return hash_bytes(writer.bytes());
 }
 
@@ -260,6 +265,11 @@ void encode_capability_section(const CanonicalCapabilitySnapshot& capabilities,
               address.key.value(),
           hash_bytes(encode_script_state(single_value)));
     }
+  }
+  if (capabilities.inventory) {
+    ByteWriter inventory;
+    encode_inventory_snapshot(inventory, *capabilities.inventory);
+    add_capability("inventory", inventory.bytes());
   }
   if (!capability_state.bytes().empty()) {
     sections.emplace(CheckpointSection::capabilities, hash_bytes(capability_state.bytes()));

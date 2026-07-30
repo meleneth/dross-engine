@@ -136,7 +136,8 @@ ScenarioResult execute(const std::uint64_t seed) {
          .combat = {},
          .combat_actors = {},
          .door = {},
-         .script = {}}));
+         .script = {},
+         .inventory = {}}));
     if (tick == 1) {
       const auto save = dross::SaveContainer{
           .header =
@@ -167,6 +168,7 @@ ScenarioResult execute(const std::uint64_t seed) {
               },
           .door = {},
           .script = {},
+          .inventory = {},
           .components = dross::snapshot_world_components(world),
       };
       save_bytes = dross::encode_save_container(save);
@@ -242,7 +244,8 @@ ScenarioResult execute(const std::uint64_t seed) {
          .combat = {},
          .combat_actors = {},
          .door = {},
-         .script = {}});
+         .script = {},
+         .inventory = {}});
     if (resumed_checkpoint.overall != checkpoints[static_cast<std::size_t>(tick)].overall) {
       throw std::logic_error{"movement scenario resumed checkpoint diverged"};
     }

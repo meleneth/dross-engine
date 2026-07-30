@@ -118,6 +118,38 @@
   - `entity`: `entity_ref`
   - `pose`: `hex_pose`
 
+## `dross:grant_item`
+
+- Kind: `command`
+- C++ type: `dross::inventory::GrantItem`
+- Version: 1
+- Fields:
+  - `owner`: `entity_ref`
+  - `item`: `content_id`
+  - `count`: `uint32`
+
+## `dross:item_granted`
+
+- Kind: `event`
+- C++ type: `dross::inventory::ItemGranted`
+- Version: 1
+- Fields:
+  - `owner`: `entity_ref`
+  - `item`: `content_id`
+  - `count`: `uint32`
+  - `new_count`: `uint32`
+
+## `dross:item_removed`
+
+- Kind: `event`
+- C++ type: `dross::inventory::ItemRemoved`
+- Version: 1
+- Fields:
+  - `owner`: `entity_ref`
+  - `item`: `content_id`
+  - `count`: `uint32`
+  - `new_count`: `uint32`
+
 ## `dross:move_to`
 
 - Kind: `command`
@@ -181,6 +213,16 @@
 - Fields:
   - `entity`: `entity_ref`
   - `target`: `hex_pose`
+
+## `dross:remove_item`
+
+- Kind: `command`
+- C++ type: `dross::inventory::RemoveItem`
+- Version: 1
+- Fields:
+  - `owner`: `entity_ref`
+  - `item`: `content_id`
+  - `count`: `uint32`
 
 ## `dross:request_combat_start`
 

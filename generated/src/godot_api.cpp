@@ -230,6 +230,126 @@ void DrossEntityPlacedEvent::_bind_methods() {
                "get_pose_facing");
 }
 
+godot::Ref<DrossItemGrantedEvent>
+DrossItemGrantedEvent::from_core(
+    const dross::inventory::ItemGranted& value) {
+  godot::Ref<DrossItemGrantedEvent> event;
+  event.instantiate();
+  event->owner_world_ = value.owner.world_instance().value();
+  event->owner_lineage_ = value.owner.id().lineage();
+  event->owner_sequence_ = value.owner.id().sequence();
+  event->item_ = godot::String{value.item.canonical().data()};
+  event->count_ = value.count;
+  event->new_count_ = value.new_count;
+  return event;
+}
+
+std::int64_t DrossItemGrantedEvent::get_owner_world() const {
+  return static_cast<std::int64_t>(owner_world_);
+}
+std::int64_t DrossItemGrantedEvent::get_owner_lineage() const {
+  return static_cast<std::int64_t>(owner_lineage_);
+}
+std::int64_t DrossItemGrantedEvent::get_owner_sequence() const {
+  return static_cast<std::int64_t>(owner_sequence_);
+}
+godot::String DrossItemGrantedEvent::get_item() const {
+  return item_;
+}
+std::int64_t DrossItemGrantedEvent::get_count() const {
+  return count_;
+}
+std::int64_t DrossItemGrantedEvent::get_new_count() const {
+  return new_count_;
+}
+
+void DrossItemGrantedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_owner_world"),
+                              &DrossItemGrantedEvent::get_owner_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_owner_lineage"),
+                              &DrossItemGrantedEvent::get_owner_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_owner_sequence"),
+                              &DrossItemGrantedEvent::get_owner_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "owner_world"), "",
+               "get_owner_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "owner_lineage"), "",
+               "get_owner_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "owner_sequence"), "",
+               "get_owner_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_item"),
+                              &DrossItemGrantedEvent::get_item);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "item"), "",
+               "get_item");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_count"),
+                              &DrossItemGrantedEvent::get_count);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "count"), "",
+               "get_count");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_new_count"),
+                              &DrossItemGrantedEvent::get_new_count);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "new_count"), "",
+               "get_new_count");
+}
+
+godot::Ref<DrossItemRemovedEvent>
+DrossItemRemovedEvent::from_core(
+    const dross::inventory::ItemRemoved& value) {
+  godot::Ref<DrossItemRemovedEvent> event;
+  event.instantiate();
+  event->owner_world_ = value.owner.world_instance().value();
+  event->owner_lineage_ = value.owner.id().lineage();
+  event->owner_sequence_ = value.owner.id().sequence();
+  event->item_ = godot::String{value.item.canonical().data()};
+  event->count_ = value.count;
+  event->new_count_ = value.new_count;
+  return event;
+}
+
+std::int64_t DrossItemRemovedEvent::get_owner_world() const {
+  return static_cast<std::int64_t>(owner_world_);
+}
+std::int64_t DrossItemRemovedEvent::get_owner_lineage() const {
+  return static_cast<std::int64_t>(owner_lineage_);
+}
+std::int64_t DrossItemRemovedEvent::get_owner_sequence() const {
+  return static_cast<std::int64_t>(owner_sequence_);
+}
+godot::String DrossItemRemovedEvent::get_item() const {
+  return item_;
+}
+std::int64_t DrossItemRemovedEvent::get_count() const {
+  return count_;
+}
+std::int64_t DrossItemRemovedEvent::get_new_count() const {
+  return new_count_;
+}
+
+void DrossItemRemovedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_owner_world"),
+                              &DrossItemRemovedEvent::get_owner_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_owner_lineage"),
+                              &DrossItemRemovedEvent::get_owner_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_owner_sequence"),
+                              &DrossItemRemovedEvent::get_owner_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "owner_world"), "",
+               "get_owner_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "owner_lineage"), "",
+               "get_owner_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "owner_sequence"), "",
+               "get_owner_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_item"),
+                              &DrossItemRemovedEvent::get_item);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "item"), "",
+               "get_item");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_count"),
+                              &DrossItemRemovedEvent::get_count);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "count"), "",
+               "get_count");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_new_count"),
+                              &DrossItemRemovedEvent::get_new_count);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "new_count"), "",
+               "get_new_count");
+}
+
 void DrossAbilityRuleQuery::reject(const godot::String& reason) {
   const auto utf8 = reason.utf8();
   auto parsed = ContentId::parse(
@@ -280,6 +400,8 @@ void register_generated_godot_types() {
   godot::ClassDB::register_class<DrossActorKilledEvent>();
   godot::ClassDB::register_class<DrossDamageAppliedEvent>();
   godot::ClassDB::register_class<DrossEntityPlacedEvent>();
+  godot::ClassDB::register_class<DrossItemGrantedEvent>();
+  godot::ClassDB::register_class<DrossItemRemovedEvent>();
   godot::ClassDB::register_class<DrossAbilityRuleQuery>();
   godot::ClassDB::register_class<DrossPlacementRuleQuery>();
 }

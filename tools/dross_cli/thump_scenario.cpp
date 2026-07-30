@@ -6,6 +6,7 @@
 #include <dross/persistence/save_container.hpp>
 #include <dross/random/random_hub.hpp>
 #include <dross/runtime/combat_runtime.hpp>
+#include <dross/runtime/inventory_runtime.hpp>
 #include <dross/runtime/machine_trace.hpp>
 #include <dross/runtime/simulation_mode.hpp>
 #include <dross/runtime/world_lifecycle.hpp>
@@ -94,7 +95,8 @@ dross::OccupancyIndex rebuild_occupancy(const dross::WorldStorage& world) {
 }
 
 class CanonicalCombatEvents final : public dross::CombatSession::EventSink,
-                                    public dross::AbilityResolver::EventSink {
+                                    public dross::AbilityResolver::EventSink,
+                                    public dross::InventoryRuntime::EventSink {
 public:
   void publish(const dross::combat::CombatStarted& event) override {
     trace_.push_back("combat_started/" + entity_text(event.active_actor.id()));
@@ -126,6 +128,18 @@ public:
                      entity_text(event.target.id()) + "/" + std::string{event.ability.canonical()});
   }
 
+  void publish(const dross::inventory::ItemGranted& event) override {
+    trace_.push_back("item_granted/" + entity_text(event.owner.id()) + "/" +
+                     std::string{event.item.canonical()} + "/" + std::to_string(event.count) + "/" +
+                     std::to_string(event.new_count));
+  }
+
+  void publish(const dross::inventory::ItemRemoved& event) override {
+    trace_.push_back("item_removed/" + entity_text(event.owner.id()) + "/" +
+                     std::string{event.item.canonical()} + "/" + std::to_string(event.count) + "/" +
+                     std::to_string(event.new_count));
+  }
+
   [[nodiscard]] const std::vector<std::string>& trace() const noexcept { return trace_; }
 
 private:
@@ -148,6 +162,7 @@ struct ScenarioResult {
   bool killed;
   dross::CombatSessionSnapshot combat;
   dross::AbilityResolverSnapshot actors;
+  dross::InventorySnapshot inventory;
   std::vector<std::string> events;
 };
 
@@ -214,6 +229,8 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
     throw std::logic_error{"Thump scenario lifecycle setup failed"};
   }
   auto random = std::make_unique<dross::RandomHub>(dross::MasterSeed{seed});
+  auto inventory =
+      std::make_unique<dross::InventoryRuntime>(instance, std::vector{player.id()}, &events);
   std::unique_ptr<dross::CombatSession> combat;
   dross::RandomStream* damage_random = nullptr;
   std::unique_ptr<dross::AbilityResolver> resolver;
@@ -249,6 +266,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
         .movement = {},
         .door = {},
         .script = {},
+        .inventory = inventory->snapshot(),
         .components = dross::snapshot_world_components(*world),
     };
   };
@@ -264,6 +282,11 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
                                                                 .random = random,
                                                                 .lifecycle = lifecycle,
                                                                 .mode = mode});
+    inventory =
+        std::make_unique<dross::InventoryRuntime>(instance, std::vector{player.id()}, &events);
+    if (!inventory->restore(save_checkpoints.back().save.inventory.value())) {
+      throw std::logic_error{"Thump exploration-boundary inventory restore failed"};
+    }
   }
 
   if (!mode.request_combat() || !mode.reach_safe_boundary()) {
@@ -295,7 +318,8 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
        .combat = combat->snapshot(),
        .combat_actors = resolver->snapshot(),
        .door = {},
-       .script = {}}));
+       .script = {},
+       .inventory = inventory->snapshot()}));
   save_checkpoints.push_back(
       SaveCheckpoint{.name = "combat-tick-0", .save = save_checkpoint(dross::Tick{0}, true)});
 
@@ -326,11 +350,21 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       throw std::logic_error{"Thump ability state restore failed"};
     }
     resolver = std::move(*restored_resolver);
+    if (!decoded->inventory || !inventory->restore(*decoded->inventory)) {
+      throw std::logic_error{"Thump combat-boundary inventory restore failed"};
+    }
   }
   const auto result = resolver->perform(thump, player.id(), mouse.id());
   if (!result.accepted || !result.killed ||
       combat->state() != dross::CombatSessionState::completed) {
     throw std::logic_error{"Thump scenario ability resolution failed"};
+  }
+  if (!inventory->handle(dross::inventory::GrantItem{
+          .owner = player,
+          .item = content_id("thump_demo:mouse_tail"),
+          .count = 1,
+      })) {
+    throw std::logic_error{"ThumpDemo mouse-tail grant failed"};
   }
   checkpoints.push_back(dross::canonical_checkpoint(
       dross::Tick{1}, *world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
@@ -339,7 +373,8 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
        .combat = combat->snapshot(),
        .combat_actors = resolver->snapshot(),
        .door = {},
-       .script = {}}));
+       .script = {},
+       .inventory = inventory->snapshot()}));
   save_checkpoints.push_back(
       SaveCheckpoint{.name = "completed-tick-1", .save = save_checkpoint(dross::Tick{1}, true)});
   return {
@@ -364,6 +399,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       .killed = result.killed,
       .combat = combat->snapshot(),
       .actors = resolver->snapshot(),
+      .inventory = inventory->snapshot(),
       .events = events.trace(),
   };
 }
@@ -410,7 +446,8 @@ int run_thump_scenario(const std::uint64_t seed, const std::string& record_path,
     const auto matches = [&](const ScenarioResult& resumed) {
       return uninterrupted.mouse_health == resumed.mouse_health &&
              uninterrupted.killed == resumed.killed && uninterrupted.combat == resumed.combat &&
-             uninterrupted.actors == resumed.actors && uninterrupted.events == resumed.events;
+             uninterrupted.actors == resumed.actors &&
+             uninterrupted.inventory == resumed.inventory && uninterrupted.events == resumed.events;
     };
     if (exploration_divergence || combat_divergence || !matches(exploration_resumed) ||
         !matches(combat_resumed)) {
@@ -428,6 +465,7 @@ int run_thump_scenario(const std::uint64_t seed, const std::string& record_path,
     std::cout << "thump-on-field-mouse seed=" << seed
               << " mouse_health=" << uninterrupted.mouse_health.value()
               << " killed=" << (uninterrupted.killed ? "yes" : "no")
+              << " mouse_tails=" << uninterrupted.inventory.entries.front().count
               << " checkpoints=" << uninterrupted.replay.checkpoints.size()
               << " exploration_resumed=match combat_resumed=match\n";
     return 0;

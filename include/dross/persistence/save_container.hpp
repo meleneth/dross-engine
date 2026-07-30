@@ -5,6 +5,7 @@
 #include <dross/foundation/version.hpp>
 #include <dross/runtime/combat_runtime.hpp>
 #include <dross/runtime/door_runtime.hpp>
+#include <dross/runtime/inventory_runtime.hpp>
 #include <dross/runtime/movement_runtime.hpp>
 #include <dross/runtime/replay.hpp>
 #include <dross/runtime/script_runtime.hpp>
@@ -140,6 +141,7 @@ struct SaveContainer {
   std::optional<MovementBoundarySnapshot> movement;
   std::optional<DoorBoundarySnapshot> door;
   std::optional<ScriptBoundarySnapshot> script;
+  std::optional<InventorySnapshot> inventory;
   std::vector<ComponentRecord> components;
 
   [[nodiscard]] bool operator==(const SaveContainer&) const = default;
@@ -177,11 +179,9 @@ public:
   [[nodiscard]] const std::vector<PlannedEntity>& entities() const noexcept { return entities_; }
 
 private:
-  friend Result<WorldLoadPlan, WorldLoadError> build_world_load_plan(const SaveContainer&,
-                                                                     const ComponentCodecRegistry&,
-                                                                     const ContentId&,
-                                                                     const CheckpointHash&,
-                                                                     const ContentManifest&);
+  friend Result<WorldLoadPlan, WorldLoadError>
+  build_world_load_plan(const SaveContainer&, const ComponentCodecRegistry&, const ContentId&,
+                        const CheckpointHash&, const ContentManifest&);
 
   std::uint64_t lineage_;
   EntityIdAllocatorSnapshot allocator_;

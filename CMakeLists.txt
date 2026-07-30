@@ -40,6 +40,7 @@ add_library(dross_core STATIC
   src/core/runtime/combat_runtime.cpp
   src/core/runtime/door_runtime.cpp
   src/core/runtime/fixed_tick_runtime.cpp
+  src/core/runtime/inventory_runtime.cpp
   src/core/runtime/machine_trace.cpp
   src/core/runtime/movement_runtime.cpp
   src/core/runtime/replay.cpp
@@ -150,6 +151,7 @@ add_executable(dross_tests
   tests/unit/runtime/combat_runtime_test.cpp
   tests/unit/runtime/door_runtime_test.cpp
   tests/unit/runtime/fixed_tick_runtime_test.cpp
+  tests/unit/runtime/inventory_runtime_test.cpp
   tests/unit/runtime/replay_test.cpp
   tests/unit/runtime/movement_runtime_test.cpp
   tests/unit/runtime/script_runtime_test.cpp

@@ -48,6 +48,7 @@ dross::SaveContainer container_with(std::vector<dross::ComponentRecord> records)
       .movement = {},
       .door = {},
       .script = {},
+      .inventory = {},
       .components = std::move(records),
   };
 }
@@ -245,6 +246,25 @@ TEST_CASE("save container round trip preserves required header and component rec
   CHECK(*decoded == expected);
 }
 
+TEST_CASE("save container round trips authoritative inventory") {
+  auto expected = container_with({});
+  expected.inventory = dross::InventorySnapshot{
+      .entries =
+          {
+              dross::InventoryEntry{
+                  .owner = dross::EntityId{9, 1},
+                  .item = content_id("test:mouse_tail"),
+                  .count = 1,
+              },
+          },
+  };
+
+  const auto decoded = dross::decode_save_container(dross::encode_save_container(expected));
+
+  REQUIRE(decoded);
+  CHECK(decoded->inventory == expected.inventory);
+}
+
 TEST_CASE("save container round trips a typed combat actor-turn boundary") {
   auto expected = container_with({});
   dross::CombatSession session{{
@@ -431,9 +451,8 @@ TEST_CASE("world load rejects an unknown required component record") {
       },
   });
 
-  const auto plan = dross::build_world_load_plan(save, registry, save.header.map_id,
-                                                 save.header.map_hash,
-                                                 dross::engine_content_manifest());
+  const auto plan = dross::build_world_load_plan(
+      save, registry, save.header.map_id, save.header.map_hash, dross::engine_content_manifest());
 
   REQUIRE_FALSE(plan);
   CHECK(plan.error() == dross::WorldLoadError::component_invalid);
@@ -484,9 +503,9 @@ TEST_CASE("world load plan validates completely before constructing a fresh worl
       },
   });
 
-  const auto plan = dross::build_world_load_plan(container, registry, container.header.map_id,
-                                                 container.header.map_hash,
-                                                 dross::engine_content_manifest());
+  const auto plan =
+      dross::build_world_load_plan(container, registry, container.header.map_id,
+                                   container.header.map_hash, dross::engine_content_manifest());
 
   REQUIRE(plan);
   const auto loaded = plan->construct(dross::WorldInstanceId{77});
@@ -520,12 +539,11 @@ TEST_CASE("world load plan rejects map mismatch and orphan components") {
   auto wrong_hash = container.header.map_hash;
   wrong_hash.front() ^= 0xFFU;
 
-  const auto map_mismatch =
-      dross::build_world_load_plan(container, registry, container.header.map_id, wrong_hash,
-                                   dross::engine_content_manifest());
-  const auto orphan = dross::build_world_load_plan(container, registry, container.header.map_id,
-                                                   container.header.map_hash,
-                                                   dross::engine_content_manifest());
+  const auto map_mismatch = dross::build_world_load_plan(
+      container, registry, container.header.map_id, wrong_hash, dross::engine_content_manifest());
+  const auto orphan =
+      dross::build_world_load_plan(container, registry, container.header.map_id,
+                                   container.header.map_hash, dross::engine_content_manifest());
 
   REQUIRE_FALSE(map_mismatch);
   CHECK(map_mismatch.error() == dross::WorldLoadError::map_mismatch);
@@ -539,17 +557,17 @@ TEST_CASE("world load plan rejects changed or missing required content before co
   auto changed = container_with({});
   changed.content_manifest.back().content_hash.front() ^= 0xFFU;
 
-  const auto changed_result = dross::build_world_load_plan(changed, registry, changed.header.map_id,
-                                                           changed.header.map_hash,
-                                                           dross::engine_content_manifest());
+  const auto changed_result =
+      dross::build_world_load_plan(changed, registry, changed.header.map_id,
+                                   changed.header.map_hash, dross::engine_content_manifest());
   REQUIRE_FALSE(changed_result);
   CHECK(changed_result.error() == dross::WorldLoadError::content_manifest_mismatch);
 
   auto missing = container_with({});
   missing.content_manifest.pop_back();
-  const auto missing_result = dross::build_world_load_plan(missing, registry, missing.header.map_id,
-                                                           missing.header.map_hash,
-                                                           dross::engine_content_manifest());
+  const auto missing_result =
+      dross::build_world_load_plan(missing, registry, missing.header.map_id,
+                                   missing.header.map_hash, dross::engine_content_manifest());
   REQUIRE_FALSE(missing_result);
   CHECK(missing_result.error() == dross::WorldLoadError::content_manifest_mismatch);
 }
@@ -576,9 +594,9 @@ TEST_CASE("world component snapshot round trips through a fresh world") {
 
   dross::ComponentCodecRegistry registry;
   REQUIRE(dross::register_current_component_codecs(registry));
-  const auto plan = dross::build_world_load_plan(container, registry, container.header.map_id,
-                                                 container.header.map_hash,
-                                                 dross::engine_content_manifest());
+  const auto plan =
+      dross::build_world_load_plan(container, registry, container.header.map_id,
+                                   container.header.map_hash, dross::engine_content_manifest());
   REQUIRE(plan);
   const auto loaded = plan->construct(dross::WorldInstanceId{2});
 
@@ -689,9 +707,8 @@ TEST_CASE("replay checkpoints can begin from a freshly loaded save snapshot") {
   save.header.allocator = original.allocator_snapshot();
   dross::ComponentCodecRegistry registry;
   REQUIRE(dross::register_current_component_codecs(registry));
-  const auto plan = dross::build_world_load_plan(save, registry, save.header.map_id,
-                                                 save.header.map_hash,
-                                                 dross::engine_content_manifest());
+  const auto plan = dross::build_world_load_plan(
+      save, registry, save.header.map_id, save.header.map_hash, dross::engine_content_manifest());
   REQUIRE(plan);
   const auto loaded = plan->construct(dross::WorldInstanceId{2});
   REQUIRE(loaded);

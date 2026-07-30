@@ -11,12 +11,16 @@
 #include <dross/generated/door_opened.hpp>
 #include <dross/generated/end_turn.hpp>
 #include <dross/generated/entity_placed.hpp>
+#include <dross/generated/grant_item.hpp>
+#include <dross/generated/item_granted.hpp>
+#include <dross/generated/item_removed.hpp>
 #include <dross/generated/move_to.hpp>
 #include <dross/generated/movement_completed.hpp>
 #include <dross/generated/movement_started.hpp>
 #include <dross/generated/open_door.hpp>
 #include <dross/generated/perform_ability.hpp>
 #include <dross/generated/place_entity.hpp>
+#include <dross/generated/remove_item.hpp>
 #include <dross/generated/request_combat_start.hpp>
 #include <dross/generated/turn_started.hpp>
 #include <dross/generated/schema_registry.hpp>
@@ -48,6 +52,12 @@ static_assert(std::is_standard_layout_v<
 static_assert(std::is_standard_layout_v<
     dross::placement::EntityPlaced>);
 static_assert(std::is_standard_layout_v<
+    dross::inventory::GrantItem>);
+static_assert(std::is_standard_layout_v<
+    dross::inventory::ItemGranted>);
+static_assert(std::is_standard_layout_v<
+    dross::inventory::ItemRemoved>);
+static_assert(std::is_standard_layout_v<
     dross::movement::MoveTo>);
 static_assert(std::is_standard_layout_v<
     dross::movement::MovementCompleted>);
@@ -60,7 +70,9 @@ static_assert(std::is_standard_layout_v<
 static_assert(std::is_standard_layout_v<
     dross::placement::PlaceEntity>);
 static_assert(std::is_standard_layout_v<
+    dross::inventory::RemoveItem>);
+static_assert(std::is_standard_layout_v<
     dross::combat::RequestCombatStart>);
 static_assert(std::is_standard_layout_v<
     dross::combat::TurnStarted>);
-static_assert(dross::generated::schema_registry.size() == 22);
+static_assert(dross::generated::schema_registry.size() == 26);

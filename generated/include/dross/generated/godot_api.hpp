@@ -4,6 +4,8 @@
 #include <dross/generated/actor_killed.hpp>
 #include <dross/generated/damage_applied.hpp>
 #include <dross/generated/entity_placed.hpp>
+#include <dross/generated/item_granted.hpp>
+#include <dross/generated/item_removed.hpp>
 #include <dross/identity/content_id.hpp>
 
 #include <godot_cpp/classes/ref.hpp>
@@ -98,6 +100,56 @@ private:
   std::int32_t pose_r_{0};
   std::int32_t pose_layer_{0};
   std::uint8_t pose_facing_{0};
+};
+
+class DrossItemGrantedEvent final : public godot::RefCounted {
+  GDCLASS(DrossItemGrantedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossItemGrantedEvent>
+  from_core(const dross::inventory::ItemGranted& value);
+  [[nodiscard]] std::int64_t get_owner_world() const;
+  [[nodiscard]] std::int64_t get_owner_lineage() const;
+  [[nodiscard]] std::int64_t get_owner_sequence() const;
+  [[nodiscard]] godot::String get_item() const;
+  [[nodiscard]] std::int64_t get_count() const;
+  [[nodiscard]] std::int64_t get_new_count() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  std::uint64_t owner_world_{0};
+  std::uint64_t owner_lineage_{0};
+  std::uint64_t owner_sequence_{0};
+  godot::String item_;
+  std::uint32_t count_{0};
+  std::uint32_t new_count_{0};
+};
+
+class DrossItemRemovedEvent final : public godot::RefCounted {
+  GDCLASS(DrossItemRemovedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossItemRemovedEvent>
+  from_core(const dross::inventory::ItemRemoved& value);
+  [[nodiscard]] std::int64_t get_owner_world() const;
+  [[nodiscard]] std::int64_t get_owner_lineage() const;
+  [[nodiscard]] std::int64_t get_owner_sequence() const;
+  [[nodiscard]] godot::String get_item() const;
+  [[nodiscard]] std::int64_t get_count() const;
+  [[nodiscard]] std::int64_t get_new_count() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  std::uint64_t owner_world_{0};
+  std::uint64_t owner_lineage_{0};
+  std::uint64_t owner_sequence_{0};
+  godot::String item_;
+  std::uint32_t count_{0};
+  std::uint32_t new_count_{0};
 };
 
 class DrossAbilityRuleQuery final : public godot::RefCounted {

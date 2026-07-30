@@ -51,9 +51,12 @@ TEST_CASE("capability diagnostic hash covers tick and capability presence") {
       dross::canonical_capability_hash(dross::Tick{4}, dross::CanonicalCapabilitySnapshot{});
   dross::ScriptStateBag script;
   const auto with_script = dross::canonical_capability_hash(
-      dross::Tick{3},
-      dross::CanonicalCapabilitySnapshot{
-          .movement = {}, .combat = {}, .combat_actors = {}, .door = {}, .script = script});
+      dross::Tick{3}, dross::CanonicalCapabilitySnapshot{.movement = {},
+                                                         .combat = {},
+                                                         .combat_actors = {},
+                                                         .door = {},
+                                                         .script = script,
+                                                         .inventory = {}});
 
   CHECK(empty != later);
   CHECK(empty != with_script);
@@ -110,14 +113,26 @@ TEST_CASE("movement state changes the localized capability checkpoint") {
       .cancel_requested = false,
       .combat_stop_requested = false,
   };
-  const auto first = dross::canonical_checkpoint(
-      dross::Tick{0}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
-      {}, {.movement = movement, .combat = {}, .combat_actors = {}, .door = {}, .script = {}});
+  const auto first =
+      dross::canonical_checkpoint(dross::Tick{0}, world, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {},
+                                  {.movement = movement,
+                                   .combat = {},
+                                   .combat_actors = {},
+                                   .door = {},
+                                   .script = {},
+                                   .inventory = {}});
   auto changed = movement;
   changed.cancel_requested = true;
-  const auto second = dross::canonical_checkpoint(
-      dross::Tick{0}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
-      {}, {.movement = changed, .combat = {}, .combat_actors = {}, .door = {}, .script = {}});
+  const auto second =
+      dross::canonical_checkpoint(dross::Tick{0}, world, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {},
+                                  {.movement = changed,
+                                   .combat = {},
+                                   .combat_actors = {},
+                                   .door = {},
+                                   .script = {},
+                                   .inventory = {}});
 
   const std::array first_values{first};
   const std::array second_values{second};
@@ -125,6 +140,28 @@ TEST_CASE("movement state changes the localized capability checkpoint") {
   REQUIRE(divergence);
   CHECK(divergence->section == dross::CheckpointSection::capabilities);
   CHECK(divergence->detail == "movement");
+}
+
+TEST_CASE("inventory state changes the localized capability checkpoint") {
+  const auto empty = dross::canonical_capability_hash(dross::Tick{4}, {});
+  const auto held = dross::canonical_capability_hash(
+      dross::Tick{4}, {.movement = {},
+                       .combat = {},
+                       .combat_actors = {},
+                       .door = {},
+                       .script = {},
+                       .inventory = dross::InventorySnapshot{
+                           .entries =
+                               {
+                                   dross::InventoryEntry{
+                                       .owner = dross::EntityId{52, 1},
+                                       .item = dross::ContentId::parse("test:mouse_tail").value(),
+                                       .count = 1,
+                                   },
+                               },
+                       }});
+
+  CHECK(held != empty);
 }
 
 TEST_CASE("replay divergence localizes an unexpected capability section") {
@@ -159,9 +196,15 @@ TEST_CASE("replay divergence localizes an unexpected capability section") {
       .cancel_requested = false,
       .combat_stop_requested = false,
   };
-  const auto actual = dross::canonical_checkpoint(
-      dross::Tick{0}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
-      {}, {.movement = movement, .combat = {}, .combat_actors = {}, .door = {}, .script = {}});
+  const auto actual =
+      dross::canonical_checkpoint(dross::Tick{0}, world, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {},
+                                  {.movement = movement,
+                                   .combat = {},
+                                   .combat_actors = {},
+                                   .door = {},
+                                   .script = {},
+                                   .inventory = {}});
 
   const std::array expected_values{expected};
   const std::array actual_values{actual};
@@ -288,13 +331,24 @@ TEST_CASE("replay divergence localizes the first differing combat actor") {
   auto actual_actors = expected_actors;
   actual_actors.actors.back().health = dross::HitPoints{1};
 
-  const auto expected = dross::canonical_checkpoint(
-      dross::Tick{4}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
-      {},
-      {.movement = {}, .combat = {}, .combat_actors = expected_actors, .door = {}, .script = {}});
-  const auto actual = dross::canonical_checkpoint(
-      dross::Tick{4}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
-      {}, {.movement = {}, .combat = {}, .combat_actors = actual_actors, .door = {}, .script = {}});
+  const auto expected =
+      dross::canonical_checkpoint(dross::Tick{4}, world, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {},
+                                  {.movement = {},
+                                   .combat = {},
+                                   .combat_actors = expected_actors,
+                                   .door = {},
+                                   .script = {},
+                                   .inventory = {}});
+  const auto actual =
+      dross::canonical_checkpoint(dross::Tick{4}, world, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {},
+                                  {.movement = {},
+                                   .combat = {},
+                                   .combat_actors = actual_actors,
+                                   .door = {},
+                                   .script = {},
+                                   .inventory = {}});
 
   const std::array expected_values{expected};
   const std::array actual_values{actual};
@@ -327,13 +381,24 @@ TEST_CASE("replay divergence localizes the first differing script state key") {
   dross::ScriptStateBag actual_state;
   actual_state.apply({dross::ScriptStateWrite{.address = address, .value = std::int64_t{2}}});
 
-  const auto expected = dross::canonical_checkpoint(
-      dross::Tick{4}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
-      {},
-      {.movement = {}, .combat = {}, .combat_actors = {}, .door = {}, .script = expected_state});
-  const auto actual = dross::canonical_checkpoint(
-      dross::Tick{4}, world, occupancy, random.snapshot(), lifecycle.snapshot(), mode.snapshot(),
-      {}, {.movement = {}, .combat = {}, .combat_actors = {}, .door = {}, .script = actual_state});
+  const auto expected =
+      dross::canonical_checkpoint(dross::Tick{4}, world, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {},
+                                  {.movement = {},
+                                   .combat = {},
+                                   .combat_actors = {},
+                                   .door = {},
+                                   .script = expected_state,
+                                   .inventory = {}});
+  const auto actual =
+      dross::canonical_checkpoint(dross::Tick{4}, world, occupancy, random.snapshot(),
+                                  lifecycle.snapshot(), mode.snapshot(), {},
+                                  {.movement = {},
+                                   .combat = {},
+                                   .combat_actors = {},
+                                   .door = {},
+                                   .script = actual_state,
+                                   .inventory = {}});
 
   const std::array expected_values{expected};
   const std::array actual_values{actual};
