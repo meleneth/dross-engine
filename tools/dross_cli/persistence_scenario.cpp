@@ -255,6 +255,7 @@ int run_persistence_scenario(const std::uint64_t seed, const std::string& save_p
         .door = {},
         .script = {},
         .inventory = {},
+        .quest = {},
         .components = dross::snapshot_world_components(world),
     };
     const auto bytes = dross::encode_save_container(save);

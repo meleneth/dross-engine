@@ -1,0 +1,9 @@
+kind: event
+namespace: dross.quest
+name: QuestFailed
+version: 1
+id: dross:quest_failed
+script_api: true
+fields:
+  - name: quest
+    type: content_id

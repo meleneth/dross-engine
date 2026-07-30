@@ -7,6 +7,7 @@
 #include <dross/runtime/door_runtime.hpp>
 #include <dross/runtime/inventory_runtime.hpp>
 #include <dross/runtime/movement_runtime.hpp>
+#include <dross/runtime/quest_runtime.hpp>
 #include <dross/runtime/replay.hpp>
 #include <dross/runtime/script_runtime.hpp>
 #include <dross/world/world_storage.hpp>
@@ -142,6 +143,7 @@ struct SaveContainer {
   std::optional<DoorBoundarySnapshot> door;
   std::optional<ScriptBoundarySnapshot> script;
   std::optional<InventorySnapshot> inventory;
+  std::optional<QuestSnapshot> quest;
   std::vector<ComponentRecord> components;
 
   [[nodiscard]] bool operator==(const SaveContainer&) const = default;

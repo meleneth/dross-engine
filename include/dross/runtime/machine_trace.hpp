@@ -8,6 +8,7 @@ namespace dross {
 enum class MachineFamily : std::uint8_t {
   world_lifecycle,
   simulation_mode,
+  quest,
 };
 
 enum class MachineStateId : std::uint8_t {
@@ -21,6 +22,10 @@ enum class MachineStateId : std::uint8_t {
   exploration,
   combat_pending,
   combat,
+  quest_inactive,
+  quest_active,
+  quest_completed,
+  quest_failed,
 };
 
 enum class MachineEventId : std::uint8_t {
@@ -40,6 +45,10 @@ enum class MachineEventId : std::uint8_t {
   combat_ended,
   runtime_work_requested,
   save_boundary_requested,
+  quest_started,
+  quest_advanced,
+  quest_completed,
+  quest_failed,
 };
 
 enum class MachineEventOutcome : std::uint8_t {

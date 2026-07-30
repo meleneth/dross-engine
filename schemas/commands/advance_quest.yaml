@@ -1,0 +1,12 @@
+kind: command
+namespace: dross.quest
+name: AdvanceQuest
+version: 1
+id: dross:advance_quest
+fields:
+  - name: quest
+    type: content_id
+  - name: expected_stage
+    type: content_id
+  - name: next_stage
+    type: content_id

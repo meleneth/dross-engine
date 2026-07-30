@@ -1,0 +1,13 @@
+kind: event
+namespace: dross.quest
+name: QuestAdvanced
+version: 1
+id: dross:quest_advanced
+script_api: true
+fields:
+  - name: quest
+    type: content_id
+  - name: previous_stage
+    type: content_id
+  - name: current_stage
+    type: content_id

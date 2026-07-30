@@ -49,6 +49,7 @@ dross::SaveContainer container_with(std::vector<dross::ComponentRecord> records)
       .door = {},
       .script = {},
       .inventory = {},
+      .quest = {},
       .components = std::move(records),
   };
 }
@@ -263,6 +264,25 @@ TEST_CASE("save container round trips authoritative inventory") {
 
   REQUIRE(decoded);
   CHECK(decoded->inventory == expected.inventory);
+}
+
+TEST_CASE("save container round trips authoritative quest progress") {
+  auto expected = container_with({});
+  expected.quest = dross::QuestSnapshot{
+      .entries =
+          {
+              dross::QuestProgressSnapshot{
+                  .quest = content_id("test:mouse_quest"),
+                  .status = dross::QuestStatus::active,
+                  .stage = content_id("test:return_tail"),
+              },
+          },
+  };
+
+  const auto decoded = dross::decode_save_container(dross::encode_save_container(expected));
+
+  REQUIRE(decoded);
+  CHECK(decoded->quest == expected.quest);
 }
 
 TEST_CASE("save container round trips a typed combat actor-turn boundary") {

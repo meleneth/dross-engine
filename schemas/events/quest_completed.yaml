@@ -1,0 +1,9 @@
+kind: event
+namespace: dross.quest
+name: QuestCompleted
+version: 1
+id: dross:quest_completed
+script_api: true
+fields:
+  - name: quest
+    type: content_id

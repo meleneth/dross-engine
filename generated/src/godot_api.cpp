@@ -350,6 +350,110 @@ void DrossItemRemovedEvent::_bind_methods() {
                "get_new_count");
 }
 
+godot::Ref<DrossQuestAdvancedEvent>
+DrossQuestAdvancedEvent::from_core(
+    const dross::quest::QuestAdvanced& value) {
+  godot::Ref<DrossQuestAdvancedEvent> event;
+  event.instantiate();
+  event->quest_ = godot::String{value.quest.canonical().data()};
+  event->previous_stage_ = godot::String{value.previous_stage.canonical().data()};
+  event->current_stage_ = godot::String{value.current_stage.canonical().data()};
+  return event;
+}
+
+godot::String DrossQuestAdvancedEvent::get_quest() const {
+  return quest_;
+}
+godot::String DrossQuestAdvancedEvent::get_previous_stage() const {
+  return previous_stage_;
+}
+godot::String DrossQuestAdvancedEvent::get_current_stage() const {
+  return current_stage_;
+}
+
+void DrossQuestAdvancedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_quest"),
+                              &DrossQuestAdvancedEvent::get_quest);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "quest"), "",
+               "get_quest");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_previous_stage"),
+                              &DrossQuestAdvancedEvent::get_previous_stage);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "previous_stage"), "",
+               "get_previous_stage");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_current_stage"),
+                              &DrossQuestAdvancedEvent::get_current_stage);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "current_stage"), "",
+               "get_current_stage");
+}
+
+godot::Ref<DrossQuestCompletedEvent>
+DrossQuestCompletedEvent::from_core(
+    const dross::quest::QuestCompleted& value) {
+  godot::Ref<DrossQuestCompletedEvent> event;
+  event.instantiate();
+  event->quest_ = godot::String{value.quest.canonical().data()};
+  return event;
+}
+
+godot::String DrossQuestCompletedEvent::get_quest() const {
+  return quest_;
+}
+
+void DrossQuestCompletedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_quest"),
+                              &DrossQuestCompletedEvent::get_quest);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "quest"), "",
+               "get_quest");
+}
+
+godot::Ref<DrossQuestFailedEvent>
+DrossQuestFailedEvent::from_core(
+    const dross::quest::QuestFailed& value) {
+  godot::Ref<DrossQuestFailedEvent> event;
+  event.instantiate();
+  event->quest_ = godot::String{value.quest.canonical().data()};
+  return event;
+}
+
+godot::String DrossQuestFailedEvent::get_quest() const {
+  return quest_;
+}
+
+void DrossQuestFailedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_quest"),
+                              &DrossQuestFailedEvent::get_quest);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "quest"), "",
+               "get_quest");
+}
+
+godot::Ref<DrossQuestStartedEvent>
+DrossQuestStartedEvent::from_core(
+    const dross::quest::QuestStarted& value) {
+  godot::Ref<DrossQuestStartedEvent> event;
+  event.instantiate();
+  event->quest_ = godot::String{value.quest.canonical().data()};
+  event->stage_ = godot::String{value.stage.canonical().data()};
+  return event;
+}
+
+godot::String DrossQuestStartedEvent::get_quest() const {
+  return quest_;
+}
+godot::String DrossQuestStartedEvent::get_stage() const {
+  return stage_;
+}
+
+void DrossQuestStartedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_quest"),
+                              &DrossQuestStartedEvent::get_quest);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "quest"), "",
+               "get_quest");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_stage"),
+                              &DrossQuestStartedEvent::get_stage);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "stage"), "",
+               "get_stage");
+}
+
 void DrossAbilityRuleQuery::reject(const godot::String& reason) {
   const auto utf8 = reason.utf8();
   auto parsed = ContentId::parse(
@@ -402,6 +506,10 @@ void register_generated_godot_types() {
   godot::ClassDB::register_class<DrossEntityPlacedEvent>();
   godot::ClassDB::register_class<DrossItemGrantedEvent>();
   godot::ClassDB::register_class<DrossItemRemovedEvent>();
+  godot::ClassDB::register_class<DrossQuestAdvancedEvent>();
+  godot::ClassDB::register_class<DrossQuestCompletedEvent>();
+  godot::ClassDB::register_class<DrossQuestFailedEvent>();
+  godot::ClassDB::register_class<DrossQuestStartedEvent>();
   godot::ClassDB::register_class<DrossAbilityRuleQuery>();
   godot::ClassDB::register_class<DrossPlacementRuleQuery>();
 }

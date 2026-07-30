@@ -8,6 +8,7 @@
 #include <dross/runtime/command_event_kernel.hpp>
 #include <dross/runtime/door_runtime.hpp>
 #include <dross/runtime/inventory_runtime.hpp>
+#include <dross/runtime/quest_runtime.hpp>
 #include <dross/runtime/script_runtime.hpp>
 #include <dross/runtime/simulation_mode.hpp>
 #include <dross/runtime/world_lifecycle.hpp>
@@ -46,6 +47,7 @@ struct CanonicalCapabilitySnapshot {
   std::optional<DoorSnapshot> door;
   std::optional<ScriptStateBag> script;
   std::optional<InventorySnapshot> inventory;
+  std::optional<QuestSnapshot> quest;
 };
 
 [[nodiscard]] CheckpointHash

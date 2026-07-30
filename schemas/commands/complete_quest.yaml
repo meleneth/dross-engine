@@ -1,0 +1,10 @@
+kind: command
+namespace: dross.quest
+name: CompleteQuest
+version: 1
+id: dross:complete_quest
+fields:
+  - name: quest
+    type: content_id
+  - name: expected_stage
+    type: content_id

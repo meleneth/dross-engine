@@ -6,6 +6,10 @@
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/item_granted.hpp>
 #include <dross/generated/item_removed.hpp>
+#include <dross/generated/quest_advanced.hpp>
+#include <dross/generated/quest_completed.hpp>
+#include <dross/generated/quest_failed.hpp>
+#include <dross/generated/quest_started.hpp>
 #include <dross/identity/content_id.hpp>
 
 #include <godot_cpp/classes/ref.hpp>
@@ -150,6 +154,72 @@ private:
   godot::String item_;
   std::uint32_t count_{0};
   std::uint32_t new_count_{0};
+};
+
+class DrossQuestAdvancedEvent final : public godot::RefCounted {
+  GDCLASS(DrossQuestAdvancedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossQuestAdvancedEvent>
+  from_core(const dross::quest::QuestAdvanced& value);
+  [[nodiscard]] godot::String get_quest() const;
+  [[nodiscard]] godot::String get_previous_stage() const;
+  [[nodiscard]] godot::String get_current_stage() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  godot::String quest_;
+  godot::String previous_stage_;
+  godot::String current_stage_;
+};
+
+class DrossQuestCompletedEvent final : public godot::RefCounted {
+  GDCLASS(DrossQuestCompletedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossQuestCompletedEvent>
+  from_core(const dross::quest::QuestCompleted& value);
+  [[nodiscard]] godot::String get_quest() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  godot::String quest_;
+};
+
+class DrossQuestFailedEvent final : public godot::RefCounted {
+  GDCLASS(DrossQuestFailedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossQuestFailedEvent>
+  from_core(const dross::quest::QuestFailed& value);
+  [[nodiscard]] godot::String get_quest() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  godot::String quest_;
+};
+
+class DrossQuestStartedEvent final : public godot::RefCounted {
+  GDCLASS(DrossQuestStartedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossQuestStartedEvent>
+  from_core(const dross::quest::QuestStarted& value);
+  [[nodiscard]] godot::String get_quest() const;
+  [[nodiscard]] godot::String get_stage() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  godot::String quest_;
+  godot::String stage_;
 };
 
 class DrossAbilityRuleQuery final : public godot::RefCounted {

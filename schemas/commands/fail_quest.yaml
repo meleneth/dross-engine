@@ -1,0 +1,10 @@
+kind: command
+namespace: dross.quest
+name: FailQuest
+version: 1
+id: dross:fail_quest
+fields:
+  - name: quest
+    type: content_id
+  - name: expected_stage
+    type: content_id

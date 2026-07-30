@@ -1,0 +1,11 @@
+kind: event
+namespace: dross.quest
+name: QuestStarted
+version: 1
+id: dross:quest_started
+script_api: true
+fields:
+  - name: quest
+    type: content_id
+  - name: stage
+    type: content_id

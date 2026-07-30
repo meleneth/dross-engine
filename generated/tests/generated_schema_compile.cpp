@@ -3,14 +3,17 @@
 #include <dross/generated/action_points_spent.hpp>
 #include <dross/generated/actor_entered_cell.hpp>
 #include <dross/generated/actor_killed.hpp>
+#include <dross/generated/advance_quest.hpp>
 #include <dross/generated/cancel_movement.hpp>
 #include <dross/generated/close_door.hpp>
 #include <dross/generated/combat_started.hpp>
+#include <dross/generated/complete_quest.hpp>
 #include <dross/generated/damage_applied.hpp>
 #include <dross/generated/door_closed.hpp>
 #include <dross/generated/door_opened.hpp>
 #include <dross/generated/end_turn.hpp>
 #include <dross/generated/entity_placed.hpp>
+#include <dross/generated/fail_quest.hpp>
 #include <dross/generated/grant_item.hpp>
 #include <dross/generated/item_granted.hpp>
 #include <dross/generated/item_removed.hpp>
@@ -20,8 +23,13 @@
 #include <dross/generated/open_door.hpp>
 #include <dross/generated/perform_ability.hpp>
 #include <dross/generated/place_entity.hpp>
+#include <dross/generated/quest_advanced.hpp>
+#include <dross/generated/quest_completed.hpp>
+#include <dross/generated/quest_failed.hpp>
+#include <dross/generated/quest_started.hpp>
 #include <dross/generated/remove_item.hpp>
 #include <dross/generated/request_combat_start.hpp>
+#include <dross/generated/start_quest.hpp>
 #include <dross/generated/turn_started.hpp>
 #include <dross/generated/schema_registry.hpp>
 
@@ -36,11 +44,15 @@ static_assert(std::is_standard_layout_v<
 static_assert(std::is_standard_layout_v<
     dross::combat::ActorKilled>);
 static_assert(std::is_standard_layout_v<
+    dross::quest::AdvanceQuest>);
+static_assert(std::is_standard_layout_v<
     dross::movement::CancelMovement>);
 static_assert(std::is_standard_layout_v<
     dross::door::CloseDoor>);
 static_assert(std::is_standard_layout_v<
     dross::combat::CombatStarted>);
+static_assert(std::is_standard_layout_v<
+    dross::quest::CompleteQuest>);
 static_assert(std::is_standard_layout_v<
     dross::combat::DamageApplied>);
 static_assert(std::is_standard_layout_v<
@@ -51,6 +63,8 @@ static_assert(std::is_standard_layout_v<
     dross::combat::EndTurn>);
 static_assert(std::is_standard_layout_v<
     dross::placement::EntityPlaced>);
+static_assert(std::is_standard_layout_v<
+    dross::quest::FailQuest>);
 static_assert(std::is_standard_layout_v<
     dross::inventory::GrantItem>);
 static_assert(std::is_standard_layout_v<
@@ -70,9 +84,19 @@ static_assert(std::is_standard_layout_v<
 static_assert(std::is_standard_layout_v<
     dross::placement::PlaceEntity>);
 static_assert(std::is_standard_layout_v<
+    dross::quest::QuestAdvanced>);
+static_assert(std::is_standard_layout_v<
+    dross::quest::QuestCompleted>);
+static_assert(std::is_standard_layout_v<
+    dross::quest::QuestFailed>);
+static_assert(std::is_standard_layout_v<
+    dross::quest::QuestStarted>);
+static_assert(std::is_standard_layout_v<
     dross::inventory::RemoveItem>);
 static_assert(std::is_standard_layout_v<
     dross::combat::RequestCombatStart>);
 static_assert(std::is_standard_layout_v<
+    dross::quest::StartQuest>);
+static_assert(std::is_standard_layout_v<
     dross::combat::TurnStarted>);
-static_assert(dross::generated::schema_registry.size() == 26);
+static_assert(dross::generated::schema_registry.size() == 34);

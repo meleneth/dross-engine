@@ -50,6 +50,16 @@
   - `target`: `entity_ref`
   - `ability`: `content_id`
 
+## `dross:advance_quest`
+
+- Kind: `command`
+- C++ type: `dross::quest::AdvanceQuest`
+- Version: 1
+- Fields:
+  - `quest`: `content_id`
+  - `expected_stage`: `content_id`
+  - `next_stage`: `content_id`
+
 ## `dross:cancel_movement`
 
 - Kind: `command`
@@ -73,6 +83,15 @@
 - Version: 1
 - Fields:
   - `active_actor`: `entity_ref`
+
+## `dross:complete_quest`
+
+- Kind: `command`
+- C++ type: `dross::quest::CompleteQuest`
+- Version: 1
+- Fields:
+  - `quest`: `content_id`
+  - `expected_stage`: `content_id`
 
 ## `dross:damage_applied`
 
@@ -117,6 +136,15 @@
 - Fields:
   - `entity`: `entity_ref`
   - `pose`: `hex_pose`
+
+## `dross:fail_quest`
+
+- Kind: `command`
+- C++ type: `dross::quest::FailQuest`
+- Version: 1
+- Fields:
+  - `quest`: `content_id`
+  - `expected_stage`: `content_id`
 
 ## `dross:grant_item`
 
@@ -214,6 +242,41 @@
   - `entity`: `entity_ref`
   - `target`: `hex_pose`
 
+## `dross:quest_advanced`
+
+- Kind: `event`
+- C++ type: `dross::quest::QuestAdvanced`
+- Version: 1
+- Fields:
+  - `quest`: `content_id`
+  - `previous_stage`: `content_id`
+  - `current_stage`: `content_id`
+
+## `dross:quest_completed`
+
+- Kind: `event`
+- C++ type: `dross::quest::QuestCompleted`
+- Version: 1
+- Fields:
+  - `quest`: `content_id`
+
+## `dross:quest_failed`
+
+- Kind: `event`
+- C++ type: `dross::quest::QuestFailed`
+- Version: 1
+- Fields:
+  - `quest`: `content_id`
+
+## `dross:quest_started`
+
+- Kind: `event`
+- C++ type: `dross::quest::QuestStarted`
+- Version: 1
+- Fields:
+  - `quest`: `content_id`
+  - `stage`: `content_id`
+
 ## `dross:remove_item`
 
 - Kind: `command`
@@ -232,6 +295,15 @@
 - Fields:
   - `requester`: `entity_ref`
   - `opponent`: `entity_ref`
+
+## `dross:start_quest`
+
+- Kind: `command`
+- C++ type: `dross::quest::StartQuest`
+- Version: 1
+- Fields:
+  - `quest`: `content_id`
+  - `stage`: `content_id`
 
 ## `dross:turn_started`
 

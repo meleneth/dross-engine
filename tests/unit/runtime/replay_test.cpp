@@ -56,7 +56,8 @@ TEST_CASE("capability diagnostic hash covers tick and capability presence") {
                                                          .combat_actors = {},
                                                          .door = {},
                                                          .script = script,
-                                                         .inventory = {}});
+                                                         .inventory = {},
+                                                         .quest = {}});
 
   CHECK(empty != later);
   CHECK(empty != with_script);
@@ -121,7 +122,8 @@ TEST_CASE("movement state changes the localized capability checkpoint") {
                                    .combat_actors = {},
                                    .door = {},
                                    .script = {},
-                                   .inventory = {}});
+                                   .inventory = {},
+                                   .quest = {}});
   auto changed = movement;
   changed.cancel_requested = true;
   const auto second =
@@ -132,7 +134,8 @@ TEST_CASE("movement state changes the localized capability checkpoint") {
                                    .combat_actors = {},
                                    .door = {},
                                    .script = {},
-                                   .inventory = {}});
+                                   .inventory = {},
+                                   .quest = {}});
 
   const std::array first_values{first};
   const std::array second_values{second};
@@ -145,23 +148,49 @@ TEST_CASE("movement state changes the localized capability checkpoint") {
 TEST_CASE("inventory state changes the localized capability checkpoint") {
   const auto empty = dross::canonical_capability_hash(dross::Tick{4}, {});
   const auto held = dross::canonical_capability_hash(
+      dross::Tick{4},
+      {.movement = {},
+       .combat = {},
+       .combat_actors = {},
+       .door = {},
+       .script = {},
+       .inventory =
+           dross::InventorySnapshot{
+               .entries =
+                   {
+                       dross::InventoryEntry{
+                           .owner = dross::EntityId{52, 1},
+                           .item = dross::ContentId::parse("test:mouse_tail").value(),
+                           .count = 1,
+                       },
+                   },
+           },
+       .quest = {}});
+
+  CHECK(held != empty);
+}
+
+TEST_CASE("quest state changes the localized capability checkpoint") {
+  const auto empty = dross::canonical_capability_hash(dross::Tick{4}, {});
+  const auto active = dross::canonical_capability_hash(
       dross::Tick{4}, {.movement = {},
                        .combat = {},
                        .combat_actors = {},
                        .door = {},
                        .script = {},
-                       .inventory = dross::InventorySnapshot{
+                       .inventory = {},
+                       .quest = dross::QuestSnapshot{
                            .entries =
                                {
-                                   dross::InventoryEntry{
-                                       .owner = dross::EntityId{52, 1},
-                                       .item = dross::ContentId::parse("test:mouse_tail").value(),
-                                       .count = 1,
+                                   dross::QuestProgressSnapshot{
+                                       .quest = dross::ContentId::parse("test:mouse_quest").value(),
+                                       .status = dross::QuestStatus::active,
+                                       .stage = dross::ContentId::parse("test:return_tail").value(),
                                    },
                                },
                        }});
 
-  CHECK(held != empty);
+  CHECK(active != empty);
 }
 
 TEST_CASE("replay divergence localizes an unexpected capability section") {
@@ -204,7 +233,8 @@ TEST_CASE("replay divergence localizes an unexpected capability section") {
                                    .combat_actors = {},
                                    .door = {},
                                    .script = {},
-                                   .inventory = {}});
+                                   .inventory = {},
+                                   .quest = {}});
 
   const std::array expected_values{expected};
   const std::array actual_values{actual};
@@ -339,7 +369,8 @@ TEST_CASE("replay divergence localizes the first differing combat actor") {
                                    .combat_actors = expected_actors,
                                    .door = {},
                                    .script = {},
-                                   .inventory = {}});
+                                   .inventory = {},
+                                   .quest = {}});
   const auto actual =
       dross::canonical_checkpoint(dross::Tick{4}, world, occupancy, random.snapshot(),
                                   lifecycle.snapshot(), mode.snapshot(), {},
@@ -348,7 +379,8 @@ TEST_CASE("replay divergence localizes the first differing combat actor") {
                                    .combat_actors = actual_actors,
                                    .door = {},
                                    .script = {},
-                                   .inventory = {}});
+                                   .inventory = {},
+                                   .quest = {}});
 
   const std::array expected_values{expected};
   const std::array actual_values{actual};
@@ -389,7 +421,8 @@ TEST_CASE("replay divergence localizes the first differing script state key") {
                                    .combat_actors = {},
                                    .door = {},
                                    .script = expected_state,
-                                   .inventory = {}});
+                                   .inventory = {},
+                                   .quest = {}});
   const auto actual =
       dross::canonical_checkpoint(dross::Tick{4}, world, occupancy, random.snapshot(),
                                   lifecycle.snapshot(), mode.snapshot(), {},
@@ -398,7 +431,8 @@ TEST_CASE("replay divergence localizes the first differing script state key") {
                                    .combat_actors = {},
                                    .door = {},
                                    .script = actual_state,
-                                   .inventory = {}});
+                                   .inventory = {},
+                                   .quest = {}});
 
   const std::array expected_values{expected};
   const std::array actual_values{actual};

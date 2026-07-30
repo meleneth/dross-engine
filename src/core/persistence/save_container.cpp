@@ -478,6 +478,10 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
   if (container.inventory) {
     encode_inventory_snapshot(writer, *container.inventory);
   }
+  writer.write_u16(container.quest.has_value() ? 1U : 0U);
+  if (container.quest) {
+    encode_quest_snapshot(writer, *container.quest);
+  }
 
   auto records = container.components;
   std::ranges::sort(records, [](const ComponentRecord& left, const ComponentRecord& right) {
@@ -768,6 +772,21 @@ decode_inventory_boundary(ByteReader& reader) {
   return *std::move(snapshot);
 }
 
+Result<std::optional<QuestSnapshot>, SaveDecodeError> decode_quest_boundary(ByteReader& reader) {
+  const auto present = reader.read_u16();
+  if (!present || *present > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  if (*present == 0U) {
+    return std::nullopt;
+  }
+  auto snapshot = decode_quest_snapshot(reader);
+  if (!snapshot) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  return *std::move(snapshot);
+}
+
 Result<std::vector<ComponentRecord>, SaveDecodeError> decode_components(ByteReader& reader) {
   const auto component_count = reader.read_u64();
   if (!component_count) {
@@ -830,6 +849,10 @@ decode_save_container(const std::span<const std::byte> bytes) {
   if (!inventory) {
     return tl::unexpected{inventory.error()};
   }
+  auto quest = decode_quest_boundary(reader);
+  if (!quest) {
+    return tl::unexpected{quest.error()};
+  }
   auto components = decode_components(reader);
   if (!components) {
     return tl::unexpected{components.error()};
@@ -846,6 +869,7 @@ decode_save_container(const std::span<const std::byte> bytes) {
       .door = *std::move(door),
       .script = *std::move(script),
       .inventory = *std::move(inventory),
+      .quest = *std::move(quest),
       .components = *std::move(components),
   };
 }

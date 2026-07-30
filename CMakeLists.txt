@@ -43,6 +43,7 @@ add_library(dross_core STATIC
   src/core/runtime/inventory_runtime.cpp
   src/core/runtime/machine_trace.cpp
   src/core/runtime/movement_runtime.cpp
+  src/core/runtime/quest_runtime.cpp
   src/core/runtime/replay.cpp
   src/core/runtime/script_runtime.cpp
   src/core/runtime/simulation_mode.cpp
@@ -154,6 +155,7 @@ add_executable(dross_tests
   tests/unit/runtime/inventory_runtime_test.cpp
   tests/unit/runtime/replay_test.cpp
   tests/unit/runtime/movement_runtime_test.cpp
+  tests/unit/runtime/quest_runtime_test.cpp
   tests/unit/runtime/script_runtime_test.cpp
   tests/unit/runtime/simulation_mode_test.cpp
   tests/unit/runtime/world_lifecycle_test.cpp
