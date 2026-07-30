@@ -18,7 +18,7 @@ unverified as recorded in the Phase 14 validation matrix.
 
 ## Automated checks
 
-The five architecture tests pass:
+The six architecture tests pass:
 
 ```sh
 ctest --preset linux-debug -R '^architecture\.' --output-on-failure
@@ -29,6 +29,7 @@ ctest --preset linux-debug -R '^architecture\.' --output-on-failure
 - `architecture.no_forbidden_random_api`
 - `architecture.no_forbidden_gdscript_random`
 - `architecture.dependency_inventory_current`
+- `architecture.source_registration_current`
 
 The configured clang-tidy target also passes all 34 project translation units
 with project warnings treated as errors:
