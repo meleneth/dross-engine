@@ -155,6 +155,45 @@ enum class ResumeBoundary : std::uint8_t {
   combat,
 };
 
+struct ExplorationResumeTarget {
+  dross::WorldInstanceId& instance;
+  std::unique_ptr<dross::WorldStorage>& world;
+  dross::EntityRef& player;
+  dross::EntityRef& mouse;
+  std::unique_ptr<dross::RandomHub>& random;
+  dross::WorldLifecycle& lifecycle;
+  dross::SimulationMode& mode;
+};
+
+void resume_from_exploration_save(const dross::SaveContainer& save,
+                                  ExplorationResumeTarget target) {
+  const auto decoded = dross::decode_save_container(dross::encode_save_container(save));
+  dross::ComponentCodecRegistry registry;
+  if (!decoded || decoded->combat || !dross::register_current_component_codecs(registry)) {
+    throw std::logic_error{"Thump exploration-boundary save decode failed"};
+  }
+  const auto plan = dross::build_world_load_plan(*decoded, registry, content_id("demo:thump_room"),
+                                                 dross::canonical_map_hash(thump_map()));
+  if (!plan) {
+    throw std::logic_error{"Thump exploration-boundary load plan failed"};
+  }
+  target.instance = dross::WorldInstanceId{restored_world_instance};
+  auto restored_world = plan->construct(target.instance);
+  if (!restored_world || !target.lifecycle.restore(decoded->runtime.lifecycle) ||
+      !target.mode.restore(decoded->runtime.mode)) {
+    throw std::logic_error{"Thump exploration-boundary world restore failed"};
+  }
+  target.world = std::move(*restored_world);
+  const auto restored_player = target.world->read().find(dross::EntityId{world_lineage, 1});
+  const auto restored_mouse = target.world->read().find(dross::EntityId{world_lineage, 2});
+  target.random = std::make_unique<dross::RandomHub>(decoded->runtime.random.master_seed);
+  if (!restored_player || !restored_mouse || !target.random->restore(decoded->runtime.random)) {
+    throw std::logic_error{"Thump exploration-boundary runtime restore failed"};
+  }
+  target.player = *restored_player;
+  target.mouse = *restored_mouse;
+}
+
 ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_boundary) {
   auto instance = dross::WorldInstanceId{initial_world_instance};
   auto world = std::make_unique<dross::WorldStorage>(
@@ -215,32 +254,13 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       SaveCheckpoint{.name = "exploration-tick-0", .save = save_checkpoint(dross::Tick{0}, false)});
 
   if (resume_boundary == ResumeBoundary::exploration) {
-    const auto decoded =
-        dross::decode_save_container(dross::encode_save_container(save_checkpoints.back().save));
-    dross::ComponentCodecRegistry registry;
-    if (!decoded || decoded->combat || !dross::register_current_component_codecs(registry)) {
-      throw std::logic_error{"Thump exploration-boundary save decode failed"};
-    }
-    const auto plan = dross::build_world_load_plan(
-        *decoded, registry, content_id("demo:thump_room"), dross::canonical_map_hash(thump_map()));
-    if (!plan) {
-      throw std::logic_error{"Thump exploration-boundary load plan failed"};
-    }
-    instance = dross::WorldInstanceId{restored_world_instance};
-    auto restored_world = plan->construct(instance);
-    if (!restored_world || !lifecycle.restore(decoded->runtime.lifecycle) ||
-        !mode.restore(decoded->runtime.mode)) {
-      throw std::logic_error{"Thump exploration-boundary world restore failed"};
-    }
-    world = std::move(*restored_world);
-    const auto restored_player = world->read().find(dross::EntityId{52, 1});
-    const auto restored_mouse = world->read().find(dross::EntityId{52, 2});
-    random = std::make_unique<dross::RandomHub>(decoded->runtime.random.master_seed);
-    if (!restored_player || !restored_mouse || !random->restore(decoded->runtime.random)) {
-      throw std::logic_error{"Thump exploration-boundary runtime restore failed"};
-    }
-    player = *restored_player;
-    mouse = *restored_mouse;
+    resume_from_exploration_save(save_checkpoints.back().save, {.instance = instance,
+                                                                .world = world,
+                                                                .player = player,
+                                                                .mouse = mouse,
+                                                                .random = random,
+                                                                .lifecycle = lifecycle,
+                                                                .mode = mode});
   }
 
   if (!mode.request_combat() || !mode.reach_safe_boundary()) {
