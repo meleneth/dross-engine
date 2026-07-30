@@ -133,8 +133,19 @@ TEST_CASE("dialogue snapshot restores session and current offers") {
   CHECK(restored.snapshot() == snapshot);
   CHECK(restored.offered_options() == original.offered_options());
 
-  auto malformed = snapshot;
-  malformed.session->offered_options.push_back(malformed.session->offered_options.front());
+  REQUIRE(snapshot.session);
+  auto duplicate_options = snapshot.session->offered_options;
+  REQUIRE_FALSE(duplicate_options.empty());
+  duplicate_options.push_back(duplicate_options.front());
+  const auto malformed = dross::DialogueSnapshot{
+      .session =
+          dross::DialogueSessionSnapshot{
+              .initiator = snapshot.session->initiator,
+              .partner = snapshot.session->partner,
+              .dialogue = snapshot.session->dialogue,
+              .offered_options = std::move(duplicate_options),
+          },
+  };
   CHECK_FALSE(restored.restore(malformed));
   CHECK(restored.snapshot() == snapshot);
 }
