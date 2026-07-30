@@ -68,7 +68,6 @@ def render_files(project_root: Path) -> list[RenderedFile]:
     for template_name, destination in (
         ("codec.hpp.j2", "include/dross/generated/schema_codec.hpp"),
         ("registry.hpp.j2", "include/dross/generated/schema_registry.hpp"),
-        ("events.hpp.j2", "include/dross/generated/domain_events.hpp"),
         ("docs.md.j2", "docs/command-event-api.md"),
         ("compile.cpp.j2", "tests/generated_schema_compile.cpp"),
         ("godot_api.hpp.j2", "include/dross/generated/godot_api.hpp"),

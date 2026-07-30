@@ -2,7 +2,6 @@
 {% for schema in catalog if schema.kind != "rule" %}
 #include <dross/generated/{{ schema.name | snake_case }}.hpp>
 {% endfor %}
-#include <dross/generated/domain_events.hpp>
 #include <dross/generated/schema_registry.hpp>
 
 #include <type_traits>

@@ -92,6 +92,7 @@ def test_generation_is_idempotent_sorted_and_uses_lf(tmp_path: Path) -> None:
     assert "class DrossPlacementRuleQuery final" in godot_header
     compile_fixture = first["tests/generated_schema_compile.cpp"].decode()
     assert "PlacementRule" not in compile_fixture
+    assert "domain_events.hpp" not in first
 
 
 def test_generation_does_not_touch_handwritten_files(tmp_path: Path) -> None:

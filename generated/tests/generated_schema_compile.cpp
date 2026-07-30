@@ -19,7 +19,6 @@
 #include <dross/generated/place_entity.hpp>
 #include <dross/generated/request_combat_start.hpp>
 #include <dross/generated/turn_started.hpp>
-#include <dross/generated/domain_events.hpp>
 #include <dross/generated/schema_registry.hpp>
 
 #include <type_traits>
