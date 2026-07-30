@@ -6,6 +6,7 @@
 #include <dross/generated/schema_codec.hpp>
 
 #include <algorithm>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -621,6 +622,73 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
   return result;
 }
 
+namespace {
+
+std::optional<std::string> first_detail_divergence(const CanonicalCheckpoint& expected,
+                                                   const CanonicalCheckpoint& actual,
+                                                   const CheckpointSection section) {
+  const auto expected_details = expected.details.find(section);
+  const auto actual_details = actual.details.find(section);
+  std::set<std::string> names;
+  if (expected_details != expected.details.end()) {
+    for (const auto& [name, hash] : expected_details->second) {
+      static_cast<void>(hash);
+      names.insert(name);
+    }
+  }
+  if (actual_details != actual.details.end()) {
+    for (const auto& [name, hash] : actual_details->second) {
+      static_cast<void>(hash);
+      names.insert(name);
+    }
+  }
+  const auto* expected_entries =
+      expected_details == expected.details.end() ? nullptr : &expected_details->second;
+  const auto* actual_entries =
+      actual_details == actual.details.end() ? nullptr : &actual_details->second;
+  for (const auto& name : names) {
+    if (expected_entries == nullptr || actual_entries == nullptr) {
+      return name;
+    }
+    const auto expected_entry = expected_entries->find(name);
+    const auto actual_entry = actual_entries->find(name);
+    if (expected_entry == expected_entries->end() || actual_entry == actual_entries->end() ||
+        expected_entry->second != actual_entry->second) {
+      return name;
+    }
+  }
+  return std::nullopt;
+}
+
+std::optional<ReplayDivergence> checkpoint_divergence(const CanonicalCheckpoint& expected,
+                                                      const CanonicalCheckpoint& actual) {
+  std::set<CheckpointSection> section_names;
+  for (const auto& [section, hash] : expected.sections) {
+    static_cast<void>(hash);
+    section_names.insert(section);
+  }
+  for (const auto& [section, hash] : actual.sections) {
+    static_cast<void>(hash);
+    section_names.insert(section);
+  }
+  for (const auto section : section_names) {
+    const auto expected_section = expected.sections.find(section);
+    const auto actual_section = actual.sections.find(section);
+    if (expected_section != expected.sections.end() && actual_section != actual.sections.end() &&
+        expected_section->second == actual_section->second) {
+      continue;
+    }
+    return ReplayDivergence{
+        .tick = expected.tick,
+        .section = section,
+        .detail = first_detail_divergence(expected, actual, section),
+    };
+  }
+  return std::nullopt;
+}
+
+} // namespace
+
 std::optional<ReplayDivergence>
 first_divergence(const std::span<const CanonicalCheckpoint> expected,
                  const std::span<const CanonicalCheckpoint> actual) {
@@ -629,55 +697,8 @@ first_divergence(const std::span<const CanonicalCheckpoint> expected,
     if (expected[index] == actual[index]) {
       continue;
     }
-    auto expected_section = expected[index].sections.begin();
-    auto actual_section = actual[index].sections.begin();
-    while (expected_section != expected[index].sections.end() ||
-           actual_section != actual[index].sections.end()) {
-      const auto section = actual_section == actual[index].sections.end() ||
-                                   (expected_section != expected[index].sections.end() &&
-                                    expected_section->first < actual_section->first)
-                               ? expected_section->first
-                               : actual_section->first;
-      const bool section_matches = expected_section != expected[index].sections.end() &&
-                                   actual_section != actual[index].sections.end() &&
-                                   expected_section->first == actual_section->first &&
-                                   expected_section->second == actual_section->second;
-      if (!section_matches) {
-        std::optional<std::string> detail;
-        const auto expected_details = expected[index].details.find(section);
-        const auto actual_details = actual[index].details.find(section);
-        const std::map<std::string, CheckpointHash> no_details;
-        const auto& expected_entries = expected_details == expected[index].details.end()
-                                           ? no_details
-                                           : expected_details->second;
-        const auto& actual_entries =
-            actual_details == actual[index].details.end() ? no_details : actual_details->second;
-        auto expected_entry = expected_entries.begin();
-        auto actual_entry = actual_entries.begin();
-        while (expected_entry != expected_entries.end() || actual_entry != actual_entries.end()) {
-          if (actual_entry == actual_entries.end() ||
-              (expected_entry != expected_entries.end() &&
-               expected_entry->first < actual_entry->first)) {
-            detail = expected_entry->first;
-            break;
-          }
-          if (expected_entry == expected_entries.end() ||
-              actual_entry->first < expected_entry->first) {
-            detail = actual_entry->first;
-            break;
-          }
-          if (expected_entry->second != actual_entry->second) {
-            detail = expected_entry->first;
-            break;
-          }
-          ++expected_entry;
-          ++actual_entry;
-        }
-        return ReplayDivergence{
-            .tick = expected[index].tick, .section = section, .detail = std::move(detail)};
-      }
-      ++expected_section;
-      ++actual_section;
+    if (auto divergence = checkpoint_divergence(expected[index], actual[index])) {
+      return divergence;
     }
     return ReplayDivergence{
         .tick = expected[index].tick, .section = CheckpointSection::clock, .detail = {}};
