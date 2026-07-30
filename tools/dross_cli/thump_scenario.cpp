@@ -20,15 +20,22 @@
 namespace {
 
 constexpr int scenario_error = 5;
+constexpr std::uint64_t world_lineage = 52;
+constexpr std::uint64_t initial_world_instance = 12;
+constexpr std::uint64_t restored_world_instance = 13;
+constexpr std::uint32_t ticks_per_second = 30;
+constexpr std::int32_t player_initiative = 10;
+constexpr std::int32_t mouse_initiative = 5;
+constexpr std::int32_t player_health = 8;
 
 dross::ContentId content_id(const char* value) { return dross::ContentId::parse(value).value(); }
 
-dross::HexPose pose(const std::int32_t q) {
+dross::HexPose pose(const std::int32_t column) {
   return {
       .anchor =
           {
               .region = dross::RegionId{content_id("demo:thump_room")},
-              .coord = {.q = q, .r = 0},
+              .coord = {.q = column, .r = 0},
               .layer = 0,
           },
       .facing = dross::HexFacing::east,
@@ -38,9 +45,9 @@ dross::HexPose pose(const std::int32_t q) {
 const dross::CompiledHexMap& thump_map() {
   static const auto map = [] {
     dross::CompiledHexMapBuilder builder;
-    for (std::int32_t q = 0; q < 2; ++q) {
+    for (std::int32_t column = 0; column < 2; ++column) {
       if (!builder.add_cell(dross::CellFacts{
-              .id = pose(q).anchor,
+              .id = pose(column).anchor,
               .surface_height = dross::Millimeters{0},
               .terrain = content_id("dross:floor"),
               .base_cost = dross::MovementCost{1},
@@ -149,9 +156,9 @@ enum class ResumeBoundary : std::uint8_t {
 };
 
 ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_boundary) {
-  auto instance = dross::WorldInstanceId{12};
+  auto instance = dross::WorldInstanceId{initial_world_instance};
   auto world = std::make_unique<dross::WorldStorage>(
-      dross::WorldConfig{.lineage = 52, .instance_id = instance});
+      dross::WorldConfig{.lineage = world_lineage, .instance_id = instance});
   auto player = world->write().spawn(dross::SpawnPlan::authored(1)).value();
   auto mouse = world->write().spawn(dross::SpawnPlan::authored(2)).value();
   world->write().commit_pose(player, pose(0));
@@ -181,9 +188,9 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
         .header = {.container_version = 1,
                    .simulation_schema_version = 1,
                    .engine_version = dross::engine_version(),
-                   .ticks_per_second = 30,
+                   .ticks_per_second = ticks_per_second,
                    .current_tick = tick,
-                   .world_lineage = 52,
+                   .world_lineage = world_lineage,
                    .allocator = world->allocator_snapshot(),
                    .map_id = content_id("demo:thump_room"),
                    .map_hash = dross::canonical_map_hash(thump_map())},
@@ -219,7 +226,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
     if (!plan) {
       throw std::logic_error{"Thump exploration-boundary load plan failed"};
     }
-    instance = dross::WorldInstanceId{13};
+    instance = dross::WorldInstanceId{restored_world_instance};
     auto restored_world = plan->construct(instance);
     if (!restored_world || !lifecycle.restore(decoded->runtime.lifecycle) ||
         !mode.restore(decoded->runtime.mode)) {
@@ -241,8 +248,8 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   }
   combat = std::make_unique<dross::CombatSession>(
       std::vector<dross::CombatantDefinition>{
-          {.entity = player, .initiative = 10, .maximum_action_points = 3},
-          {.entity = mouse, .initiative = 5, .maximum_action_points = 2},
+          {.entity = player, .initiative = player_initiative, .maximum_action_points = 3},
+          {.entity = mouse, .initiative = mouse_initiative, .maximum_action_points = 2},
       },
       &events);
   if (!combat->start()) {
@@ -252,7 +259,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   resolver = std::make_unique<dross::AbilityResolver>(
       *combat,
       std::vector<dross::AbilityActorState>{
-          {.entity = player, .pose = pose(0), .health = dross::HitPoints{8}},
+          {.entity = player, .pose = pose(0), .health = dross::HitPoints{player_health}},
           {.entity = mouse, .pose = pose(1), .health = dross::HitPoints{3}},
       },
       &events, damage_random);
