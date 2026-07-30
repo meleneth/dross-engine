@@ -7,6 +7,10 @@ Those targets remain explicitly unverified and are not release claims.
 Available Linux compiler, sanitizer, replay, and Godot validation remains part
 of this phase.
 
+Current recorded evidence is in
+`docs/validation/phase14-validation-matrix.md`. Windows, Steam Deck device, and
+LeakSanitizer validation remain explicitly unverified.
+
 ## Goal
 
 Assemble the complete Godot demo, remove remaining rough architectural edges, validate every acceptance criterion, and leave Dross as a clean foundation for the next real game capability.
