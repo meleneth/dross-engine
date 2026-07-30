@@ -46,13 +46,18 @@ if rg -n "SCRIPT ERROR:|^ERROR:" "${staging_dir}/smoke.log"; then
   exit 1
 fi
 
+install -m 0644 "${repo_root}/LICENSE" "${staging_dir}/LICENSE"
+install -m 0644 "${repo_root}/THIRD_PARTY_NOTICES.md" \
+  "${staging_dir}/THIRD_PARTY_NOTICES.md"
+
 (
   cd "${staging_dir}"
-  sha256sum dross-engine.x86_64 dross-engine.pck bin/libdross_godot.so >SHA256SUMS
+  sha256sum dross-engine.x86_64 dross-engine.pck bin/libdross_godot.so \
+    LICENSE THIRD_PARTY_NOTICES.md >SHA256SUMS
 )
 
 mkdir -p "${output_dir}"
 cp -a "${staging_dir}/dross-engine.x86_64" "${staging_dir}/dross-engine.pck" \
-  "${staging_dir}/bin" "${staging_dir}/SHA256SUMS" "${staging_dir}/smoke.log" \
-  "${output_dir}/"
+  "${staging_dir}/bin" "${staging_dir}/LICENSE" "${staging_dir}/THIRD_PARTY_NOTICES.md" \
+  "${staging_dir}/SHA256SUMS" "${staging_dir}/smoke.log" "${output_dir}/"
 echo "Linux prototype package: ${output_dir}"

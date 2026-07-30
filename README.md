@@ -2,6 +2,11 @@
 
 This directory is the implementation contract for **Dross Engine powered by Godot**.
 
+Dross Engine is available under the permissive [MIT License](LICENSE). Games
+and applications built with it may use their own license, including proprietary
+licenses. When distributing the engine or an exported Godot runtime, retain the
+applicable notices in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 Dross is a deterministic, hex-grid-centered RPG simulation engine written in modern C++. Godot supplies rendering, animation, audio, UI, content import, scene authoring, and editor integration. Dross owns authoritative world state, movement, combat, finite state machines, event ordering, persistence, deterministic random numbers, replay, and the API exposed to GDScript.
 
 The first proving game slice is intentionally tiny:

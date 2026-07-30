@@ -12,6 +12,8 @@ The package contains:
 - the official Godot 4.7.1 Linux x86_64 executable;
 - the exported runtime-only `dross-engine.pck`;
 - the release `bin/libdross_godot.so`;
+- the Dross Engine `LICENSE`;
+- `THIRD_PARTY_NOTICES.md`, including the Godot license notice;
 - `SHA256SUMS`;
 - the captured smoke log.
 
@@ -27,7 +29,8 @@ GODOT_BIN=/path/to/Godot_v4.7.1-stable_linux.x86_64 \
 ```
 
 The output directory must be absent or empty. The script configures and builds
-the `linux-release` preset before exporting.
+the `linux-release` preset before exporting. The checksum manifest covers the
+runtime, PCK, extension, and both licensing files.
 
 ## Scope
 
