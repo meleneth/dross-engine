@@ -23,6 +23,94 @@ enum class DurableValueTag : std::uint8_t {
   entity_id = 4,
 };
 
+Result<ScriptStateValue, ScriptStateDecodeError> decode_durable_value(ByteReader& reader) {
+  const auto tag = reader.read_u16();
+  if (!tag) {
+    return tl::unexpected{ScriptStateDecodeError::invalid_value};
+  }
+  switch (static_cast<DurableValueTag>(*tag)) {
+  case DurableValueTag::boolean: {
+    const auto decoded = reader.read_u16();
+    if (!decoded || *decoded > 1U) {
+      return tl::unexpected{ScriptStateDecodeError::invalid_value};
+    }
+    return ScriptStateValue{*decoded == 1U};
+  }
+  case DurableValueTag::integer: {
+    const auto decoded = reader.read_u64();
+    if (!decoded) {
+      return tl::unexpected{ScriptStateDecodeError::invalid_value};
+    }
+    return ScriptStateValue{std::bit_cast<std::int64_t>(*decoded)};
+  }
+  case DurableValueTag::content_id: {
+    auto decoded = reader.read_content_id();
+    if (!decoded) {
+      return tl::unexpected{ScriptStateDecodeError::invalid_value};
+    }
+    return ScriptStateValue{*std::move(decoded)};
+  }
+  case DurableValueTag::entity_id: {
+    const auto decoded = reader.read_entity_id();
+    if (!decoded) {
+      return tl::unexpected{ScriptStateDecodeError::invalid_value};
+    }
+    return ScriptStateValue{*decoded};
+  }
+  default:
+    return tl::unexpected{ScriptStateDecodeError::invalid_value};
+  }
+}
+
+Result<ScriptStateWrite, ScriptStateDecodeError> decode_script_state_write(ByteReader& reader) {
+  auto module = reader.read_content_id();
+  const auto kind = reader.read_u16();
+  auto region = reader.read_content_id();
+  const auto has_entity = reader.read_u16();
+  if (!module || !kind || !region || !has_entity || *kind > 1U || *has_entity > 1U) {
+    return tl::unexpected{ScriptStateDecodeError::invalid_scope};
+  }
+  std::optional<EntityId> entity;
+  if (*has_entity == 1U) {
+    const auto decoded = reader.read_entity_id();
+    if (!decoded) {
+      return tl::unexpected{ScriptStateDecodeError::invalid_scope};
+    }
+    entity = *decoded;
+  }
+  const auto scope_kind = static_cast<ScriptScopeKind>(*kind);
+  if ((scope_kind == ScriptScopeKind::region && entity) ||
+      (scope_kind == ScriptScopeKind::entity && !entity)) {
+    return tl::unexpected{ScriptStateDecodeError::invalid_scope};
+  }
+  auto key_text = reader.read_string();
+  if (!key_text) {
+    return tl::unexpected{ScriptStateDecodeError::invalid_key};
+  }
+  auto key = ScriptStateKey::parse(std::move(*key_text));
+  if (!key) {
+    return tl::unexpected{ScriptStateDecodeError::invalid_key};
+  }
+  auto value = decode_durable_value(reader);
+  if (!value) {
+    return tl::unexpected{value.error()};
+  }
+  return ScriptStateWrite{
+      .address =
+          {
+              .module_id = *std::move(module),
+              .scope =
+                  {
+                      .kind = scope_kind,
+                      .region = *std::move(region),
+                      .entity = entity,
+                  },
+              .key = *std::move(key),
+          },
+      .value = *std::move(value),
+  };
+}
+
 } // namespace
 
 ScriptScope ScriptScope::for_region(ContentId region) {
@@ -114,81 +202,11 @@ decode_script_state(const std::span<const std::byte> bytes) {
   std::vector<ScriptStateWrite> writes;
   writes.reserve(*count);
   for (std::uint32_t index = 0; index < *count; ++index) {
-    auto module = reader.read_content_id();
-    auto kind = reader.read_u16();
-    auto region = reader.read_content_id();
-    auto has_entity = reader.read_u16();
-    if (!module || !kind || !region || !has_entity || *kind > 1U || *has_entity > 1U) {
-      return tl::unexpected{ScriptStateDecodeError::invalid_scope};
+    auto write = decode_script_state_write(reader);
+    if (!write) {
+      return tl::unexpected{write.error()};
     }
-    std::optional<EntityId> entity;
-    if (*has_entity == 1U) {
-      auto decoded = reader.read_entity_id();
-      if (!decoded) {
-        return tl::unexpected{ScriptStateDecodeError::invalid_scope};
-      }
-      entity = *decoded;
-    }
-    const auto scope_kind = static_cast<ScriptScopeKind>(*kind);
-    if ((scope_kind == ScriptScopeKind::region && entity) ||
-        (scope_kind == ScriptScopeKind::entity && !entity)) {
-      return tl::unexpected{ScriptStateDecodeError::invalid_scope};
-    }
-    auto key_text = reader.read_string();
-    if (!key_text) {
-      return tl::unexpected{ScriptStateDecodeError::invalid_key};
-    }
-    auto key = ScriptStateKey::parse(std::move(*key_text));
-    if (!key) {
-      return tl::unexpected{ScriptStateDecodeError::invalid_key};
-    }
-    auto tag = reader.read_u16();
-    if (!tag) {
-      return tl::unexpected{ScriptStateDecodeError::invalid_value};
-    }
-    ScriptStateValue value;
-    switch (static_cast<DurableValueTag>(*tag)) {
-    case DurableValueTag::boolean: {
-      auto decoded = reader.read_u16();
-      if (!decoded || *decoded > 1U) {
-        return tl::unexpected{ScriptStateDecodeError::invalid_value};
-      }
-      value = *decoded == 1U;
-      break;
-    }
-    case DurableValueTag::integer: {
-      auto decoded = reader.read_u64();
-      if (!decoded) {
-        return tl::unexpected{ScriptStateDecodeError::invalid_value};
-      }
-      value = std::bit_cast<std::int64_t>(*decoded);
-      break;
-    }
-    case DurableValueTag::content_id: {
-      auto decoded = reader.read_content_id();
-      if (!decoded) {
-        return tl::unexpected{ScriptStateDecodeError::invalid_value};
-      }
-      value = std::move(*decoded);
-      break;
-    }
-    case DurableValueTag::entity_id: {
-      auto decoded = reader.read_entity_id();
-      if (!decoded) {
-        return tl::unexpected{ScriptStateDecodeError::invalid_value};
-      }
-      value = *decoded;
-      break;
-    }
-    default:
-      return tl::unexpected{ScriptStateDecodeError::invalid_value};
-    }
-    writes.push_back(ScriptStateWrite{
-        .address = {.module_id = std::move(*module),
-                    .scope = {.kind = scope_kind, .region = std::move(*region), .entity = entity},
-                    .key = std::move(*key)},
-        .value = std::move(value),
-    });
+    writes.push_back(*std::move(write));
   }
   if (reader.remaining() != 0) {
     return tl::unexpected{ScriptStateDecodeError::invalid_format};
