@@ -350,6 +350,65 @@ void hand_in_mouse_tail(dross::DialogueRuntime& dialogue, dross::InventoryRuntim
   }
 }
 
+struct CombatResumeTarget {
+  dross::WorldInstanceId instance{0};
+  const dross::AbilityDefinition& ability;
+  CanonicalCombatEvents& events;
+  std::unique_ptr<dross::RandomHub>& random;
+  std::unique_ptr<dross::CombatSession>& combat;
+  dross::RandomStream*& damage_random;
+  std::unique_ptr<dross::AbilityResolver>& resolver;
+  dross::InventoryRuntime& inventory;
+  dross::QuestRuntime& quests;
+  dross::DialogueRuntime& dialogue;
+};
+
+void maybe_resume_combat(const ResumeBoundary boundary, const dross::SaveContainer& save,
+                         CombatResumeTarget target) {
+  if (boundary != ResumeBoundary::combat) {
+    return;
+  }
+  const auto decoded = dross::decode_save_container(dross::encode_save_container(save));
+  if (!decoded) {
+    throw std::logic_error{"Thump combat-boundary save decode failed"};
+  }
+  const auto* combat_boundary = checked_optional(decoded->combat);
+  if (combat_boundary == nullptr || combat_boundary->ability != target.ability.id) {
+    throw std::logic_error{"Thump combat-boundary snapshot invalid"};
+  }
+  target.random = std::make_unique<dross::RandomHub>(decoded->runtime.random.master_seed);
+  if (!target.random->restore(decoded->runtime.random)) {
+    throw std::logic_error{"Thump combat-boundary random restore failed"};
+  }
+  auto restored_combat = dross::CombatSession::from_snapshot(combat_boundary->session,
+                                                             target.instance, &target.events);
+  if (!restored_combat) {
+    throw std::logic_error{"Thump combat session restore failed"};
+  }
+  target.combat = std::move(*restored_combat);
+  target.damage_random =
+      &target.random->stream(dross::RandomStreamId{content_id("dross:combat_damage")});
+  auto restored_resolver =
+      dross::AbilityResolver::from_snapshot(*target.combat, combat_boundary->actors,
+                                            target.instance, &target.events, target.damage_random);
+  if (!restored_resolver) {
+    throw std::logic_error{"Thump ability state restore failed"};
+  }
+  target.resolver = std::move(*restored_resolver);
+  const auto* saved_inventory = checked_optional(decoded->inventory);
+  const auto* saved_quest = checked_optional(decoded->quest);
+  const auto* saved_dialogue = checked_optional(decoded->dialogue);
+  if (saved_inventory == nullptr || !target.inventory.restore(*saved_inventory)) {
+    throw std::logic_error{"Thump combat-boundary inventory restore failed"};
+  }
+  if (saved_quest == nullptr || !target.quests.restore(*saved_quest)) {
+    throw std::logic_error{"Thump combat-boundary quest restore failed"};
+  }
+  if (saved_dialogue == nullptr || !target.dialogue.restore(*saved_dialogue)) {
+    throw std::logic_error{"Thump combat-boundary dialogue restore failed"};
+  }
+}
+
 ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_boundary) {
   auto instance = dross::WorldInstanceId{initial_world_instance};
   auto world = std::make_unique<dross::WorldStorage>(
@@ -471,46 +530,17 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   save_checkpoints.push_back(
       SaveCheckpoint{.name = "combat-tick-0", .save = save_checkpoint(dross::Tick{0}, true)});
 
-  if (resume_boundary == ResumeBoundary::combat) {
-    const auto& save = save_checkpoints.back().save;
-    const auto decoded = dross::decode_save_container(dross::encode_save_container(save));
-    if (!decoded) {
-      throw std::logic_error{"Thump combat-boundary save decode failed"};
-    }
-    const auto& combat_boundary = decoded->combat;
-    if (!combat_boundary || combat_boundary->ability != thump.id) {
-      throw std::logic_error{"Thump combat-boundary snapshot invalid"};
-    }
-    random = std::make_unique<dross::RandomHub>(decoded->runtime.random.master_seed);
-    if (!random->restore(decoded->runtime.random)) {
-      throw std::logic_error{"Thump combat-boundary random restore failed"};
-    }
-    auto restored_combat =
-        dross::CombatSession::from_snapshot(combat_boundary->session, instance, &events);
-    if (!restored_combat) {
-      throw std::logic_error{"Thump combat session restore failed"};
-    }
-    combat = std::move(*restored_combat);
-    damage_random = &random->stream(dross::RandomStreamId{content_id("dross:combat_damage")});
-    auto restored_resolver = dross::AbilityResolver::from_snapshot(
-        *combat, combat_boundary->actors, instance, &events, damage_random);
-    if (!restored_resolver) {
-      throw std::logic_error{"Thump ability state restore failed"};
-    }
-    resolver = std::move(*restored_resolver);
-    const auto* saved_inventory = checked_optional(decoded->inventory);
-    const auto* saved_quest = checked_optional(decoded->quest);
-    const auto* saved_dialogue = checked_optional(decoded->dialogue);
-    if (saved_inventory == nullptr || !inventory->restore(*saved_inventory)) {
-      throw std::logic_error{"Thump combat-boundary inventory restore failed"};
-    }
-    if (saved_quest == nullptr || !quests.restore(*saved_quest)) {
-      throw std::logic_error{"Thump combat-boundary quest restore failed"};
-    }
-    if (saved_dialogue == nullptr || !dialogue->restore(*saved_dialogue)) {
-      throw std::logic_error{"Thump combat-boundary dialogue restore failed"};
-    }
-  }
+  maybe_resume_combat(resume_boundary, save_checkpoints.back().save,
+                      {.instance = instance,
+                       .ability = thump,
+                       .events = events,
+                       .random = random,
+                       .combat = combat,
+                       .damage_random = damage_random,
+                       .resolver = resolver,
+                       .inventory = *inventory,
+                       .quests = quests,
+                       .dialogue = *dialogue});
   const auto result = resolver->perform(thump, player.id(), mouse.id());
   if (!result.accepted || !result.killed ||
       combat->state() != dross::CombatSessionState::completed) {
