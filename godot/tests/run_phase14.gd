@@ -101,6 +101,8 @@ func _initialize() -> void:
 	check(demo.toggle_door(), "integrated demo rejected OpenDoor")
 	check(demo.get_node("DrossWorldHost").is_door_open(),
 			"integrated door view preceded authoritative door state")
+	check(demo.get_node("DrossWorldHost").get_last_door_event() == "dross:door_opened",
+			"door diagnostics did not consume the committed open event")
 	check(demo.get_node("DrossWorldHost").is_door_presentation_pending(),
 			"integrated door animation was acknowledged before presentation")
 	check(is_zero_approx(demo.get_node("SideDoor").rotation_degrees.y),
@@ -139,6 +141,8 @@ func _initialize() -> void:
 	var completed_hash: String = demo.get_node(
 			"DrossWorldHost").get_canonical_capability_hash()
 	check(demo.toggle_door(), "post-combat CloseDoor was rejected")
+	check(demo.get_node("DrossWorldHost").get_last_door_event() == "dross:door_closed",
+			"door diagnostics did not consume the committed close event")
 	await create_timer(0.3).timeout
 	check(not demo.get_node("DrossWorldHost").is_door_open(),
 			"post-combat door mutation did not commit before reload")

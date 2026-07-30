@@ -969,6 +969,9 @@ bool DrossWorldHost::is_door_edge_traversable() const {
 bool DrossWorldHost::is_door_presentation_pending() const {
   return door_state_ && door_state_->runtime.presentation_pending();
 }
+godot::String DrossWorldHost::get_last_door_event() const {
+  return door_state_ ? door_state_->last_event : godot::String{};
+}
 std::int64_t DrossWorldHost::get_door_presentation_acknowledgement_id() const {
   return door_state_
              ? static_cast<std::int64_t>(door_state_->runtime.presentation_acknowledgement_id())
@@ -1069,6 +1072,8 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::is_door_edge_traversable);
   godot::ClassDB::bind_method(godot::D_METHOD("is_door_presentation_pending"),
                               &DrossWorldHost::is_door_presentation_pending);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_last_door_event"),
+                              &DrossWorldHost::get_last_door_event);
   godot::ClassDB::bind_method(godot::D_METHOD("get_door_presentation_acknowledgement_id"),
                               &DrossWorldHost::get_door_presentation_acknowledgement_id);
   godot::ClassDB::bind_method(
