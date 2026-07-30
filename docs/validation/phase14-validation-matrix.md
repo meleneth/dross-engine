@@ -1,6 +1,6 @@
 # Phase 14 Validation Matrix
 
-Recorded 2026-07-29 on commit `6ad92ed121d96286d80914465bf8e87983b70a51`.
+Recorded 2026-07-29 through commit `45f4cbe`.
 
 ## Results
 
@@ -8,6 +8,7 @@ Recorded 2026-07-29 on commit `6ad92ed121d96286d80914465bf8e87983b70a51`.
 | --- | --- | --- |
 | Generated APIs | Pass | `generate all` and `check generated` left no diff |
 | Generator and schema tests | Pass | 6 of 6 pytest cases |
+| Configured static analysis | Pass | clang-tidy completed all 34 translation units with project warnings treated as errors |
 | Linux GCC 14 debug | Pass | 183 of 183 CTest cases |
 | Linux Clang 19 ASan/UBSan | Pass with environment exception | 183 of 183 CTest cases with LeakSanitizer disabled |
 | Godot 4.7.1 Linux release boundary | Pass | 8 of 8 integration scripts |
@@ -30,6 +31,7 @@ PYTHONPATH=tools/dross_cli/src .venv/bin/python -m pytest -q
 
 cmake --build --preset linux-debug
 ctest --preset linux-debug --output-on-failure
+cmake --build --preset linux-debug --target tidy
 
 cmake --build --preset linux-asan-ubsan
 ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=print_stacktrace=1 \
