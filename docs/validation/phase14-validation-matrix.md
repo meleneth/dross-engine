@@ -13,9 +13,9 @@ Recorded 2026-07-29 through commit `5517810`.
 | GitLab CI definition | Configured; run pending | Linux clean-cache, Clang, GCC, generator, Godot, package, replay, and sanitizer jobs are encoded |
 | Configured static analysis | Pass | clang-tidy completed all 34 translation units with project warnings treated as errors |
 | Architecture audit | Pass | Automated boundary tests and targeted source review found no live violation or dead production abstraction |
-| Dependency registration audit | Pass | Four unused packages removed; clean native graph passed 183 tests and Godot passed 8 scripts |
-| Linux GCC 14 debug | Pass | 183 of 183 CTest cases |
-| Linux Clang 19 ASan/UBSan | Pass with environment exception | 183 of 183 CTest cases with LeakSanitizer disabled |
+| Dependency registration audit | Pass | Four unused packages removed; active pins and shipped notices are now enforced by CTest |
+| Linux GCC 14 debug | Pass | 184 of 184 CTest cases |
+| Linux Clang 19 ASan/UBSan | Pass with environment exception | 184 of 184 CTest cases with LeakSanitizer disabled |
 | Godot 4.7.1 Linux release boundary | Pass | 8 of 8 integration scripts |
 | Deterministic replay | Pass | 2 checkpoints and 6 events verified |
 | Repeated replay recording | Pass | Byte-identical SHA-256 `0e3aad2bb199ad005749e7614aaafae51e1679ca5ff4adcb391808606ef64bb6` |
@@ -58,7 +58,7 @@ The unmodified sanitizer test command cannot complete Catch2 test discovery in
 this execution environment because LeakSanitizer terminates when the process is
 supervised through `ptrace`. No test begins and no product defect is reported.
 Disabling leak detection allows the same Clang ASan/UBSan binaries to run all
-183 tests. LeakSanitizer therefore remains unverified here; ASan and UBSan pass.
+184 tests. LeakSanitizer therefore remains unverified here; ASan and UBSan pass.
 
 This exception does not convert Windows or Steam Deck into tested targets and
 does not support a cross-platform release claim.
