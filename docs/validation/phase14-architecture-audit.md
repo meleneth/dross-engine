@@ -18,7 +18,7 @@ unverified as recorded in the Phase 14 validation matrix.
 
 ## Automated checks
 
-The six architecture tests pass:
+The seven architecture tests pass:
 
 ```sh
 ctest --preset linux-debug -R '^architecture\.' --output-on-failure
@@ -30,9 +30,12 @@ ctest --preset linux-debug -R '^architecture\.' --output-on-failure
 - `architecture.no_forbidden_gdscript_random`
 - `architecture.dependency_inventory_current`
 - `architecture.source_registration_current`
+- `architecture.package_configuration_current`
 
 The source-registration check covers implementation files in both directions
 and rejects private adapter or tool headers without an include consumer.
+The package-configuration check locks the production resource filters and
+platform GDExtension library mappings for both prototype targets.
 
 The configured clang-tidy target also passes all 34 project translation units
 with project warnings treated as errors:

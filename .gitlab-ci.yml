@@ -18,10 +18,11 @@ format-check:
   image: debian:stable-slim
   before_script:
     - apt-get update
-    - apt-get install -y --no-install-recommends ca-certificates clang-format cmake git ninja-build g++ python3
+    - apt-get install -y --no-install-recommends ca-certificates clang-format cmake git ninja-build g++ python3 shellcheck
   script:
     - cmake --preset linux-debug
     - cmake --build --preset linux-debug --target format-check
+    - shellcheck bin/package-linux bin/package-windows
 
 generated-api-check:
   stage: generate

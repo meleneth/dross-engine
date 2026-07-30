@@ -313,3 +313,8 @@ add_test(
   COMMAND Python3::Interpreter
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/architecture/source_registration_current.py"
           "${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(
+  NAME architecture.package_configuration_current
+  COMMAND Python3::Interpreter
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/architecture/package_configuration_current.py"
+          "${CMAKE_CURRENT_SOURCE_DIR}")

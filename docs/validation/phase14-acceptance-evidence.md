@@ -22,7 +22,7 @@ that criterion. It does not imply Windows or Steam Deck device coverage.
 | Replay matches canonical hashes | Replay checkpoint, divergence-localization, committed fixture, repeated recording, save-resume, and full Thump scenario verification pass on Linux. |
 | Generators are clean and idempotent | `./bin/dross generate all`, `./bin/dross check generated`, and all six generator/schema pytest cases pass without a diff. |
 | Linux GCC, Linux Clang, sanitizer, Windows, and Godot headless CI pass | Open: GCC, Clang ASan/UBSan, and all eight Godot headless scripts pass locally. LeakSanitizer, Windows, and Steam Deck hardware remain unverified as recorded in the validation matrix. |
-| No introduced abstraction is unused | All six architecture tests pass; the source audit found no orphan event, implementation file, private header, dead bus, empty production interface, unused machine, placeholder production path, or unclassified active dependency. |
+| No introduced abstraction is unused | All seven architecture tests pass; the source audit found no orphan event, implementation file, private header, dead bus, empty production interface, unused machine, placeholder production path, unclassified active dependency, or packaging mapping drift. |
 
 ## Aggregate commands
 
