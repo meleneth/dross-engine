@@ -29,14 +29,14 @@ void encode_hex_cell(ByteWriter& writer, const HexCellId& cell) {
 Result<HexCellId, SaveDecodeError> decode_hex_cell(ByteReader& reader) {
   auto region = reader.read_content_id();
   auto q = reader.read_u32();
-  auto r = reader.read_u32();
+  auto row = reader.read_u32();
   auto layer = reader.read_u32();
-  if (!region || !q || !r || !layer) {
+  if (!region || !q || !row || !layer) {
     return tl::unexpected{SaveDecodeError::invalid_format};
   }
   return HexCellId{
       .region = RegionId{*region},
-      .coord = {.q = static_cast<std::int32_t>(*q), .r = static_cast<std::int32_t>(*r)},
+      .coord = {.q = static_cast<std::int32_t>(*q), .r = static_cast<std::int32_t>(*row)},
       .layer = static_cast<std::int32_t>(*layer),
   };
 }
