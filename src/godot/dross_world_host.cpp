@@ -110,9 +110,10 @@ struct DrossWorldHost::RuntimeState {
 struct DrossWorldHost::ScriptScenarioState {
   explicit ScriptScenarioState(const MasterSeed seed)
       : random{seed}, runtime{port, random}, mode{machine_trace},
-        inventory{WorldInstanceId{synthetic_instance}, {EntityId{7, 1}}} {
+        inventory{WorldInstanceId{synthetic_instance}, {EntityId{7, 1}}}, quests{machine_trace} {
     port.set_world_instance(WorldInstanceId{synthetic_instance});
     port.set_inventory(&inventory);
+    port.set_quests(&quests);
   }
 
   GodotScriptRuntime port;
@@ -121,6 +122,7 @@ struct DrossWorldHost::ScriptScenarioState {
   NullMachineTrace machine_trace;
   SimulationMode mode;
   InventoryRuntime inventory;
+  QuestRuntime quests;
   Tick tick{0};
 };
 

@@ -52,6 +52,9 @@ func _initialize() -> void:
 			"field mouse did not submit its deferred typed reward")
 	check(host.get_script_state_int("thump_demo:field_mouse", 2, "tails_before_reward") == 0,
 			"field mouse inventory query did not observe the pre-reward count")
+	check(not host.get_script_state_bool(
+			"thump_demo:field_mouse", 2, "mouse_quest_was_active"),
+			"field mouse quest query did not observe the inactive lifecycle")
 	check(host.get_inventory_count(1, "thump_demo:mouse_tail") == 1,
 			"deferred mouse-tail reward did not commit")
 	check(host.get_script_state_int("thump_demo:field_mouse", 2, "reaction_roll") >= 0,

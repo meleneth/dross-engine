@@ -22,6 +22,10 @@ func on_actor_killed(event: DrossActorKilledEvent, context: DrossScriptContext) 
 				event.killer_lineage, event.killer_sequence, "thump_demo:mouse_tail"
 			)
 		)
+		context.state.set_bool(
+			"mouse_quest_was_active",
+			context.query.quest_status("thump_demo:mouse_quest") == "active"
+		)
 		var submitted := context.commands.grant_item(
 			event.killer_lineage, event.killer_sequence, "thump_demo:mouse_tail", 1
 		)

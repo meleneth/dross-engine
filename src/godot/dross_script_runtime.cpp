@@ -178,6 +178,33 @@ bool DrossQueryApi::has_item(const std::int64_t owner_lineage, const std::int64_
       *parsed, static_cast<std::uint32_t>(count));
 }
 
+godot::String DrossQueryApi::quest_status(const godot::String& quest) const {
+  const auto parsed = ContentId::parse(utf8(quest));
+  if (!quests_ || !parsed) {
+    return {};
+  }
+  switch (quests_->status(*parsed)) {
+  case QuestStatus::inactive:
+    return "inactive";
+  case QuestStatus::active:
+    return "active";
+  case QuestStatus::completed:
+    return "completed";
+  case QuestStatus::failed:
+    return "failed";
+  }
+  return {};
+}
+
+godot::String DrossQueryApi::quest_stage(const godot::String& quest) const {
+  const auto parsed = ContentId::parse(utf8(quest));
+  if (!quests_ || !parsed) {
+    return {};
+  }
+  const auto stage = quests_->stage(*parsed);
+  return stage ? godot::String{stage->canonical().data()} : godot::String{};
+}
+
 void DrossQueryApi::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("is_owner", "lineage", "sequence"),
                               &DrossQueryApi::is_owner);
@@ -187,6 +214,9 @@ void DrossQueryApi::_bind_methods() {
   godot::ClassDB::bind_method(
       godot::D_METHOD("has_item", "owner_lineage", "owner_sequence", "item", "count"),
       &DrossQueryApi::has_item);
+  godot::ClassDB::bind_method(godot::D_METHOD("quest_status", "quest"),
+                              &DrossQueryApi::quest_status);
+  godot::ClassDB::bind_method(godot::D_METHOD("quest_stage", "quest"), &DrossQueryApi::quest_stage);
 }
 
 DrossScriptContext::DrossScriptContext() {
@@ -211,20 +241,20 @@ std::int64_t DrossScriptContext::get_owner_sequence() const {
 void DrossScriptContext::attach(const ScriptModule& module, ScriptCallbackTransaction& transaction,
                                 RandomStream& random, const Tick tick,
                                 const WorldInstanceId world_instance,
-                                const InventoryRuntime* inventory) {
+                                const InventoryRuntime* inventory, const QuestRuntime* quests) {
   module_ = &module;
   tick_ = static_cast<std::int64_t>(tick.value());
   state_->attach(&transaction);
   random_->attach(&random);
   commands_->attach(&transaction, world_instance);
-  query_->attach(&module.scope, inventory, world_instance);
+  query_->attach(&module.scope, inventory, quests, world_instance);
 }
 
 void DrossScriptContext::detach() {
   state_->attach(nullptr);
   random_->attach(nullptr);
   commands_->attach(nullptr, WorldInstanceId{0});
-  query_->attach(nullptr, nullptr, WorldInstanceId{0});
+  query_->attach(nullptr, nullptr, nullptr, WorldInstanceId{0});
   module_ = nullptr;
 }
 
@@ -324,7 +354,7 @@ Result<void, std::string> GodotScriptRuntime::invoke(const ScriptModule& module,
   }
   godot::Ref<DrossScriptContext> context;
   context.instantiate();
-  context->attach(module, transaction, random, tick_, world_instance_, inventory_);
+  context->attach(module, transaction, random, tick_, world_instance_, inventory_, quests_);
   auto call_args = args;
   call_args.push_back(context);
   godot::Ref<DrossCallbackLogger> logger;

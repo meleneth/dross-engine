@@ -2,6 +2,7 @@
 
 #include <dross/random/random_hub.hpp>
 #include <dross/runtime/inventory_runtime.hpp>
+#include <dross/runtime/quest_runtime.hpp>
 #include <dross/runtime/script_runtime.hpp>
 
 #include <godot_cpp/classes/logger.hpp>
@@ -107,10 +108,13 @@ public:
                                              const godot::String& item) const;
   [[nodiscard]] bool has_item(std::int64_t owner_lineage, std::int64_t owner_sequence,
                               const godot::String& item, std::int64_t count) const;
+  [[nodiscard]] godot::String quest_status(const godot::String& quest) const;
+  [[nodiscard]] godot::String quest_stage(const godot::String& quest) const;
   void attach(const ScriptScope* scope, const InventoryRuntime* inventory,
-              WorldInstanceId world_instance) {
+              const QuestRuntime* quests, WorldInstanceId world_instance) {
     scope_ = scope;
     inventory_ = inventory;
+    quests_ = quests;
     world_instance_ = world_instance;
   }
 
@@ -120,6 +124,7 @@ protected:
 private:
   const ScriptScope* scope_{nullptr};
   const InventoryRuntime* inventory_{nullptr};
+  const QuestRuntime* quests_{nullptr};
   WorldInstanceId world_instance_{0};
 };
 
@@ -137,7 +142,7 @@ public:
   [[nodiscard]] std::int64_t get_owner_sequence() const;
   void attach(const ScriptModule& module, ScriptCallbackTransaction& transaction,
               RandomStream& random, Tick tick, WorldInstanceId world_instance,
-              const InventoryRuntime* inventory);
+              const InventoryRuntime* inventory, const QuestRuntime* quests);
   void detach();
 
 protected:
@@ -198,6 +203,7 @@ public:
   void set_tick(Tick tick) { tick_ = tick; }
   void set_world_instance(WorldInstanceId value) { world_instance_ = value; }
   void set_inventory(const InventoryRuntime* value) { inventory_ = value; }
+  void set_quests(const QuestRuntime* value) { quests_ = value; }
   [[nodiscard]] const std::vector<std::string>& calls() const noexcept { return calls_; }
 
 private:
@@ -219,6 +225,7 @@ private:
   Tick tick_{0};
   WorldInstanceId world_instance_{0};
   const InventoryRuntime* inventory_{nullptr};
+  const QuestRuntime* quests_{nullptr};
 };
 
 } // namespace dross::godot_adapter
