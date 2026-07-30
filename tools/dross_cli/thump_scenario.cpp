@@ -262,6 +262,40 @@ void resume_from_exploration_save(const dross::SaveContainer& save,
   target.caretaker = *restored_caretaker;
 }
 
+struct ExplorationProgressionTarget {
+  ExplorationResumeTarget world;
+  std::unique_ptr<dross::InventoryRuntime>& inventory;
+  std::unique_ptr<dross::DialogueRuntime>& dialogue;
+  dross::QuestRuntime& quests;
+  dross::MachineTraceSink& trace;
+  CanonicalCombatEvents& events;
+};
+
+void maybe_resume_exploration(const ResumeBoundary boundary, const dross::SaveContainer& save,
+                              ExplorationProgressionTarget target) {
+  if (boundary != ResumeBoundary::exploration) {
+    return;
+  }
+  resume_from_exploration_save(save, target.world);
+  target.inventory = std::make_unique<dross::InventoryRuntime>(
+      target.world.instance, std::vector{target.world.player.id()}, &target.events);
+  const auto* saved_inventory = checked_optional(save.inventory);
+  const auto* saved_quest = checked_optional(save.quest);
+  const auto* saved_dialogue = checked_optional(save.dialogue);
+  if (saved_inventory == nullptr || !target.inventory->restore(*saved_inventory)) {
+    throw std::logic_error{"Thump exploration-boundary inventory restore failed"};
+  }
+  if (saved_quest == nullptr || !target.quests.restore(*saved_quest)) {
+    throw std::logic_error{"Thump exploration-boundary quest restore failed"};
+  }
+  target.dialogue = std::make_unique<dross::DialogueRuntime>(
+      target.world.instance, std::vector{target.world.player.id(), target.world.caretaker.id()},
+      target.trace, &target.events);
+  if (saved_dialogue == nullptr || !target.dialogue->restore(*saved_dialogue)) {
+    throw std::logic_error{"Thump exploration-boundary dialogue restore failed"};
+  }
+}
+
 struct ThumpQuestContent {
   dross::ContentId quest{content_id("thump_demo:mouse_quest")};
   dross::ContentId hunt{content_id("thump_demo:hunt_mouse")};
@@ -386,32 +420,20 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   save_checkpoints.push_back(
       SaveCheckpoint{.name = "exploration-tick-0", .save = save_checkpoint(dross::Tick{0}, false)});
 
-  if (resume_boundary == ResumeBoundary::exploration) {
-    resume_from_exploration_save(save_checkpoints.back().save, {.instance = instance,
-                                                                .world = world,
-                                                                .player = player,
-                                                                .mouse = mouse,
-                                                                .caretaker = caretaker,
-                                                                .random = random,
-                                                                .lifecycle = lifecycle,
-                                                                .mode = mode});
-    inventory =
-        std::make_unique<dross::InventoryRuntime>(instance, std::vector{player.id()}, &events);
-    const auto* saved_inventory = checked_optional(save_checkpoints.back().save.inventory);
-    const auto* saved_quest = checked_optional(save_checkpoints.back().save.quest);
-    const auto* saved_dialogue = checked_optional(save_checkpoints.back().save.dialogue);
-    if (saved_inventory == nullptr || !inventory->restore(*saved_inventory)) {
-      throw std::logic_error{"Thump exploration-boundary inventory restore failed"};
-    }
-    if (saved_quest == nullptr || !quests.restore(*saved_quest)) {
-      throw std::logic_error{"Thump exploration-boundary quest restore failed"};
-    }
-    dialogue = std::make_unique<dross::DialogueRuntime>(
-        instance, std::vector{player.id(), caretaker.id()}, trace, &events);
-    if (saved_dialogue == nullptr || !dialogue->restore(*saved_dialogue)) {
-      throw std::logic_error{"Thump exploration-boundary dialogue restore failed"};
-    }
-  }
+  maybe_resume_exploration(resume_boundary, save_checkpoints.back().save,
+                           {.world = {.instance = instance,
+                                      .world = world,
+                                      .player = player,
+                                      .mouse = mouse,
+                                      .caretaker = caretaker,
+                                      .random = random,
+                                      .lifecycle = lifecycle,
+                                      .mode = mode},
+                            .inventory = inventory,
+                            .dialogue = dialogue,
+                            .quests = quests,
+                            .trace = trace,
+                            .events = events});
 
   if (!mode.request_combat() || !mode.reach_safe_boundary()) {
     throw std::logic_error{"Thump scenario combat-mode setup failed"};
