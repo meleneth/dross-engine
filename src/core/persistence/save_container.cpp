@@ -495,9 +495,26 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
   return {writer.bytes().begin(), writer.bytes().end()};
 }
 
-Result<SaveContainer, SaveDecodeError>
-decode_save_container(const std::span<const std::byte> bytes) {
-  ByteReader reader{bytes};
+namespace {
+
+struct DecodedSavePreamble {
+  SaveHeader header;
+  SaveRuntimeSnapshot runtime;
+};
+
+Result<CheckpointHash, SaveDecodeError> decode_checkpoint_hash(const std::string_view text) {
+  const auto bytes = decode_bytes(text);
+  if (!bytes || bytes->size() != CheckpointHash{}.size()) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  CheckpointHash result{};
+  std::ranges::transform(*bytes, result.begin(), [](const std::byte value) {
+    return std::to_integer<std::uint8_t>(value);
+  });
+  return result;
+}
+
+Result<DecodedSavePreamble, SaveDecodeError> decode_save_preamble(ByteReader& reader) {
   const auto magic = reader.read_string();
   const auto container_version = reader.read_u32();
   const auto schema_version = reader.read_u32();
@@ -515,19 +532,32 @@ decode_save_container(const std::span<const std::byte> bytes) {
       !next_runtime_sequence || !map_id || !map_hash_text) {
     return tl::unexpected{SaveDecodeError::invalid_format};
   }
-  const auto map_hash_bytes = decode_bytes(*map_hash_text);
-  if (!map_hash_bytes || map_hash_bytes->size() != CheckpointHash{}.size()) {
+  auto map_hash = decode_checkpoint_hash(*map_hash_text);
+  auto runtime = decode_runtime_snapshot(reader);
+  if (!map_hash || !runtime) {
     return tl::unexpected{SaveDecodeError::invalid_format};
   }
-  CheckpointHash map_hash{};
-  std::ranges::transform(*map_hash_bytes, map_hash.begin(), [](const std::byte value) {
-    return std::to_integer<std::uint8_t>(value);
-  });
-  auto runtime = decode_runtime_snapshot(reader);
-  if (!runtime) {
-    return tl::unexpected{runtime.error()};
-  }
+  return DecodedSavePreamble{
+      .header =
+          SaveHeader{
+              .container_version = *container_version,
+              .simulation_schema_version = *schema_version,
+              .engine_version = SemanticVersion{.major = *engine_major,
+                                                .minor = *engine_minor,
+                                                .patch = *engine_patch},
+              .ticks_per_second = *ticks_per_second,
+              .current_tick = Tick{*current_tick},
+              .world_lineage = *world_lineage,
+              .allocator =
+                  EntityIdAllocatorSnapshot{.next_runtime_sequence = *next_runtime_sequence},
+              .map_id = *map_id,
+              .map_hash = *map_hash,
+          },
+      .runtime = *std::move(runtime),
+  };
+}
 
+Result<ContentManifest, SaveDecodeError> decode_content_manifest(ByteReader& reader) {
   const auto package_count = reader.read_u64();
   if (!package_count || *package_count > reader.remaining()) {
     return tl::unexpected{SaveDecodeError::invalid_format};
@@ -554,207 +584,251 @@ decode_save_container(const std::span<const std::byte> bytes) {
       dependencies.push_back(*std::move(dependency_id));
     }
     const auto hash_text = reader.read_string();
-    const auto hash_bytes = hash_text ? decode_bytes(*hash_text) : std::nullopt;
-    if (!hash_bytes || hash_bytes->size() != CheckpointHash{}.size()) {
+    if (!hash_text) {
       return tl::unexpected{SaveDecodeError::invalid_format};
     }
-    CheckpointHash content_hash{};
-    std::ranges::transform(*hash_bytes, content_hash.begin(), [](const std::byte value) {
-      return std::to_integer<std::uint8_t>(value);
-    });
+    auto content_hash = decode_checkpoint_hash(*hash_text);
+    if (!content_hash) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
     manifest.push_back(ContentPackageRecord{
         .package_id = *package_id,
         .version = {.major = *major, .minor = *minor, .patch = *patch},
         .dependencies = std::move(dependencies),
-        .content_hash = content_hash,
+        .content_hash = *content_hash,
     });
   }
-  const auto has_combat = reader.read_u16();
-  if (!has_combat || *has_combat > 1U) {
-    return tl::unexpected{SaveDecodeError::invalid_format};
-  }
-  std::optional<CombatBoundarySnapshot> combat;
-  if (*has_combat == 1U) {
-    auto ability = reader.read_content_id();
-    auto session = decode_combat_session_snapshot(reader);
-    auto actors = decode_ability_resolver_snapshot(reader);
-    if (!ability || !session || !actors) {
-      return tl::unexpected{SaveDecodeError::invalid_format};
-    }
-    combat = CombatBoundarySnapshot{
-        .ability = *ability,
-        .session = *std::move(session),
-        .actors = *std::move(actors),
-    };
-  }
-  const auto has_movement = reader.read_u16();
-  if (!has_movement || *has_movement > 1U) {
-    return tl::unexpected{SaveDecodeError::invalid_format};
-  }
-  std::optional<MovementBoundarySnapshot> movement;
-  if (*has_movement == 1U) {
-    auto actor = reader.read_entity_id();
-    auto footprint = reader.read_content_id();
-    auto movement_runtime = decode_movement_snapshot(reader);
-    if (!actor || !footprint || !movement_runtime) {
-      return tl::unexpected{SaveDecodeError::invalid_format};
-    }
-    movement = MovementBoundarySnapshot{
-        .actor = *actor,
-        .footprint = *footprint,
-        .runtime = *std::move(movement_runtime),
-    };
-  }
-  const auto has_door = reader.read_u16();
-  if (!has_door || *has_door > 1U) {
-    return tl::unexpected{SaveDecodeError::invalid_format};
-  }
-  std::optional<DoorBoundarySnapshot> door;
-  if (*has_door == 1U) {
-    auto door_entity = reader.read_entity_id();
-    auto definition = reader.read_content_id();
-    auto edge_count = reader.read_u64();
-    if (!door_entity || !definition || !edge_count || *edge_count > reader.remaining()) {
-      return tl::unexpected{SaveDecodeError::invalid_format};
-    }
-    std::vector<EdgeKey> edges;
-    edges.reserve(static_cast<std::size_t>(*edge_count));
-    for (std::uint64_t edge_index = 0; edge_index < *edge_count; ++edge_index) {
-      auto first = decode_hex_cell(reader);
-      auto second = decode_hex_cell(reader);
-      if (!first || !second) {
-        return tl::unexpected{SaveDecodeError::invalid_format};
-      }
-      auto edge = EdgeKey::between(*std::move(first), *std::move(second));
-      if (!edge) {
-        return tl::unexpected{SaveDecodeError::invalid_format};
-      }
-      edges.push_back(*std::move(edge));
-    }
-    auto footprint = EdgeFootprint::create(std::move(edges));
-    auto door_runtime = decode_door_snapshot(reader);
-    if (!footprint || !door_runtime) {
-      return tl::unexpected{SaveDecodeError::invalid_format};
-    }
-    door = DoorBoundarySnapshot{
-        .door = *door_entity,
-        .definition = *definition,
-        .edges = footprint->edges(),
-        .runtime = *door_runtime,
-    };
-  }
-  const auto has_script = reader.read_u16();
-  if (!has_script || *has_script > 1U) {
-    return tl::unexpected{SaveDecodeError::invalid_format};
-  }
-  std::optional<ScriptBoundarySnapshot> script;
-  if (*has_script == 1U) {
-    const auto module_count = reader.read_u64();
-    if (!module_count || *module_count > reader.remaining()) {
-      return tl::unexpected{SaveDecodeError::invalid_format};
-    }
-    std::vector<ScriptModule> modules;
-    modules.reserve(static_cast<std::size_t>(*module_count));
-    for (std::uint64_t module_index = 0; module_index < *module_count; ++module_index) {
-      auto module_id = reader.read_content_id();
-      auto scope_kind = reader.read_u16();
-      auto region = reader.read_content_id();
-      auto has_entity = reader.read_u16();
-      if (!module_id || !scope_kind || !region || !has_entity ||
-          *scope_kind > static_cast<std::uint16_t>(ScriptScopeKind::entity) || *has_entity > 1U) {
-        return tl::unexpected{SaveDecodeError::invalid_format};
-      }
-      std::optional<EntityId> entity;
-      if (*has_entity == 1U) {
-        auto decoded_entity = reader.read_entity_id();
-        if (!decoded_entity) {
-          return tl::unexpected{SaveDecodeError::invalid_format};
-        }
-        entity = *decoded_entity;
-      }
-      auto module_schema_version = reader.read_u32();
-      const auto kind = static_cast<ScriptScopeKind>(*scope_kind);
-      if (!module_schema_version || *module_schema_version == 0U ||
-          (kind == ScriptScopeKind::region && entity) ||
-          (kind == ScriptScopeKind::entity && !entity)) {
-        return tl::unexpected{SaveDecodeError::invalid_format};
-      }
-      modules.push_back(ScriptModule{
-          .module_id = *std::move(module_id),
-          .scope = ScriptScope{.kind = kind, .region = *std::move(region), .entity = entity},
-          .state_schema_version = *module_schema_version,
-      });
-    }
-    auto state_text = reader.read_string();
-    auto state_bytes = state_text ? decode_bytes(*state_text) : std::nullopt;
-    if (!state_bytes) {
-      return tl::unexpected{SaveDecodeError::invalid_format};
-    }
-    auto state = decode_script_state(*state_bytes);
-    if (!state) {
-      return tl::unexpected{SaveDecodeError::invalid_format};
-    }
-    script = ScriptBoundarySnapshot{
-        .modules = std::move(modules),
-        .state = *std::move(state),
-    };
-  }
+  return manifest;
+}
 
+Result<std::optional<CombatBoundarySnapshot>, SaveDecodeError>
+decode_combat_boundary(ByteReader& reader) {
+  const auto present = reader.read_u16();
+  if (!present || *present > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  if (*present == 0U) {
+    return std::nullopt;
+  }
+  auto ability = reader.read_content_id();
+  auto session = decode_combat_session_snapshot(reader);
+  auto actors = decode_ability_resolver_snapshot(reader);
+  if (!ability || !session || !actors) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  return CombatBoundarySnapshot{
+      .ability = *ability,
+      .session = *std::move(session),
+      .actors = *std::move(actors),
+  };
+}
+
+Result<std::optional<MovementBoundarySnapshot>, SaveDecodeError>
+decode_movement_boundary(ByteReader& reader) {
+  const auto present = reader.read_u16();
+  if (!present || *present > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  if (*present == 0U) {
+    return std::nullopt;
+  }
+  auto actor = reader.read_entity_id();
+  auto footprint = reader.read_content_id();
+  auto runtime = decode_movement_snapshot(reader);
+  if (!actor || !footprint || !runtime) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  return MovementBoundarySnapshot{
+      .actor = *actor,
+      .footprint = *footprint,
+      .runtime = *std::move(runtime),
+  };
+}
+
+Result<std::optional<DoorBoundarySnapshot>, SaveDecodeError>
+decode_door_boundary(ByteReader& reader) {
+  const auto present = reader.read_u16();
+  if (!present || *present > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  if (*present == 0U) {
+    return std::nullopt;
+  }
+  auto door = reader.read_entity_id();
+  auto definition = reader.read_content_id();
+  const auto edge_count = reader.read_u64();
+  if (!door || !definition || !edge_count || *edge_count > reader.remaining()) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  std::vector<EdgeKey> edges;
+  edges.reserve(static_cast<std::size_t>(*edge_count));
+  for (std::uint64_t index = 0; index < *edge_count; ++index) {
+    auto first = decode_hex_cell(reader);
+    auto second = decode_hex_cell(reader);
+    if (!first || !second) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    auto edge = EdgeKey::between(*first, *second);
+    if (!edge) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    edges.push_back(*std::move(edge));
+  }
+  auto footprint = EdgeFootprint::create(std::move(edges));
+  auto runtime = decode_door_snapshot(reader);
+  if (!footprint || !runtime) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  return DoorBoundarySnapshot{
+      .door = *door,
+      .definition = *definition,
+      .edges = footprint->edges(),
+      .runtime = *runtime,
+  };
+}
+
+Result<ScriptModule, SaveDecodeError> decode_script_module(ByteReader& reader) {
+  auto module_id = reader.read_content_id();
+  const auto scope_kind = reader.read_u16();
+  auto region = reader.read_content_id();
+  const auto has_entity = reader.read_u16();
+  if (!module_id || !scope_kind || !region || !has_entity ||
+      *scope_kind > static_cast<std::uint16_t>(ScriptScopeKind::entity) || *has_entity > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  std::optional<EntityId> entity;
+  if (*has_entity == 1U) {
+    auto decoded_entity = reader.read_entity_id();
+    if (!decoded_entity) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    entity = *decoded_entity;
+  }
+  const auto schema_version = reader.read_u32();
+  const auto kind = static_cast<ScriptScopeKind>(*scope_kind);
+  if (!schema_version || *schema_version == 0U || (kind == ScriptScopeKind::region && entity) ||
+      (kind == ScriptScopeKind::entity && !entity)) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  return ScriptModule{
+      .module_id = *std::move(module_id),
+      .scope = ScriptScope{.kind = kind, .region = *std::move(region), .entity = entity},
+      .state_schema_version = *schema_version,
+  };
+}
+
+Result<std::optional<ScriptBoundarySnapshot>, SaveDecodeError>
+decode_script_boundary(ByteReader& reader) {
+  const auto present = reader.read_u16();
+  if (!present || *present > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  if (*present == 0U) {
+    return std::nullopt;
+  }
+  const auto module_count = reader.read_u64();
+  if (!module_count || *module_count > reader.remaining()) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  std::vector<ScriptModule> modules;
+  modules.reserve(static_cast<std::size_t>(*module_count));
+  for (std::uint64_t index = 0; index < *module_count; ++index) {
+    auto module = decode_script_module(reader);
+    if (!module) {
+      return tl::unexpected{SaveDecodeError::invalid_format};
+    }
+    modules.push_back(*std::move(module));
+  }
+  const auto state_text = reader.read_string();
+  const auto state_bytes = state_text ? decode_bytes(*state_text) : std::nullopt;
+  if (!state_bytes) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  auto state = decode_script_state(*state_bytes);
+  if (!state) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  return ScriptBoundarySnapshot{
+      .modules = std::move(modules),
+      .state = *std::move(state),
+  };
+}
+
+Result<std::vector<ComponentRecord>, SaveDecodeError> decode_components(ByteReader& reader) {
   const auto component_count = reader.read_u64();
   if (!component_count) {
     return tl::unexpected{SaveDecodeError::invalid_format};
   }
-  SaveContainer result{
-      .header =
-          SaveHeader{
-              .container_version = *container_version,
-              .simulation_schema_version = *schema_version,
-              .engine_version = SemanticVersion{.major = *engine_major,
-                                                .minor = *engine_minor,
-                                                .patch = *engine_patch},
-              .ticks_per_second = *ticks_per_second,
-              .current_tick = Tick{*current_tick},
-              .world_lineage = *world_lineage,
-              .allocator =
-                  EntityIdAllocatorSnapshot{.next_runtime_sequence = *next_runtime_sequence},
-              .map_id = *map_id,
-              .map_hash = map_hash,
-          },
-      .runtime = *std::move(runtime),
-      .content_manifest = std::move(manifest),
-      .combat = std::move(combat),
-      .movement = std::move(movement),
-      .door = std::move(door),
-      .script = std::move(script),
-      .components = {},
-  };
+  std::vector<ComponentRecord> components;
+  components.reserve(static_cast<std::size_t>(*component_count));
   for (std::uint64_t index = 0; index < *component_count; ++index) {
     const auto type_id = reader.read_content_id();
     const auto version = reader.read_u32();
     const auto entity = reader.read_entity_id();
     const auto payload_text = reader.read_string();
-    if (!type_id || !version || !entity || !payload_text) {
+    auto payload = payload_text ? decode_bytes(*payload_text) : std::nullopt;
+    if (!type_id || !version || !entity || !payload) {
       return tl::unexpected{SaveDecodeError::invalid_format};
     }
-    auto payload = decode_bytes(*payload_text);
-    if (!payload) {
-      return tl::unexpected{SaveDecodeError::invalid_format};
-    }
-    result.components.push_back(ComponentRecord{
+    components.push_back(ComponentRecord{
         .type_id = *type_id,
         .version = *version,
         .entity = *entity,
         .payload = *std::move(payload),
     });
   }
+  std::ranges::sort(components, [](const ComponentRecord& left, const ComponentRecord& right) {
+    return std::tie(left.type_id, left.entity) < std::tie(right.type_id, right.entity);
+  });
+  return components;
+}
+
+} // namespace
+
+Result<SaveContainer, SaveDecodeError>
+decode_save_container(const std::span<const std::byte> bytes) {
+  ByteReader reader{bytes};
+  auto preamble = decode_save_preamble(reader);
+  if (!preamble) {
+    return tl::unexpected{preamble.error()};
+  }
+  auto manifest = decode_content_manifest(reader);
+  if (!manifest) {
+    return tl::unexpected{manifest.error()};
+  }
+  auto combat = decode_combat_boundary(reader);
+  if (!combat) {
+    return tl::unexpected{combat.error()};
+  }
+  auto movement = decode_movement_boundary(reader);
+  if (!movement) {
+    return tl::unexpected{movement.error()};
+  }
+  auto door = decode_door_boundary(reader);
+  if (!door) {
+    return tl::unexpected{door.error()};
+  }
+  auto script = decode_script_boundary(reader);
+  if (!script) {
+    return tl::unexpected{script.error()};
+  }
+  auto components = decode_components(reader);
+  if (!components) {
+    return tl::unexpected{components.error()};
+  }
   if (reader.remaining() != 0) {
     return tl::unexpected{SaveDecodeError::invalid_format};
   }
-  std::ranges::sort(
-      result.components, [](const ComponentRecord& left, const ComponentRecord& right) {
-        return std::tie(left.type_id, left.entity) < std::tie(right.type_id, right.entity);
-      });
-  return result;
+  return SaveContainer{
+      .header = preamble->header,
+      .runtime = std::move(preamble->runtime),
+      .content_manifest = *std::move(manifest),
+      .combat = *std::move(combat),
+      .movement = *std::move(movement),
+      .door = *std::move(door),
+      .script = *std::move(script),
+      .components = *std::move(components),
+  };
 }
 
 Result<WorldLoadPlan, WorldLoadError>
