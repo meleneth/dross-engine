@@ -31,6 +31,9 @@ ctest --preset linux-debug -R '^architecture\.' --output-on-failure
 - `architecture.dependency_inventory_current`
 - `architecture.source_registration_current`
 
+The source-registration check covers implementation files in both directions
+and rejects private adapter or tool headers without an include consumer.
+
 The configured clang-tidy target also passes all 34 project translation units
 with project warnings treated as errors:
 
