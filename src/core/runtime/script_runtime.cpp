@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <bit>
 #include <cctype>
+#include <ranges>
 #include <string>
 #include <utility>
 
@@ -13,8 +14,9 @@ namespace {
 
 constexpr std::uint32_t script_state_magic = 0x53535244U;
 constexpr std::uint16_t script_state_version = 1;
+constexpr std::size_t maximum_script_state_key_length = 64;
 
-enum class DurableValueTag : std::uint16_t {
+enum class DurableValueTag : std::uint8_t {
   boolean = 1,
   integer = 2,
   content_id = 3,
@@ -36,7 +38,7 @@ Result<ScriptStateKey, ScriptStateKeyError> ScriptStateKey::parse(std::string va
   if (value.empty()) {
     return tl::unexpected{ScriptStateKeyError::empty};
   }
-  if (value.size() > 64) {
+  if (value.size() > maximum_script_state_key_length) {
     return tl::unexpected{ScriptStateKeyError::too_long};
   }
   if (!std::ranges::all_of(value,
@@ -224,9 +226,9 @@ void ScriptCallbackTransaction::set_state(ScriptStateKey key, ScriptStateValue v
 }
 
 const ScriptStateValue* ScriptCallbackTransaction::state(const ScriptStateKey& key) const {
-  for (auto write = state_writes_.rbegin(); write != state_writes_.rend(); ++write) {
-    if (write->address.key == key) {
-      return &write->value;
+  for (const auto& state_write : std::ranges::reverse_view(state_writes_)) {
+    if (state_write.address.key == key) {
+      return &state_write.value;
     }
   }
   return state_->find(ScriptStateAddress{
