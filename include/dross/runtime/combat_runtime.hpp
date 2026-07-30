@@ -7,6 +7,8 @@
 #include <dross/generated/actor_killed.hpp>
 #include <dross/generated/combat_started.hpp>
 #include <dross/generated/damage_applied.hpp>
+#include <dross/generated/end_turn.hpp>
+#include <dross/generated/perform_ability.hpp>
 #include <dross/generated/turn_started.hpp>
 #include <dross/hex/hex_topology.hpp>
 #include <dross/identity/content_id.hpp>
@@ -58,6 +60,11 @@ enum class CombatRestoreError : std::uint8_t {
   invalid_snapshot,
 };
 
+enum class CombatCommandRejection : std::uint8_t {
+  wrong_entity,
+  rejected,
+};
+
 class CombatSession final : public MovementCostAccount {
 public:
   class EventSink {
@@ -79,6 +86,7 @@ public:
   CombatSession& operator=(const CombatSession&) = delete;
 
   [[nodiscard]] bool start();
+  [[nodiscard]] Result<void, CombatCommandRejection> handle(const combat::EndTurn& command);
   [[nodiscard]] bool end_turn(EntityId actor);
   [[nodiscard]] bool spend_action_points(EntityId actor, std::uint32_t amount);
   [[nodiscard]] bool set_alive(EntityId actor, bool alive);
@@ -182,6 +190,8 @@ public:
 
   [[nodiscard]] AbilityResult perform(const AbilityDefinition& ability, EntityId actor,
                                       EntityId target);
+  [[nodiscard]] AbilityResult perform(const AbilityDefinition& ability,
+                                      const combat::PerformAbility& command);
   [[nodiscard]] HitPoints health(EntityId actor) const;
   [[nodiscard]] AbilityResolverSnapshot snapshot() const;
 

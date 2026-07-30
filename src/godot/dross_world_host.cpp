@@ -881,8 +881,12 @@ bool DrossWorldHost::perform_thump() {
   if (!combat_state_) {
     return false;
   }
-  const auto result = combat_state_->resolver.perform(
-      combat_state_->ability, combat_state_->player.id(), combat_state_->mouse.id());
+  const auto result = combat_state_->resolver.perform(combat_state_->ability,
+                                                      combat::PerformAbility{
+                                                          .actor = combat_state_->player,
+                                                          .target = combat_state_->mouse,
+                                                          .ability = combat_state_->ability.id,
+                                                      });
   if (!result.accepted) {
     return false;
   }

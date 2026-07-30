@@ -192,6 +192,17 @@ bool CombatSession::start() {
   return true;
 }
 
+Result<void, CombatCommandRejection> CombatSession::handle(const combat::EndTurn& command) {
+  if (state() != CombatSessionState::active ||
+      impl_->combatants[impl_->active_index].definition.entity != command.actor) {
+    return tl::unexpected{CombatCommandRejection::wrong_entity};
+  }
+  if (!end_turn(command.actor.id())) {
+    return tl::unexpected{CombatCommandRejection::rejected};
+  }
+  return {};
+}
+
 bool CombatSession::end_turn(const EntityId actor) {
   if (state() != CombatSessionState::active || active_actor() != actor ||
       impl_->living_count() <= 1) {
@@ -497,6 +508,27 @@ AbilityResult AbilityResolver::perform(const AbilityDefinition& ability, const E
       .remaining_health = destination->health,
       .killed = killed,
   };
+}
+
+AbilityResult AbilityResolver::perform(const AbilityDefinition& ability,
+                                       const combat::PerformAbility& command) {
+  const auto source = std::ranges::find(actors_, command.actor, &AbilityActorState::entity);
+  const auto destination = std::ranges::find(actors_, command.target, &AbilityActorState::entity);
+  if (command.ability != ability.id || source == actors_.end()) {
+    return {.accepted = false,
+            .rejection = AbilityRejection::invalid_ability,
+            .damage = HitPoints{0},
+            .remaining_health = HitPoints{0},
+            .killed = false};
+  }
+  if (destination == actors_.end()) {
+    return {.accepted = false,
+            .rejection = AbilityRejection::invalid_target,
+            .damage = HitPoints{0},
+            .remaining_health = HitPoints{0},
+            .killed = false};
+  }
+  return perform(ability, command.actor.id(), command.target.id());
 }
 
 HitPoints AbilityResolver::health(const EntityId actor) const {

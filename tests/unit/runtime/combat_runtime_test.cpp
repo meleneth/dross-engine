@@ -119,6 +119,18 @@ TEST_CASE("only the active living actor spends AP and turn start refreshes it") 
   CHECK(session.action_points(dross::EntityId{7, 1}) == 3);
 }
 
+TEST_CASE("typed end turn validates the complete actor reference") {
+  dross::CombatSession session{{combatant(1, 10, 3), combatant(2, 5, 2)}};
+  REQUIRE(session.start());
+  const dross::EntityRef foreign{dross::WorldInstanceId{99}, dross::EntityId{7, 1}};
+
+  const auto rejected = session.handle(dross::combat::EndTurn{.actor = foreign});
+  REQUIRE_FALSE(rejected);
+  CHECK(rejected.error() == dross::CombatCommandRejection::wrong_entity);
+  CHECK(session.active_actor() == dross::EntityId{7, 1});
+  REQUIRE(session.handle(dross::combat::EndTurn{.actor = combatant(1, 10, 3).entity}));
+}
+
 TEST_CASE("combat lifecycle emits typed facts only after committed transitions") {
   RecordingSessionEvents events;
   dross::CombatSession session{{combatant(1, 10, 3), combatant(2, 5, 2)}, &events};
@@ -195,6 +207,32 @@ TEST_CASE("generic adjacent ability spends AP and commits deterministic damage")
   CHECK_FALSE(result.killed);
   CHECK(session.action_points(dross::EntityId{7, 1}) == 1);
   CHECK(resolver.health(dross::EntityId{7, 2}) == dross::HitPoints{2});
+}
+
+TEST_CASE("typed ability request validates stable ability and entity references") {
+  dross::CombatSession session{{combatant(1, 10, 3), combatant(2, 5, 2)}};
+  REQUIRE(session.start());
+  dross::AbilityResolver resolver{
+      session,
+      {
+          {.entity = combatant(1, 10, 3).entity, .pose = pose(0), .health = dross::HitPoints{8}},
+          {.entity = combatant(2, 5, 2).entity, .pose = pose(1), .health = dross::HitPoints{5}},
+      },
+  };
+  const dross::EntityRef foreign_actor{dross::WorldInstanceId{99}, dross::EntityId{7, 1}};
+
+  const auto rejected = resolver.perform(
+      thump(),
+      {.actor = foreign_actor, .target = combatant(2, 5, 2).entity, .ability = thump().id});
+  CHECK_FALSE(rejected.accepted);
+  CHECK(rejected.rejection == dross::AbilityRejection::invalid_ability);
+  CHECK(session.action_points(dross::EntityId{7, 1}) == 3);
+  CHECK(resolver.health(dross::EntityId{7, 2}) == dross::HitPoints{5});
+
+  const auto accepted = resolver.perform(thump(), {.actor = combatant(1, 10, 3).entity,
+                                                   .target = combatant(2, 5, 2).entity,
+                                                   .ability = thump().id});
+  CHECK(accepted.accepted);
 }
 
 TEST_CASE("ability resolver snapshot codec restores authoritative pose and health") {
