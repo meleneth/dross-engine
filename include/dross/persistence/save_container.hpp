@@ -4,6 +4,7 @@
 #include <dross/foundation/result.hpp>
 #include <dross/foundation/version.hpp>
 #include <dross/runtime/combat_runtime.hpp>
+#include <dross/runtime/dialogue_runtime.hpp>
 #include <dross/runtime/door_runtime.hpp>
 #include <dross/runtime/inventory_runtime.hpp>
 #include <dross/runtime/movement_runtime.hpp>
@@ -144,6 +145,7 @@ struct SaveContainer {
   std::optional<ScriptBoundarySnapshot> script;
   std::optional<InventorySnapshot> inventory;
   std::optional<QuestSnapshot> quest;
+  std::optional<DialogueSnapshot> dialogue;
   std::vector<ComponentRecord> components;
 
   [[nodiscard]] bool operator==(const SaveContainer&) const = default;

@@ -194,6 +194,11 @@ CheckpointHash canonical_capability_hash(const Tick tick,
     encode_quest_snapshot(encoded, *capabilities.quest);
     add("quest", encoded.bytes());
   }
+  if (capabilities.dialogue) {
+    ByteWriter encoded;
+    encode_dialogue_snapshot(encoded, *capabilities.dialogue);
+    add("dialogue", encoded.bytes());
+  }
   return hash_bytes(writer.bytes());
 }
 
@@ -280,6 +285,11 @@ void encode_capability_section(const CanonicalCapabilitySnapshot& capabilities,
     ByteWriter quest;
     encode_quest_snapshot(quest, *capabilities.quest);
     add_capability("quest", quest.bytes());
+  }
+  if (capabilities.dialogue) {
+    ByteWriter dialogue;
+    encode_dialogue_snapshot(dialogue, *capabilities.dialogue);
+    add_capability("dialogue", dialogue.bytes());
   }
   if (!capability_state.bytes().empty()) {
     sections.emplace(CheckpointSection::capabilities, hash_bytes(capability_state.bytes()));

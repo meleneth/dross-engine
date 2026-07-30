@@ -3,6 +3,9 @@
 
 #include <dross/generated/actor_killed.hpp>
 #include <dross/generated/damage_applied.hpp>
+#include <dross/generated/dialogue_ended.hpp>
+#include <dross/generated/dialogue_option_chosen.hpp>
+#include <dross/generated/dialogue_started.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/item_granted.hpp>
 #include <dross/generated/item_removed.hpp>
@@ -75,6 +78,89 @@ private:
   std::uint64_t target_sequence_{0};
   std::int32_t amount_{0};
   godot::String damage_type_;
+};
+
+class DrossDialogueEndedEvent final : public godot::RefCounted {
+  GDCLASS(DrossDialogueEndedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossDialogueEndedEvent>
+  from_core(const dross::dialogue::DialogueEnded& value);
+  [[nodiscard]] std::int64_t get_initiator_world() const;
+  [[nodiscard]] std::int64_t get_initiator_lineage() const;
+  [[nodiscard]] std::int64_t get_initiator_sequence() const;
+  [[nodiscard]] std::int64_t get_partner_world() const;
+  [[nodiscard]] std::int64_t get_partner_lineage() const;
+  [[nodiscard]] std::int64_t get_partner_sequence() const;
+  [[nodiscard]] godot::String get_dialogue() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  std::uint64_t initiator_world_{0};
+  std::uint64_t initiator_lineage_{0};
+  std::uint64_t initiator_sequence_{0};
+  std::uint64_t partner_world_{0};
+  std::uint64_t partner_lineage_{0};
+  std::uint64_t partner_sequence_{0};
+  godot::String dialogue_;
+};
+
+class DrossDialogueOptionChosenEvent final : public godot::RefCounted {
+  GDCLASS(DrossDialogueOptionChosenEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossDialogueOptionChosenEvent>
+  from_core(const dross::dialogue::DialogueOptionChosen& value);
+  [[nodiscard]] std::int64_t get_initiator_world() const;
+  [[nodiscard]] std::int64_t get_initiator_lineage() const;
+  [[nodiscard]] std::int64_t get_initiator_sequence() const;
+  [[nodiscard]] std::int64_t get_partner_world() const;
+  [[nodiscard]] std::int64_t get_partner_lineage() const;
+  [[nodiscard]] std::int64_t get_partner_sequence() const;
+  [[nodiscard]] godot::String get_dialogue() const;
+  [[nodiscard]] godot::String get_option() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  std::uint64_t initiator_world_{0};
+  std::uint64_t initiator_lineage_{0};
+  std::uint64_t initiator_sequence_{0};
+  std::uint64_t partner_world_{0};
+  std::uint64_t partner_lineage_{0};
+  std::uint64_t partner_sequence_{0};
+  godot::String dialogue_;
+  godot::String option_;
+};
+
+class DrossDialogueStartedEvent final : public godot::RefCounted {
+  GDCLASS(DrossDialogueStartedEvent, godot::RefCounted)
+
+public:
+  [[nodiscard]] static godot::Ref<DrossDialogueStartedEvent>
+  from_core(const dross::dialogue::DialogueStarted& value);
+  [[nodiscard]] std::int64_t get_initiator_world() const;
+  [[nodiscard]] std::int64_t get_initiator_lineage() const;
+  [[nodiscard]] std::int64_t get_initiator_sequence() const;
+  [[nodiscard]] std::int64_t get_partner_world() const;
+  [[nodiscard]] std::int64_t get_partner_lineage() const;
+  [[nodiscard]] std::int64_t get_partner_sequence() const;
+  [[nodiscard]] godot::String get_dialogue() const;
+
+protected:
+  static void _bind_methods();
+
+private:
+  std::uint64_t initiator_world_{0};
+  std::uint64_t initiator_lineage_{0};
+  std::uint64_t initiator_sequence_{0};
+  std::uint64_t partner_world_{0};
+  std::uint64_t partner_lineage_{0};
+  std::uint64_t partner_sequence_{0};
+  godot::String dialogue_;
 };
 
 class DrossEntityPlacedEvent final : public godot::RefCounted {

@@ -39,6 +39,7 @@ add_library(dross_core STATIC
   src/core/runtime/command_event_kernel.cpp
   src/core/runtime/combat_runtime.cpp
   src/core/runtime/door_runtime.cpp
+  src/core/runtime/dialogue_runtime.cpp
   src/core/runtime/fixed_tick_runtime.cpp
   src/core/runtime/inventory_runtime.cpp
   src/core/runtime/machine_trace.cpp
@@ -151,6 +152,7 @@ add_executable(dross_tests
   tests/unit/runtime/command_event_kernel_test.cpp
   tests/unit/runtime/combat_runtime_test.cpp
   tests/unit/runtime/door_runtime_test.cpp
+  tests/unit/runtime/dialogue_runtime_test.cpp
   tests/unit/runtime/fixed_tick_runtime_test.cpp
   tests/unit/runtime/inventory_runtime_test.cpp
   tests/unit/runtime/replay_test.cpp
@@ -248,7 +250,7 @@ set_tests_properties(
   headless.inspect_thump_exploration_save
   PROPERTIES
     FIXTURES_REQUIRED thump_save_checkpoints
-    PASS_REGULAR_EXPRESSION "^save version=1 tick=0 components=4 streams=0")
+    PASS_REGULAR_EXPRESSION "^save version=1 tick=0 components=5 streams=0")
 add_test(
   NAME headless.inspect_thump_combat_save
   COMMAND dross_headless inspect-save
@@ -257,7 +259,7 @@ set_tests_properties(
   headless.inspect_thump_combat_save
   PROPERTIES
     FIXTURES_REQUIRED thump_save_checkpoints
-    PASS_REGULAR_EXPRESSION "^save version=1 tick=0 components=4 streams=1")
+    PASS_REGULAR_EXPRESSION "^save version=1 tick=0 components=5 streams=1")
 add_test(
   NAME headless.inspect_thump_completed_save
   COMMAND dross_headless inspect-save
@@ -266,7 +268,7 @@ set_tests_properties(
   headless.inspect_thump_completed_save
   PROPERTIES
     FIXTURES_REQUIRED thump_save_checkpoints
-    PASS_REGULAR_EXPRESSION "^save version=1 tick=1 components=4 streams=1")
+    PASS_REGULAR_EXPRESSION "^save version=1 tick=1 components=5 streams=1")
 add_test(
   NAME headless.persistence_foundation
   COMMAND dross_headless scenario persistence-foundation --seed 12345

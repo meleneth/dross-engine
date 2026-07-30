@@ -153,6 +153,218 @@ void DrossDamageAppliedEvent::_bind_methods() {
                "get_damage_type");
 }
 
+godot::Ref<DrossDialogueEndedEvent>
+DrossDialogueEndedEvent::from_core(
+    const dross::dialogue::DialogueEnded& value) {
+  godot::Ref<DrossDialogueEndedEvent> event;
+  event.instantiate();
+  event->initiator_world_ = value.initiator.world_instance().value();
+  event->initiator_lineage_ = value.initiator.id().lineage();
+  event->initiator_sequence_ = value.initiator.id().sequence();
+  event->partner_world_ = value.partner.world_instance().value();
+  event->partner_lineage_ = value.partner.id().lineage();
+  event->partner_sequence_ = value.partner.id().sequence();
+  event->dialogue_ = godot::String{value.dialogue.canonical().data()};
+  return event;
+}
+
+std::int64_t DrossDialogueEndedEvent::get_initiator_world() const {
+  return static_cast<std::int64_t>(initiator_world_);
+}
+std::int64_t DrossDialogueEndedEvent::get_initiator_lineage() const {
+  return static_cast<std::int64_t>(initiator_lineage_);
+}
+std::int64_t DrossDialogueEndedEvent::get_initiator_sequence() const {
+  return static_cast<std::int64_t>(initiator_sequence_);
+}
+std::int64_t DrossDialogueEndedEvent::get_partner_world() const {
+  return static_cast<std::int64_t>(partner_world_);
+}
+std::int64_t DrossDialogueEndedEvent::get_partner_lineage() const {
+  return static_cast<std::int64_t>(partner_lineage_);
+}
+std::int64_t DrossDialogueEndedEvent::get_partner_sequence() const {
+  return static_cast<std::int64_t>(partner_sequence_);
+}
+godot::String DrossDialogueEndedEvent::get_dialogue() const {
+  return dialogue_;
+}
+
+void DrossDialogueEndedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_world"),
+                              &DrossDialogueEndedEvent::get_initiator_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_lineage"),
+                              &DrossDialogueEndedEvent::get_initiator_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_sequence"),
+                              &DrossDialogueEndedEvent::get_initiator_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_world"), "",
+               "get_initiator_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_lineage"), "",
+               "get_initiator_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_sequence"), "",
+               "get_initiator_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_world"),
+                              &DrossDialogueEndedEvent::get_partner_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_lineage"),
+                              &DrossDialogueEndedEvent::get_partner_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_sequence"),
+                              &DrossDialogueEndedEvent::get_partner_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_world"), "",
+               "get_partner_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_lineage"), "",
+               "get_partner_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_sequence"), "",
+               "get_partner_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_dialogue"),
+                              &DrossDialogueEndedEvent::get_dialogue);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "dialogue"), "",
+               "get_dialogue");
+}
+
+godot::Ref<DrossDialogueOptionChosenEvent>
+DrossDialogueOptionChosenEvent::from_core(
+    const dross::dialogue::DialogueOptionChosen& value) {
+  godot::Ref<DrossDialogueOptionChosenEvent> event;
+  event.instantiate();
+  event->initiator_world_ = value.initiator.world_instance().value();
+  event->initiator_lineage_ = value.initiator.id().lineage();
+  event->initiator_sequence_ = value.initiator.id().sequence();
+  event->partner_world_ = value.partner.world_instance().value();
+  event->partner_lineage_ = value.partner.id().lineage();
+  event->partner_sequence_ = value.partner.id().sequence();
+  event->dialogue_ = godot::String{value.dialogue.canonical().data()};
+  event->option_ = godot::String{value.option.canonical().data()};
+  return event;
+}
+
+std::int64_t DrossDialogueOptionChosenEvent::get_initiator_world() const {
+  return static_cast<std::int64_t>(initiator_world_);
+}
+std::int64_t DrossDialogueOptionChosenEvent::get_initiator_lineage() const {
+  return static_cast<std::int64_t>(initiator_lineage_);
+}
+std::int64_t DrossDialogueOptionChosenEvent::get_initiator_sequence() const {
+  return static_cast<std::int64_t>(initiator_sequence_);
+}
+std::int64_t DrossDialogueOptionChosenEvent::get_partner_world() const {
+  return static_cast<std::int64_t>(partner_world_);
+}
+std::int64_t DrossDialogueOptionChosenEvent::get_partner_lineage() const {
+  return static_cast<std::int64_t>(partner_lineage_);
+}
+std::int64_t DrossDialogueOptionChosenEvent::get_partner_sequence() const {
+  return static_cast<std::int64_t>(partner_sequence_);
+}
+godot::String DrossDialogueOptionChosenEvent::get_dialogue() const {
+  return dialogue_;
+}
+godot::String DrossDialogueOptionChosenEvent::get_option() const {
+  return option_;
+}
+
+void DrossDialogueOptionChosenEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_world"),
+                              &DrossDialogueOptionChosenEvent::get_initiator_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_lineage"),
+                              &DrossDialogueOptionChosenEvent::get_initiator_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_sequence"),
+                              &DrossDialogueOptionChosenEvent::get_initiator_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_world"), "",
+               "get_initiator_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_lineage"), "",
+               "get_initiator_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_sequence"), "",
+               "get_initiator_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_world"),
+                              &DrossDialogueOptionChosenEvent::get_partner_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_lineage"),
+                              &DrossDialogueOptionChosenEvent::get_partner_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_sequence"),
+                              &DrossDialogueOptionChosenEvent::get_partner_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_world"), "",
+               "get_partner_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_lineage"), "",
+               "get_partner_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_sequence"), "",
+               "get_partner_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_dialogue"),
+                              &DrossDialogueOptionChosenEvent::get_dialogue);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "dialogue"), "",
+               "get_dialogue");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_option"),
+                              &DrossDialogueOptionChosenEvent::get_option);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "option"), "",
+               "get_option");
+}
+
+godot::Ref<DrossDialogueStartedEvent>
+DrossDialogueStartedEvent::from_core(
+    const dross::dialogue::DialogueStarted& value) {
+  godot::Ref<DrossDialogueStartedEvent> event;
+  event.instantiate();
+  event->initiator_world_ = value.initiator.world_instance().value();
+  event->initiator_lineage_ = value.initiator.id().lineage();
+  event->initiator_sequence_ = value.initiator.id().sequence();
+  event->partner_world_ = value.partner.world_instance().value();
+  event->partner_lineage_ = value.partner.id().lineage();
+  event->partner_sequence_ = value.partner.id().sequence();
+  event->dialogue_ = godot::String{value.dialogue.canonical().data()};
+  return event;
+}
+
+std::int64_t DrossDialogueStartedEvent::get_initiator_world() const {
+  return static_cast<std::int64_t>(initiator_world_);
+}
+std::int64_t DrossDialogueStartedEvent::get_initiator_lineage() const {
+  return static_cast<std::int64_t>(initiator_lineage_);
+}
+std::int64_t DrossDialogueStartedEvent::get_initiator_sequence() const {
+  return static_cast<std::int64_t>(initiator_sequence_);
+}
+std::int64_t DrossDialogueStartedEvent::get_partner_world() const {
+  return static_cast<std::int64_t>(partner_world_);
+}
+std::int64_t DrossDialogueStartedEvent::get_partner_lineage() const {
+  return static_cast<std::int64_t>(partner_lineage_);
+}
+std::int64_t DrossDialogueStartedEvent::get_partner_sequence() const {
+  return static_cast<std::int64_t>(partner_sequence_);
+}
+godot::String DrossDialogueStartedEvent::get_dialogue() const {
+  return dialogue_;
+}
+
+void DrossDialogueStartedEvent::_bind_methods() {
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_world"),
+                              &DrossDialogueStartedEvent::get_initiator_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_lineage"),
+                              &DrossDialogueStartedEvent::get_initiator_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_initiator_sequence"),
+                              &DrossDialogueStartedEvent::get_initiator_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_world"), "",
+               "get_initiator_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_lineage"), "",
+               "get_initiator_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "initiator_sequence"), "",
+               "get_initiator_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_world"),
+                              &DrossDialogueStartedEvent::get_partner_world);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_lineage"),
+                              &DrossDialogueStartedEvent::get_partner_lineage);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_partner_sequence"),
+                              &DrossDialogueStartedEvent::get_partner_sequence);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_world"), "",
+               "get_partner_world");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_lineage"), "",
+               "get_partner_lineage");
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::INT, "partner_sequence"), "",
+               "get_partner_sequence");
+  godot::ClassDB::bind_method(godot::D_METHOD("get_dialogue"),
+                              &DrossDialogueStartedEvent::get_dialogue);
+  ADD_PROPERTY(godot::PropertyInfo(godot::Variant::STRING, "dialogue"), "",
+               "get_dialogue");
+}
+
 godot::Ref<DrossEntityPlacedEvent>
 DrossEntityPlacedEvent::from_core(
     const dross::placement::EntityPlaced& value) {
@@ -503,6 +715,9 @@ void DrossPlacementRuleQuery::_bind_methods() {
 void register_generated_godot_types() {
   godot::ClassDB::register_class<DrossActorKilledEvent>();
   godot::ClassDB::register_class<DrossDamageAppliedEvent>();
+  godot::ClassDB::register_class<DrossDialogueEndedEvent>();
+  godot::ClassDB::register_class<DrossDialogueOptionChosenEvent>();
+  godot::ClassDB::register_class<DrossDialogueStartedEvent>();
   godot::ClassDB::register_class<DrossEntityPlacedEvent>();
   godot::ClassDB::register_class<DrossItemGrantedEvent>();
   godot::ClassDB::register_class<DrossItemRemovedEvent>();

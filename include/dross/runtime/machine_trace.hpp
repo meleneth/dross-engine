@@ -9,6 +9,7 @@ enum class MachineFamily : std::uint8_t {
   world_lifecycle,
   simulation_mode,
   quest,
+  dialogue,
 };
 
 enum class MachineStateId : std::uint8_t {
@@ -26,6 +27,8 @@ enum class MachineStateId : std::uint8_t {
   quest_active,
   quest_completed,
   quest_failed,
+  dialogue_inactive,
+  dialogue_active,
 };
 
 enum class MachineEventId : std::uint8_t {
@@ -49,6 +52,9 @@ enum class MachineEventId : std::uint8_t {
   quest_advanced,
   quest_completed,
   quest_failed,
+  dialogue_started,
+  dialogue_option_chosen,
+  dialogue_ended,
 };
 
 enum class MachineEventOutcome : std::uint8_t {

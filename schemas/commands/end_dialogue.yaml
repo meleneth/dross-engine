@@ -1,0 +1,12 @@
+kind: command
+namespace: dross.dialogue
+name: EndDialogue
+version: 1
+id: dross:end_dialogue
+fields:
+  - name: initiator
+    type: entity_ref
+  - name: partner
+    type: entity_ref
+  - name: dialogue
+    type: content_id

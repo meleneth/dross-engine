@@ -4,13 +4,19 @@
 #include <dross/generated/actor_entered_cell.hpp>
 #include <dross/generated/actor_killed.hpp>
 #include <dross/generated/advance_quest.hpp>
+#include <dross/generated/begin_dialogue.hpp>
 #include <dross/generated/cancel_movement.hpp>
+#include <dross/generated/choose_dialogue_option.hpp>
 #include <dross/generated/close_door.hpp>
 #include <dross/generated/combat_started.hpp>
 #include <dross/generated/complete_quest.hpp>
 #include <dross/generated/damage_applied.hpp>
+#include <dross/generated/dialogue_ended.hpp>
+#include <dross/generated/dialogue_option_chosen.hpp>
+#include <dross/generated/dialogue_started.hpp>
 #include <dross/generated/door_closed.hpp>
 #include <dross/generated/door_opened.hpp>
+#include <dross/generated/end_dialogue.hpp>
 #include <dross/generated/end_turn.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/fail_quest.hpp>
@@ -46,7 +52,11 @@ static_assert(std::is_standard_layout_v<
 static_assert(std::is_standard_layout_v<
     dross::quest::AdvanceQuest>);
 static_assert(std::is_standard_layout_v<
+    dross::dialogue::BeginDialogue>);
+static_assert(std::is_standard_layout_v<
     dross::movement::CancelMovement>);
+static_assert(std::is_standard_layout_v<
+    dross::dialogue::ChooseDialogueOption>);
 static_assert(std::is_standard_layout_v<
     dross::door::CloseDoor>);
 static_assert(std::is_standard_layout_v<
@@ -56,9 +66,17 @@ static_assert(std::is_standard_layout_v<
 static_assert(std::is_standard_layout_v<
     dross::combat::DamageApplied>);
 static_assert(std::is_standard_layout_v<
+    dross::dialogue::DialogueEnded>);
+static_assert(std::is_standard_layout_v<
+    dross::dialogue::DialogueOptionChosen>);
+static_assert(std::is_standard_layout_v<
+    dross::dialogue::DialogueStarted>);
+static_assert(std::is_standard_layout_v<
     dross::door::DoorClosed>);
 static_assert(std::is_standard_layout_v<
     dross::door::DoorOpened>);
+static_assert(std::is_standard_layout_v<
+    dross::dialogue::EndDialogue>);
 static_assert(std::is_standard_layout_v<
     dross::combat::EndTurn>);
 static_assert(std::is_standard_layout_v<
@@ -99,4 +117,4 @@ static_assert(std::is_standard_layout_v<
     dross::quest::StartQuest>);
 static_assert(std::is_standard_layout_v<
     dross::combat::TurnStarted>);
-static_assert(dross::generated::schema_registry.size() == 34);
+static_assert(dross::generated::schema_registry.size() == 40);

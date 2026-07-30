@@ -757,6 +757,7 @@ godot::PackedByteArray DrossWorldHost::save_integrated_state() const {
           },
       .inventory = {},
       .quest = {},
+      .dialogue = {},
       .components = {},
   };
   if (combat_state_) {

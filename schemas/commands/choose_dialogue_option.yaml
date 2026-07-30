@@ -1,0 +1,14 @@
+kind: command
+namespace: dross.dialogue
+name: ChooseDialogueOption
+version: 1
+id: dross:choose_dialogue_option
+fields:
+  - name: initiator
+    type: entity_ref
+  - name: partner
+    type: entity_ref
+  - name: dialogue
+    type: content_id
+  - name: option
+    type: content_id

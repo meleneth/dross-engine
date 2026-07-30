@@ -1,0 +1,13 @@
+kind: event
+namespace: dross.dialogue
+name: DialogueStarted
+version: 1
+id: dross:dialogue_started
+script_api: true
+fields:
+  - name: initiator
+    type: entity_ref
+  - name: partner
+    type: entity_ref
+  - name: dialogue
+    type: content_id

@@ -6,6 +6,7 @@
 #include <dross/persistence/save_container.hpp>
 #include <dross/random/random_hub.hpp>
 #include <dross/runtime/combat_runtime.hpp>
+#include <dross/runtime/dialogue_runtime.hpp>
 #include <dross/runtime/inventory_runtime.hpp>
 #include <dross/runtime/machine_trace.hpp>
 #include <dross/runtime/quest_runtime.hpp>
@@ -98,7 +99,8 @@ dross::OccupancyIndex rebuild_occupancy(const dross::WorldStorage& world) {
 class CanonicalCombatEvents final : public dross::CombatSession::EventSink,
                                     public dross::AbilityResolver::EventSink,
                                     public dross::InventoryRuntime::EventSink,
-                                    public dross::QuestRuntime::EventSink {
+                                    public dross::QuestRuntime::EventSink,
+                                    public dross::DialogueRuntime::EventSink {
 public:
   void publish(const dross::combat::CombatStarted& event) override {
     trace_.push_back("combat_started/" + entity_text(event.active_actor.id()));
@@ -161,6 +163,19 @@ public:
     trace_.push_back("quest_failed/" + std::string{event.quest.canonical()});
   }
 
+  void publish(const dross::dialogue::DialogueStarted& event) override {
+    trace_.push_back("dialogue_started/" + std::string{event.dialogue.canonical()});
+  }
+
+  void publish(const dross::dialogue::DialogueOptionChosen& event) override {
+    trace_.push_back("dialogue_option_chosen/" + std::string{event.dialogue.canonical()} + "/" +
+                     std::string{event.option.canonical()});
+  }
+
+  void publish(const dross::dialogue::DialogueEnded& event) override {
+    trace_.push_back("dialogue_ended/" + std::string{event.dialogue.canonical()});
+  }
+
   [[nodiscard]] const std::vector<std::string>& trace() const noexcept { return trace_; }
 
 private:
@@ -185,6 +200,7 @@ struct ScenarioResult {
   dross::AbilityResolverSnapshot actors;
   dross::InventorySnapshot inventory;
   dross::QuestSnapshot quest;
+  dross::DialogueSnapshot dialogue;
   std::vector<std::string> events;
 };
 
@@ -199,6 +215,7 @@ struct ExplorationResumeTarget {
   std::unique_ptr<dross::WorldStorage>& world;
   dross::EntityRef& player;
   dross::EntityRef& mouse;
+  dross::EntityRef& caretaker;
   std::unique_ptr<dross::RandomHub>& random;
   dross::WorldLifecycle& lifecycle;
   dross::SimulationMode& mode;
@@ -226,12 +243,15 @@ void resume_from_exploration_save(const dross::SaveContainer& save,
   target.world = std::move(*restored_world);
   const auto restored_player = target.world->read().find(dross::EntityId{world_lineage, 1});
   const auto restored_mouse = target.world->read().find(dross::EntityId{world_lineage, 2});
+  const auto restored_caretaker = target.world->read().find(dross::EntityId{world_lineage, 3});
   target.random = std::make_unique<dross::RandomHub>(decoded->runtime.random.master_seed);
-  if (!restored_player || !restored_mouse || !target.random->restore(decoded->runtime.random)) {
+  if (!restored_player || !restored_mouse || !restored_caretaker ||
+      !target.random->restore(decoded->runtime.random)) {
     throw std::logic_error{"Thump exploration-boundary runtime restore failed"};
   }
   target.player = *restored_player;
   target.mouse = *restored_mouse;
+  target.caretaker = *restored_caretaker;
 }
 
 ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_boundary) {
@@ -240,6 +260,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       dross::WorldConfig{.lineage = world_lineage, .instance_id = instance});
   auto player = world->write().spawn(dross::SpawnPlan::authored(1)).value();
   auto mouse = world->write().spawn(dross::SpawnPlan::authored(2)).value();
+  auto caretaker = world->write().spawn(dross::SpawnPlan::authored(3)).value();
   world->write().commit_pose(player, pose(0));
   world->write().commit_pose(mouse, pose(1));
 
@@ -253,12 +274,40 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   auto random = std::make_unique<dross::RandomHub>(dross::MasterSeed{seed});
   auto inventory =
       std::make_unique<dross::InventoryRuntime>(instance, std::vector{player.id()}, &events);
+  auto dialogue = std::make_unique<dross::DialogueRuntime>(
+      instance, std::vector{player.id(), caretaker.id()}, trace, &events);
   dross::QuestRuntime quests{trace, &events};
   const auto mouse_quest = content_id("thump_demo:mouse_quest");
   const auto hunt_mouse = content_id("thump_demo:hunt_mouse");
   const auto return_tail = content_id("thump_demo:return_tail");
+  const auto mouse_tail = content_id("thump_demo:mouse_tail");
+  const auto caretaker_dialogue = content_id("thump_demo:caretaker_dialogue");
+  const auto accept_quest = content_id("thump_demo:accept_mouse_quest");
+  const auto hand_over_tail = content_id("thump_demo:hand_over_tail");
+  const auto leave = content_id("thump_demo:leave");
+  if (!dialogue->handle(dross::dialogue::BeginDialogue{
+          .initiator = player,
+          .partner = caretaker,
+          .dialogue = caretaker_dialogue,
+      }) ||
+      !dialogue->offer_options({leave, accept_quest}) ||
+      !dialogue->handle(dross::dialogue::ChooseDialogueOption{
+          .initiator = player,
+          .partner = caretaker,
+          .dialogue = caretaker_dialogue,
+          .option = accept_quest,
+      })) {
+    throw std::logic_error{"ThumpDemo caretaker quest offer failed"};
+  }
   if (!quests.handle(dross::quest::StartQuest{.quest = mouse_quest, .stage = hunt_mouse})) {
     throw std::logic_error{"ThumpDemo mouse quest start failed"};
+  }
+  if (!dialogue->handle(dross::dialogue::EndDialogue{
+          .initiator = player,
+          .partner = caretaker,
+          .dialogue = caretaker_dialogue,
+      })) {
+    throw std::logic_error{"ThumpDemo caretaker quest dialogue end failed"};
   }
   std::unique_ptr<dross::CombatSession> combat;
   dross::RandomStream* damage_random = nullptr;
@@ -297,6 +346,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
         .script = {},
         .inventory = inventory->snapshot(),
         .quest = quests.snapshot(),
+        .dialogue = dialogue->snapshot(),
         .components = dross::snapshot_world_components(*world),
     };
   };
@@ -309,6 +359,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
                                                                 .world = world,
                                                                 .player = player,
                                                                 .mouse = mouse,
+                                                                .caretaker = caretaker,
                                                                 .random = random,
                                                                 .lifecycle = lifecycle,
                                                                 .mode = mode});
@@ -319,6 +370,11 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
     }
     if (!quests.restore(save_checkpoints.back().save.quest.value())) {
       throw std::logic_error{"Thump exploration-boundary quest restore failed"};
+    }
+    dialogue = std::make_unique<dross::DialogueRuntime>(
+        instance, std::vector{player.id(), caretaker.id()}, trace, &events);
+    if (!dialogue->restore(save_checkpoints.back().save.dialogue.value())) {
+      throw std::logic_error{"Thump exploration-boundary dialogue restore failed"};
     }
   }
 
@@ -353,7 +409,8 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
        .door = {},
        .script = {},
        .inventory = inventory->snapshot(),
-       .quest = quests.snapshot()}));
+       .quest = quests.snapshot(),
+       .dialogue = dialogue->snapshot()}));
   save_checkpoints.push_back(
       SaveCheckpoint{.name = "combat-tick-0", .save = save_checkpoint(dross::Tick{0}, true)});
 
@@ -390,6 +447,9 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
     if (!decoded->quest || !quests.restore(*decoded->quest)) {
       throw std::logic_error{"Thump combat-boundary quest restore failed"};
     }
+    if (!decoded->dialogue || !dialogue->restore(*decoded->dialogue)) {
+      throw std::logic_error{"Thump combat-boundary dialogue restore failed"};
+    }
   }
   const auto result = resolver->perform(thump, player.id(), mouse.id());
   if (!result.accepted || !result.killed ||
@@ -398,7 +458,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   }
   if (!inventory->handle(dross::inventory::GrantItem{
           .owner = player,
-          .item = content_id("thump_demo:mouse_tail"),
+          .item = mouse_tail,
           .count = 1,
       })) {
     throw std::logic_error{"ThumpDemo mouse-tail grant failed"};
@@ -410,6 +470,38 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       })) {
     throw std::logic_error{"ThumpDemo mouse quest advance failed"};
   }
+  if (!dialogue->handle(dross::dialogue::BeginDialogue{
+          .initiator = player,
+          .partner = caretaker,
+          .dialogue = caretaker_dialogue,
+      })) {
+    throw std::logic_error{"ThumpDemo caretaker hand-in dialogue failed"};
+  }
+  std::vector<dross::ContentId> hand_in_options{leave};
+  if (inventory->has(player, mouse_tail) && quests.stage(mouse_quest) == return_tail) {
+    hand_in_options.push_back(hand_over_tail);
+  }
+  if (!dialogue->offer_options(std::move(hand_in_options)) ||
+      !dialogue->handle(dross::dialogue::ChooseDialogueOption{
+          .initiator = player,
+          .partner = caretaker,
+          .dialogue = caretaker_dialogue,
+          .option = hand_over_tail,
+      }) ||
+      !inventory->handle(dross::inventory::RemoveItem{
+          .owner = player,
+          .item = mouse_tail,
+          .count = 1,
+      }) ||
+      !quests.handle(
+          dross::quest::CompleteQuest{.quest = mouse_quest, .expected_stage = return_tail}) ||
+      !dialogue->handle(dross::dialogue::EndDialogue{
+          .initiator = player,
+          .partner = caretaker,
+          .dialogue = caretaker_dialogue,
+      })) {
+    throw std::logic_error{"ThumpDemo caretaker hand-in commit failed"};
+  }
   checkpoints.push_back(dross::canonical_checkpoint(
       dross::Tick{1}, *world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
       std::span<const dross::PlaceEntityEnvelope>{},
@@ -419,7 +511,8 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
        .door = {},
        .script = {},
        .inventory = inventory->snapshot(),
-       .quest = quests.snapshot()}));
+       .quest = quests.snapshot(),
+       .dialogue = dialogue->snapshot()}));
   save_checkpoints.push_back(
       SaveCheckpoint{.name = "completed-tick-1", .save = save_checkpoint(dross::Tick{1}, true)});
   return {
@@ -446,6 +539,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       .actors = resolver->snapshot(),
       .inventory = inventory->snapshot(),
       .quest = quests.snapshot(),
+      .dialogue = dialogue->snapshot(),
       .events = events.trace(),
   };
 }
@@ -494,7 +588,7 @@ int run_thump_scenario(const std::uint64_t seed, const std::string& record_path,
              uninterrupted.killed == resumed.killed && uninterrupted.combat == resumed.combat &&
              uninterrupted.actors == resumed.actors &&
              uninterrupted.inventory == resumed.inventory && uninterrupted.quest == resumed.quest &&
-             uninterrupted.events == resumed.events;
+             uninterrupted.dialogue == resumed.dialogue && uninterrupted.events == resumed.events;
     };
     if (exploration_divergence || combat_divergence || !matches(exploration_resumed) ||
         !matches(combat_resumed)) {
@@ -512,8 +606,7 @@ int run_thump_scenario(const std::uint64_t seed, const std::string& record_path,
     std::cout << "thump-on-field-mouse seed=" << seed
               << " mouse_health=" << uninterrupted.mouse_health.value()
               << " killed=" << (uninterrupted.killed ? "yes" : "no")
-              << " mouse_tails=" << uninterrupted.inventory.entries.front().count
-              << " quest_stage=" << uninterrupted.quest.entries.front().stage->canonical()
+              << " mouse_tails=" << uninterrupted.inventory.entries.size() << " quest=completed"
               << " checkpoints=" << uninterrupted.replay.checkpoints.size()
               << " exploration_resumed=match combat_resumed=match\n";
     return 0;

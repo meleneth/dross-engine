@@ -60,6 +60,16 @@
   - `expected_stage`: `content_id`
   - `next_stage`: `content_id`
 
+## `dross:begin_dialogue`
+
+- Kind: `command`
+- C++ type: `dross::dialogue::BeginDialogue`
+- Version: 1
+- Fields:
+  - `initiator`: `entity_ref`
+  - `partner`: `entity_ref`
+  - `dialogue`: `content_id`
+
 ## `dross:cancel_movement`
 
 - Kind: `command`
@@ -67,6 +77,17 @@
 - Version: 1
 - Fields:
   - `entity`: `entity_ref`
+
+## `dross:choose_dialogue_option`
+
+- Kind: `command`
+- C++ type: `dross::dialogue::ChooseDialogueOption`
+- Version: 1
+- Fields:
+  - `initiator`: `entity_ref`
+  - `partner`: `entity_ref`
+  - `dialogue`: `content_id`
+  - `option`: `content_id`
 
 ## `dross:close_door`
 
@@ -104,6 +125,37 @@
   - `amount`: `hit_points`
   - `damage_type`: `content_id`
 
+## `dross:dialogue_ended`
+
+- Kind: `event`
+- C++ type: `dross::dialogue::DialogueEnded`
+- Version: 1
+- Fields:
+  - `initiator`: `entity_ref`
+  - `partner`: `entity_ref`
+  - `dialogue`: `content_id`
+
+## `dross:dialogue_option_chosen`
+
+- Kind: `event`
+- C++ type: `dross::dialogue::DialogueOptionChosen`
+- Version: 1
+- Fields:
+  - `initiator`: `entity_ref`
+  - `partner`: `entity_ref`
+  - `dialogue`: `content_id`
+  - `option`: `content_id`
+
+## `dross:dialogue_started`
+
+- Kind: `event`
+- C++ type: `dross::dialogue::DialogueStarted`
+- Version: 1
+- Fields:
+  - `initiator`: `entity_ref`
+  - `partner`: `entity_ref`
+  - `dialogue`: `content_id`
+
 ## `dross:door_closed`
 
 - Kind: `event`
@@ -119,6 +171,16 @@
 - Version: 1
 - Fields:
   - `door`: `entity_ref`
+
+## `dross:end_dialogue`
+
+- Kind: `command`
+- C++ type: `dross::dialogue::EndDialogue`
+- Version: 1
+- Fields:
+  - `initiator`: `entity_ref`
+  - `partner`: `entity_ref`
+  - `dialogue`: `content_id`
 
 ## `dross:end_turn`
 

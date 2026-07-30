@@ -6,6 +6,7 @@
 #include <dross/random/random_hub.hpp>
 #include <dross/runtime/combat_runtime.hpp>
 #include <dross/runtime/command_event_kernel.hpp>
+#include <dross/runtime/dialogue_runtime.hpp>
 #include <dross/runtime/door_runtime.hpp>
 #include <dross/runtime/inventory_runtime.hpp>
 #include <dross/runtime/quest_runtime.hpp>
@@ -48,6 +49,7 @@ struct CanonicalCapabilitySnapshot {
   std::optional<ScriptStateBag> script;
   std::optional<InventorySnapshot> inventory;
   std::optional<QuestSnapshot> quest;
+  std::optional<DialogueSnapshot> dialogue;
 };
 
 [[nodiscard]] CheckpointHash

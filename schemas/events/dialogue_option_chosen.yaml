@@ -1,0 +1,15 @@
+kind: event
+namespace: dross.dialogue
+name: DialogueOptionChosen
+version: 1
+id: dross:dialogue_option_chosen
+script_api: true
+fields:
+  - name: initiator
+    type: entity_ref
+  - name: partner
+    type: entity_ref
+  - name: dialogue
+    type: content_id
+  - name: option
+    type: content_id

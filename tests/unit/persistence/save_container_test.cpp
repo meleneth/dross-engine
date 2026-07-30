@@ -50,6 +50,7 @@ dross::SaveContainer container_with(std::vector<dross::ComponentRecord> records)
       .script = {},
       .inventory = {},
       .quest = {},
+      .dialogue = {},
       .components = std::move(records),
   };
 }
@@ -283,6 +284,24 @@ TEST_CASE("save container round trips authoritative quest progress") {
 
   REQUIRE(decoded);
   CHECK(decoded->quest == expected.quest);
+}
+
+TEST_CASE("save container round trips an active dialogue and offered options") {
+  auto expected = container_with({});
+  expected.dialogue = dross::DialogueSnapshot{
+      .session =
+          dross::DialogueSessionSnapshot{
+              .initiator = dross::EntityId{9, 1},
+              .partner = dross::EntityId{9, 3},
+              .dialogue = content_id("test:caretaker_dialogue"),
+              .offered_options = {content_id("test:accept"), content_id("test:leave")},
+          },
+  };
+
+  const auto decoded = dross::decode_save_container(dross::encode_save_container(expected));
+
+  REQUIRE(decoded);
+  CHECK(decoded->dialogue == expected.dialogue);
 }
 
 TEST_CASE("save container round trips a typed combat actor-turn boundary") {

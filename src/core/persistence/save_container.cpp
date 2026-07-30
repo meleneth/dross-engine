@@ -482,6 +482,10 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
   if (container.quest) {
     encode_quest_snapshot(writer, *container.quest);
   }
+  writer.write_u16(container.dialogue.has_value() ? 1U : 0U);
+  if (container.dialogue) {
+    encode_dialogue_snapshot(writer, *container.dialogue);
+  }
 
   auto records = container.components;
   std::ranges::sort(records, [](const ComponentRecord& left, const ComponentRecord& right) {
@@ -787,6 +791,22 @@ Result<std::optional<QuestSnapshot>, SaveDecodeError> decode_quest_boundary(Byte
   return *std::move(snapshot);
 }
 
+Result<std::optional<DialogueSnapshot>, SaveDecodeError>
+decode_dialogue_boundary(ByteReader& reader) {
+  const auto present = reader.read_u16();
+  if (!present || *present > 1U) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  if (*present == 0U) {
+    return std::nullopt;
+  }
+  auto snapshot = decode_dialogue_snapshot(reader);
+  if (!snapshot) {
+    return tl::unexpected{SaveDecodeError::invalid_format};
+  }
+  return *std::move(snapshot);
+}
+
 Result<std::vector<ComponentRecord>, SaveDecodeError> decode_components(ByteReader& reader) {
   const auto component_count = reader.read_u64();
   if (!component_count) {
@@ -853,6 +873,10 @@ decode_save_container(const std::span<const std::byte> bytes) {
   if (!quest) {
     return tl::unexpected{quest.error()};
   }
+  auto dialogue = decode_dialogue_boundary(reader);
+  if (!dialogue) {
+    return tl::unexpected{dialogue.error()};
+  }
   auto components = decode_components(reader);
   if (!components) {
     return tl::unexpected{components.error()};
@@ -870,6 +894,7 @@ decode_save_container(const std::span<const std::byte> bytes) {
       .script = *std::move(script),
       .inventory = *std::move(inventory),
       .quest = *std::move(quest),
+      .dialogue = *std::move(dialogue),
       .components = *std::move(components),
   };
 }
