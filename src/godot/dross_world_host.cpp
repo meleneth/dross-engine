@@ -842,6 +842,9 @@ godot::String DrossWorldHost::get_canonical_capability_hash() const {
   }
   if (script_state_) {
     capabilities.script = script_state_->runtime.state();
+    capabilities.inventory = script_state_->inventory.snapshot();
+    capabilities.quest = script_state_->quests.snapshot();
+    capabilities.dialogue = script_state_->dialogue.snapshot();
   }
   const auto tick = movement_state_ ? movement_state_->tick : Tick{0};
   const auto hash = canonical_capability_hash(tick, capabilities);
@@ -902,8 +905,8 @@ godot::PackedByteArray DrossWorldHost::save_integrated_state() const {
               .state = script_state_->runtime.state(),
           },
       .inventory = script_state_->inventory.snapshot(),
-      .quest = {},
-      .dialogue = {},
+      .quest = script_state_->quests.snapshot(),
+      .dialogue = script_state_->dialogue.snapshot(),
       .components = {},
   };
   if (combat_state_) {
@@ -950,7 +953,7 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
   }
   if (decoded->runtime.lifecycle.state != WorldLifecycleState::running ||
       decoded->components.size() != 0 || !decoded->movement || !decoded->door || !decoded->script ||
-      !decoded->inventory) {
+      !decoded->inventory || !decoded->quest || !decoded->dialogue) {
     return reject("save omits a required integrated capability boundary");
   }
   if (decoded->movement->actor != movement_state_->entity.id() ||
@@ -975,6 +978,18 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
   InventoryRuntime validated_inventory{WorldInstanceId{synthetic_instance}, {EntityId{7, 1}}};
   if (!validated_inventory.restore(*decoded->inventory)) {
     return reject("save inventory snapshot is invalid");
+  }
+  QuestRuntime validated_quests{script_state_->machine_trace};
+  if (!validated_quests.restore(*decoded->quest)) {
+    return reject("save quest snapshot is invalid");
+  }
+  DialogueRuntime validated_dialogue{
+      WorldInstanceId{synthetic_instance},
+      {script_state_->player.id(), script_state_->caretaker.id()},
+      script_state_->machine_trace,
+  };
+  if (!validated_dialogue.restore(*decoded->dialogue)) {
+    return reject("save dialogue snapshot is invalid");
   }
 
   std::unique_ptr<MovementScenarioState> next_movement;
@@ -1045,6 +1060,12 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
   script_state_->runtime.restore_state(decoded->script->state);
   if (!script_state_->inventory.restore(*decoded->inventory)) {
     return reject("validated inventory could not be installed");
+  }
+  if (!script_state_->quests.restore(*decoded->quest)) {
+    return reject("validated quest progress could not be installed");
+  }
+  if (!script_state_->dialogue.restore(*decoded->dialogue)) {
+    return reject("validated dialogue session could not be installed");
   }
   if (!script_state_->random.restore(decoded->runtime.random)) {
     return reject("validated random streams could not be installed");

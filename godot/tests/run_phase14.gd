@@ -75,6 +75,11 @@ func _initialize() -> void:
 	check(demo.get_node("DrossWorldHost").get_quest_stage(
 			"thump_demo:mouse_quest") == "thump_demo:hunt_mouse",
 			"playable scene did not project the accepted quest stage")
+	check(demo.save_game(), "integrated active-quest save was rejected")
+	check(demo.load_game(), "integrated active-quest reload was rejected")
+	check(demo.get_node("DrossWorldHost").get_quest_stage(
+			"thump_demo:mouse_quest") == "thump_demo:hunt_mouse",
+			"active quest stage did not survive save and reload")
 	check(demo.preview_destination(2), "reloaded demo did not preview a reachable path")
 	check(demo.request_previewed_move(), "reloaded demo rejected MoveTo")
 	check(demo.advance_authoritative_tick(), "reloaded first movement tick failed")
@@ -137,6 +142,12 @@ func _initialize() -> void:
 			"integrated diagnostics did not expose committed player AP")
 	check(demo.get_node("DrossWorldHost").is_mouse_killed(),
 			"integrated demo did not commit mouse death")
+	check(demo.get_node("DrossWorldHost").get_inventory_count(
+			1, "thump_demo:mouse_tail") == 1,
+			"tail-held inventory boundary did not survive save")
+	check(demo.get_node("DrossWorldHost").get_quest_stage(
+			"thump_demo:mouse_quest") == "thump_demo:return_tail",
+			"return-tail quest boundary did not survive save")
 	check(demo.get_node("DrossWorldHost").get_script_state_bool(
 			"thump_demo:field_mouse", 2, "rule_checked"),
 			"field mouse did not contribute its typed ability rule")
@@ -178,6 +189,12 @@ func _initialize() -> void:
 			"completed-state reload did not restore combat AP")
 	check(demo.get_node("DrossWorldHost").is_mouse_killed(),
 			"completed-state reload did not restore mouse death")
+	check(demo.get_node("DrossWorldHost").get_quest_status(
+			"thump_demo:mouse_quest") == "completed",
+			"completed-state reload did not restore quest completion")
+	check(demo.get_node("DrossWorldHost").get_inventory_count(
+			1, "thump_demo:mouse_tail") == 0,
+			"completed-state reload did not restore consumed inventory")
 	check(not demo.get_node("FieldMouse").visible,
 			"mouse view did not react to committed death")
 	check(not demo.get_node("UI/Diagnostics").text.is_empty(),
