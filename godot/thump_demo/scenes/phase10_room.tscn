@@ -10,7 +10,7 @@ size = Vector3(0.35, 1, 0.35)
 required_sample_count = 7
 
 [sub_resource type="DrossHexGridOverrides" id="Overrides"]
-region_id = "demo:room"
+region_id = "thump_demo:room"
 radius_mm = 1000
 
 [node name="Phase10Room" type="Node3D"]
@@ -28,12 +28,12 @@ position = Vector3(0, 0.5, 0)
 shape = SubResource("ObstructionShape")
 
 [node name="GridRegion" type="DrossHexGridRegion3D" parent="."]
-region_id = "demo:room"
+region_id = "thump_demo:room"
 cell_radius = 1.0
 q_min = 0
 q_max = 1
 r_min = 0
 r_max = 0
-optional_door_edge = "demo:room:0,0,0|demo:room:1,0,0"
+optional_door_edge = "thump_demo:room:0,0,0|thump_demo:room:1,0,0"
 bake_profile = SubResource("BakeProfile")
 overrides = SubResource("Overrides")

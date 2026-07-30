@@ -32,7 +32,7 @@ func _ready() -> void:
 	grid_overlay.compiled_map = host.get_movement_compiled_map()
 
 	var mouse_module := DrossScriptModuleDefinition.new()
-	mouse_module.module_id = "demo:field_mouse"
+	mouse_module.module_id = "thump_demo:field_mouse"
 	mouse_module.scope_kind = 1
 	mouse_module.entity_sequence = 2
 	mouse_module.state_schema_version = 1
@@ -43,8 +43,8 @@ func _ready() -> void:
 		return
 
 	var door := DrossDoorDefinition.new()
-	door.door_id = "demo:side_door"
-	door.region_id = "demo:room"
+	door.door_id = "thump_demo:side_door"
+	door.region_id = "thump_demo:room"
 	door.from_q = 0
 	door.from_r = 0
 	door.to_q = 1
@@ -175,11 +175,11 @@ func _ensure_combat_started() -> bool:
 	if _combat_started:
 		return true
 	var thump := DrossAbilityDefinition.new()
-	thump.ability_id = "dross_demo:thump"
+	thump.ability_id = "thump_demo:thump"
 	thump.range = 1
 	thump.action_point_cost = 2
 	thump.damage = 3
-	thump.presentation_cue = "dross_demo:thump"
+	thump.presentation_cue = "thump_demo:thump"
 	if not host.start_thump_scenario(thump):
 		return false
 	_combat_started = true

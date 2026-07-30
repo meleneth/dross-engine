@@ -8,16 +8,16 @@ extends Node3D
 
 func _ready() -> void:
 	var thump := DrossAbilityDefinition.new()
-	thump.ability_id = "dross_demo:thump"
+	thump.ability_id = "thump_demo:thump"
 	thump.range = 1
 	thump.action_point_cost = 2
 	thump.damage = 3
-	thump.presentation_cue = "dross_demo:thump"
+	thump.presentation_cue = "thump_demo:thump"
 	if not host.start_thump_scenario(thump):
 		status.text = "Failed to compile Thump"
 	var door := DrossDoorDefinition.new()
-	door.door_id = "demo:side_door"
-	door.region_id = "demo:room"
+	door.door_id = "thump_demo:side_door"
+	door.region_id = "thump_demo:room"
 	door.from_q = 0
 	door.from_r = 0
 	door.to_q = 1

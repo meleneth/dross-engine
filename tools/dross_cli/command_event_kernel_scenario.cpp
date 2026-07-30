@@ -1,4 +1,5 @@
 #include "command_event_kernel_scenario.hpp"
+#include "content.hpp"
 #include "exploration_movement_scenario.hpp"
 #include "lifecycle_machine_scenario.hpp"
 #include "thump_scenario.hpp"
@@ -219,8 +220,12 @@ int run_replay_verification(const std::string& path) {
     std::cerr << "invalid replay\n";
     return scenario_error;
   }
-  const auto manifest = dross::validate_content_manifest(recorded->header.content_manifest,
-                                                         dross::engine_content_manifest());
+  const auto required_manifest =
+      recorded->header.scenario == content_id("dross:thump_on_field_mouse")
+          ? thump_demo::content_manifest()
+          : dross::engine_content_manifest();
+  const auto manifest =
+      dross::validate_content_manifest(recorded->header.content_manifest, required_manifest);
   if (!manifest) {
     std::cerr << "replay content manifest mismatch=" << static_cast<unsigned int>(manifest.error())
               << '\n';

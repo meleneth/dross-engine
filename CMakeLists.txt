@@ -67,6 +67,16 @@ target_link_libraries(dross_core
 dross_target_warnings(dross_core)
 dross_enable_sanitizers(dross_core)
 
+add_library(thump_demo_support STATIC
+  src/thump_demo/content.cpp
+)
+set_target_properties(thump_demo_support PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(thump_demo_support PUBLIC dross::core)
+target_compile_features(thump_demo_support PUBLIC cxx_std_20)
+target_include_directories(thump_demo_support PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/thump_demo")
+dross_target_warnings(thump_demo_support)
+dross_enable_sanitizers(thump_demo_support)
+
 if(DROSS_BUILD_GODOT)
   add_library(dross_godot SHARED
     generated/src/godot_api.cpp
@@ -83,7 +93,7 @@ if(DROSS_BUILD_GODOT)
     src/godot/dross_world_host.cpp
     src/godot/register_types.cpp
   )
-  target_link_libraries(dross_godot PRIVATE dross::core godot::cpp)
+  target_link_libraries(dross_godot PRIVATE dross::core thump_demo_support godot::cpp)
   target_compile_features(dross_godot PRIVATE cxx_std_20)
   target_include_directories(dross_godot PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/godot")
   set(dross_godot_output_directory "${CMAKE_CURRENT_SOURCE_DIR}/godot/bin")
@@ -109,7 +119,7 @@ add_executable(dross_headless
   tools/dross_cli/persistence_scenario.cpp
   tools/dross_cli/thump_scenario.cpp
 )
-target_link_libraries(dross_headless PRIVATE dross::core)
+target_link_libraries(dross_headless PRIVATE dross::core thump_demo_support)
 target_compile_features(dross_headless PRIVATE cxx_std_20)
 dross_target_warnings(dross_headless)
 dross_enable_sanitizers(dross_headless)
@@ -145,9 +155,10 @@ add_executable(dross_tests
   tests/unit/runtime/script_runtime_test.cpp
   tests/unit/runtime/simulation_mode_test.cpp
   tests/unit/runtime/world_lifecycle_test.cpp
+  tests/unit/thump_demo/content_test.cpp
   tests/unit/world/world_storage_test.cpp
 )
-target_link_libraries(dross_tests PRIVATE dross::core Catch2::Catch2WithMain)
+target_link_libraries(dross_tests PRIVATE dross::core thump_demo_support Catch2::Catch2WithMain)
 target_compile_features(dross_tests PRIVATE cxx_std_20)
 target_compile_definitions(
   dross_tests PRIVATE DROSS_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")

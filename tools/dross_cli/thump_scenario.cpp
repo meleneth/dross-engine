@@ -1,5 +1,7 @@
 #include "thump_scenario.hpp"
 
+#include "content.hpp"
+
 #include <dross/foundation/version.hpp>
 #include <dross/persistence/save_container.hpp>
 #include <dross/random/random_hub.hpp>
@@ -34,7 +36,7 @@ dross::HexPose pose(const std::int32_t column) {
   return {
       .anchor =
           {
-              .region = dross::RegionId{content_id("demo:thump_room")},
+              .region = dross::RegionId{thump_demo::room_id()},
               .coord = {.q = column, .r = 0},
               .layer = 0,
           },
@@ -172,9 +174,9 @@ void resume_from_exploration_save(const dross::SaveContainer& save,
   if (!decoded || decoded->combat || !dross::register_current_component_codecs(registry)) {
     throw std::logic_error{"Thump exploration-boundary save decode failed"};
   }
-  const auto plan = dross::build_world_load_plan(*decoded, registry, content_id("demo:thump_room"),
+  const auto plan = dross::build_world_load_plan(*decoded, registry, thump_demo::room_id(),
                                                  dross::canonical_map_hash(thump_map()),
-                                                 dross::engine_content_manifest());
+                                                 thump_demo::content_manifest());
   if (!plan) {
     throw std::logic_error{"Thump exploration-boundary load plan failed"};
   }
@@ -216,12 +218,12 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   dross::RandomStream* damage_random = nullptr;
   std::unique_ptr<dross::AbilityResolver> resolver;
   const dross::AbilityDefinition thump{
-      .id = content_id("dross_demo:thump"),
+      .id = thump_demo::thump_ability_id(),
       .range = 1,
       .action_point_cost = 2,
       .damage = dross::HitPoints{3},
       .bonus_damage_max = 1,
-      .presentation_cue = content_id("dross_demo:thump"),
+      .presentation_cue = thump_demo::thump_ability_id(),
   };
   const auto save_checkpoint = [&](const dross::Tick tick, const bool include_combat) {
     return dross::SaveContainer{
@@ -232,12 +234,12 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
                    .current_tick = tick,
                    .world_lineage = world_lineage,
                    .allocator = world->allocator_snapshot(),
-                   .map_id = content_id("demo:thump_room"),
+                   .map_id = thump_demo::room_id(),
                    .map_hash = dross::canonical_map_hash(thump_map())},
         .runtime = {.random = random->snapshot(),
                     .lifecycle = lifecycle.snapshot(),
                     .mode = mode.snapshot()},
-        .content_manifest = dross::engine_content_manifest(),
+        .content_manifest = thump_demo::content_manifest(),
         .combat = include_combat ? std::optional{dross::CombatBoundarySnapshot{
                                        .ability = thump.id,
                                        .session = combat->snapshot(),
@@ -348,7 +350,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
                       .engine_version = dross::engine_version(),
                       .schema_version = 1,
                       .scenario = content_id("dross:thump_on_field_mouse"),
-                      .content_manifest = dross::engine_content_manifest(),
+                      .content_manifest = thump_demo::content_manifest(),
                       .master_seed = dross::MasterSeed{seed},
                       .random_algorithm_version = dross::random_algorithm_version,
                   },

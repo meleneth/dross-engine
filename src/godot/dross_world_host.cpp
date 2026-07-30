@@ -1,5 +1,7 @@
 #include "dross_world_host.hpp"
 
+#include "content.hpp"
+
 #include <dross/foundation/quantities.hpp>
 #include <dross/hex/compiled_hex_map.hpp>
 #include <dross/persistence/save_container.hpp>
@@ -733,7 +735,7 @@ godot::PackedByteArray DrossWorldHost::save_integrated_state() const {
               .lifecycle = WorldLifecycleSnapshot{.state = WorldLifecycleState::running},
               .mode = movement_state_->mode.snapshot(),
           },
-      .content_manifest = engine_content_manifest(),
+      .content_manifest = thump_demo::content_manifest(),
       .combat = {},
       .movement =
           MovementBoundarySnapshot{
@@ -794,7 +796,7 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
       decoded->header.map_hash != canonical_map_hash(movement_state_->map)) {
     return reject("save header or compiled map identity does not match the running demo");
   }
-  if (!validate_content_manifest(decoded->content_manifest, engine_content_manifest())) {
+  if (!validate_content_manifest(decoded->content_manifest, thump_demo::content_manifest())) {
     return reject("save content manifest does not match installed content");
   }
   if (decoded->runtime.lifecycle.state != WorldLifecycleState::running ||
@@ -861,11 +863,11 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
         return reject("save combat actors do not match the installed demo definition");
       }
       auto ability = AbilityDefinition{
-          .id = ContentId::parse("dross_demo:thump").value(),
+          .id = thump_demo::thump_ability_id(),
           .range = 1,
           .action_point_cost = 2,
           .damage = HitPoints{3},
-          .presentation_cue = ContentId::parse("dross_demo:thump").value(),
+          .presentation_cue = thump_demo::thump_ability_id(),
       };
       next_combat = std::make_unique<CombatScenarioState>(std::move(ability), script_state_.get(),
                                                           *decoded->combat);
