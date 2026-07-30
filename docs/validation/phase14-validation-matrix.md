@@ -57,3 +57,9 @@ Disabling leak detection allows the same Clang ASan/UBSan binaries to run all
 
 This exception does not convert Windows or Steam Deck into tested targets and
 does not support a cross-platform release claim.
+
+Sanitizer GDExtension artifacts are emitted under the sanitizer preset build
+directory rather than `godot/bin`. A sanitizer rebuild preserved the normal
+extension byte-for-byte, and all eight Godot integration scripts then passed
+without rebuilding the normal extension. Sanitizer and Godot validation order
+is therefore independent.

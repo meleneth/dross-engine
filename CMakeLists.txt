@@ -86,13 +86,17 @@ if(DROSS_BUILD_GODOT)
   target_link_libraries(dross_godot PRIVATE dross::core godot::cpp)
   target_compile_features(dross_godot PRIVATE cxx_std_20)
   target_include_directories(dross_godot PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/godot")
+  set(dross_godot_output_directory "${CMAKE_CURRENT_SOURCE_DIR}/godot/bin")
+  if(DROSS_ENABLE_ASAN OR DROSS_ENABLE_UBSAN)
+    set(dross_godot_output_directory "${CMAKE_CURRENT_BINARY_DIR}/godot/bin")
+  endif()
   set_target_properties(
     dross_godot
     PROPERTIES
       CXX_VISIBILITY_PRESET hidden
       VISIBILITY_INLINES_HIDDEN YES
-      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/godot/bin"
-      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/godot/bin")
+      LIBRARY_OUTPUT_DIRECTORY "${dross_godot_output_directory}"
+      RUNTIME_OUTPUT_DIRECTORY "${dross_godot_output_directory}")
   dross_target_warnings(dross_godot)
 endif()
 
