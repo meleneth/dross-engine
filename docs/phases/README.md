@@ -25,6 +25,7 @@ A phase introduces the smallest complete production path that exercises its arch
 | 12 | turn-based combat, Thump, optional side door, animation-safe projection |
 | 13 | complete save, reload, replay, and cross-platform scenario equivalence |
 | 14 | integrated Godot vertical slice, hardening, documentation, and releaseable prototype baseline |
+| 15 | ThumpDemo dialogue, inventory, and quest behavior through typed native facts and GDScript orchestration |
 
 ## Continuation policy
 

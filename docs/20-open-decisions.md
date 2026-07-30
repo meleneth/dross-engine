@@ -56,6 +56,10 @@ These are expected capabilities, not first-slice placeholders. Do not create emp
 
 Decision point: each receives its own vertical slice and ADRs.
 
+Phase 15 proposes a combined ThumpDemo dialogue, inventory, and quest slice in
+ADR-0025. That ADR intentionally does not resolve general authored state
+machines, branching quest graph formats, reputation, or schedules.
+
 ## Multi-region streaming
 
 `RegionId` and stable references are foundational, but the first world loads one region. Streaming, unloaded entity representations, and cross-region commands are deferred.
