@@ -408,8 +408,9 @@ ContentManifest engine_content_manifest() {
   };
 }
 
-std::vector<std::byte> encode_save_container(const SaveContainer& container) {
-  ByteWriter writer;
+namespace {
+
+void encode_save_header(ByteWriter& writer, const SaveContainer& container) {
   writer.write_string(save_magic);
   writer.write_u32(container.header.container_version);
   writer.write_u32(container.header.simulation_schema_version);
@@ -423,9 +424,11 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
   writer.write(container.header.map_id);
   writer.write_string(encode_bytes(std::as_bytes(std::span{container.header.map_hash})));
   encode_runtime_snapshot(writer, container.runtime);
+}
 
-  writer.write_u64(container.content_manifest.size());
-  for (const auto& package : container.content_manifest) {
+void encode_content_manifest(ByteWriter& writer, const ContentManifest& manifest) {
+  writer.write_u64(manifest.size());
+  for (const auto& package : manifest) {
     writer.write(package.package_id);
     writer.write_u16(package.version.major);
     writer.write_u16(package.version.minor);
@@ -436,6 +439,9 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
     }
     writer.write_string(encode_bytes(std::as_bytes(std::span{package.content_hash})));
   }
+}
+
+void encode_capability_boundaries(ByteWriter& writer, const SaveContainer& container) {
   writer.write_u16(container.combat.has_value() ? 1U : 0U);
   if (container.combat) {
     writer.write(container.combat->ability);
@@ -459,21 +465,29 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
     }
     encode_door_snapshot(writer, container.door->runtime);
   }
-  writer.write_u16(container.script.has_value() ? 1U : 0U);
-  if (container.script) {
-    writer.write_u64(container.script->modules.size());
-    for (const auto& module : container.script->modules) {
-      writer.write(module.module_id);
-      writer.write_u16(static_cast<std::uint16_t>(module.scope.kind));
-      writer.write(module.scope.region);
-      writer.write_u16(module.scope.entity.has_value() ? 1U : 0U);
-      if (module.scope.entity) {
-        writer.write(*module.scope.entity);
-      }
-      writer.write_u32(module.state_schema_version);
-    }
-    writer.write_string(encode_bytes(encode_script_state(container.script->state)));
+}
+
+void encode_script_boundary(ByteWriter& writer,
+                            const std::optional<ScriptBoundarySnapshot>& script) {
+  writer.write_u16(script.has_value() ? 1U : 0U);
+  if (!script) {
+    return;
   }
+  writer.write_u64(script->modules.size());
+  for (const auto& module : script->modules) {
+    writer.write(module.module_id);
+    writer.write_u16(static_cast<std::uint16_t>(module.scope.kind));
+    writer.write(module.scope.region);
+    writer.write_u16(module.scope.entity.has_value() ? 1U : 0U);
+    if (module.scope.entity) {
+      writer.write(*module.scope.entity);
+    }
+    writer.write_u32(module.state_schema_version);
+  }
+  writer.write_string(encode_bytes(encode_script_state(script->state)));
+}
+
+void encode_progression_boundaries(ByteWriter& writer, const SaveContainer& container) {
   writer.write_u16(container.inventory.has_value() ? 1U : 0U);
   if (container.inventory) {
     encode_inventory_snapshot(writer, *container.inventory);
@@ -486,8 +500,9 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
   if (container.dialogue) {
     encode_dialogue_snapshot(writer, *container.dialogue);
   }
+}
 
-  auto records = container.components;
+void encode_component_records(ByteWriter& writer, std::vector<ComponentRecord> records) {
   std::ranges::sort(records, [](const ComponentRecord& left, const ComponentRecord& right) {
     return std::tie(left.type_id, left.entity) < std::tie(right.type_id, right.entity);
   });
@@ -498,6 +513,18 @@ std::vector<std::byte> encode_save_container(const SaveContainer& container) {
     writer.write(record.entity);
     writer.write_string(encode_bytes(record.payload));
   }
+}
+
+} // namespace
+
+std::vector<std::byte> encode_save_container(const SaveContainer& container) {
+  ByteWriter writer;
+  encode_save_header(writer, container);
+  encode_content_manifest(writer, container.content_manifest);
+  encode_capability_boundaries(writer, container);
+  encode_script_boundary(writer, container.script);
+  encode_progression_boundaries(writer, container);
+  encode_component_records(writer, container.components);
   return {writer.bytes().begin(), writer.bytes().end()};
 }
 
