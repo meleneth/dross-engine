@@ -220,7 +220,6 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
     if (restored.ability != ability.id || !session.restore(restored.session)) {
       throw std::logic_error{"Godot Thump combat snapshot restore failed"};
     }
-    killed = resolver.health(mouse.id()).value() == 0;
   }
 
   static std::vector<CombatantDefinition>
@@ -301,7 +300,6 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
   ScriptScenarioState* scripts;
   CombatSession session;
   AbilityResolver resolver;
-  bool killed{false};
   bool script_fault{false};
   godot::String last_cue;
   std::vector<godot::String> recent_events;
@@ -931,7 +929,6 @@ bool DrossWorldHost::perform_thump() {
   if (!result.accepted) {
     return false;
   }
-  combat_state_->killed = result.killed;
   return !combat_state_->script_fault;
 }
 
@@ -945,7 +942,9 @@ std::int64_t DrossWorldHost::get_mouse_health() const {
   return combat_state_ ? combat_state_->resolver.health(combat_state_->mouse.id()).value() : -1;
 }
 
-bool DrossWorldHost::is_mouse_killed() const { return combat_state_ && combat_state_->killed; }
+bool DrossWorldHost::is_mouse_killed() const {
+  return combat_state_ && combat_state_->resolver.health(combat_state_->mouse.id()).value() == 0;
+}
 
 godot::String DrossWorldHost::get_last_presentation_cue() const {
   return combat_state_ ? combat_state_->last_cue : godot::String{};
