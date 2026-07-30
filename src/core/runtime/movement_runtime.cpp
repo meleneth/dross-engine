@@ -165,15 +165,18 @@ MovementRuntime::MovementRuntime(const CompiledHexMap& map, OccupancyIndex& occu
                                  const PathPlanner& planner, const FootprintDefinition& footprint,
                                  const EntityRef entity, HexPose initial_pose,
                                  const MovementConfig config, MovementEventSink* events,
-                                 MovementCostAccount* costs)
+                                 MovementCostAccount* costs,
+                                 const EdgeTraversalPolicy* edge_policy)
     : map_{&map}, occupancy_{&occupancy}, planner_{&planner}, footprint_{&footprint},
       entity_{entity}, pose_{std::move(initial_pose)}, config_{config}, events_{events},
-      costs_{costs} {}
+      costs_{costs}, edge_policy_{edge_policy} {}
 
 MovementPreview MovementRuntime::preview(const HexPose& goal) const {
   const auto planned =
       planner_->plan(*map_, *occupancy_, *footprint_, pose_, goal,
-                     TraversalPolicy{.rotation_cost = MovementCost{0}}, entity_.id());
+                     TraversalPolicy{.rotation_cost = MovementCost{0},
+                                     .edge_policy = edge_policy_},
+                     entity_.id());
   if (!planned) {
     return MovementPreview{.accepted = false,
                            .rejection = planned.error(),
@@ -280,7 +283,9 @@ MovementAdvance MovementRuntime::advance(const Tick tick) {
   const auto& destination = path_[next_pose_];
   const auto transition =
       assess_transition(*map_, *occupancy_, *footprint_, pose_, destination,
-                        TraversalPolicy{.rotation_cost = MovementCost{0}}, entity_.id());
+                        TraversalPolicy{.rotation_cost = MovementCost{0},
+                                        .edge_policy = edge_policy_},
+                        entity_.id());
   if (!transition.allowed() ||
       (costs_ != nullptr && !costs_->can_spend(entity_.id(), transition.cost)) ||
       !occupancy_->move(entity_.id(), footprint_->expand(destination))) {

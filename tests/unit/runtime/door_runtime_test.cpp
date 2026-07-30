@@ -1,6 +1,7 @@
 #include <dross/runtime/door_runtime.hpp>
 
 #include <dross/hex/path_planner.hpp>
+#include <dross/runtime/movement_runtime.hpp>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -121,6 +122,37 @@ TEST_CASE("authoritative planner consumes committed door traversal state") {
   REQUIRE(opened);
   CHECK(opened->poses == std::vector{start, goal});
   CHECK(opened->total_cost == dross::MovementCost{1});
+}
+
+TEST_CASE("movement preview and commit consume the live door traversal policy") {
+  dross::CompiledHexMapBuilder builder;
+  REQUIRE(builder.add_cell(cell_facts(cell(0))));
+  REQUIRE(builder.add_cell(cell_facts(cell(1))));
+  REQUIRE(builder.add_edge(cell(0), cell(1), traversable_edge(), traversable_edge()));
+  const auto map = std::move(builder).build().value();
+  auto door_footprint = dross::EdgeFootprint::create({edge(0, 1)}).value();
+  dross::DoorRuntime door{door_entity(), std::move(door_footprint), dross::DoorState::closed};
+  const dross::WeightedAStarPathPlanner planner;
+  dross::OccupancyIndex occupancy;
+  const auto footprint = single_cell_footprint();
+  const auto actor = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 1}};
+  REQUIRE(occupancy.place(actor.id(), {cell(0)}));
+  dross::MovementRuntime movement{map,
+                                  occupancy,
+                                  planner,
+                                  footprint,
+                                  actor,
+                                  dross::HexPose{cell(0), dross::HexFacing::east},
+                                  {.ticks_per_transition = 2},
+                                  nullptr,
+                                  nullptr,
+                                  &door};
+
+  CHECK_FALSE(movement.preview(dross::HexPose{cell(1), dross::HexFacing::east}).accepted);
+  CHECK_FALSE(movement.move_to(dross::HexPose{cell(1), dross::HexFacing::east}));
+  REQUIRE(door.open());
+  CHECK(movement.preview(dross::HexPose{cell(1), dross::HexFacing::east}).accepted);
+  CHECK(movement.move_to(dross::HexPose{cell(1), dross::HexFacing::east}));
 }
 
 TEST_CASE("optional side door is not part of the shortest required route") {

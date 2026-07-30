@@ -105,7 +105,8 @@ public:
   MovementRuntime(const CompiledHexMap& map, OccupancyIndex& occupancy, const PathPlanner& planner,
                   const FootprintDefinition& footprint, EntityRef entity, HexPose initial_pose,
                   MovementConfig config, MovementEventSink* events = nullptr,
-                  MovementCostAccount* costs = nullptr);
+                  MovementCostAccount* costs = nullptr,
+                  const EdgeTraversalPolicy* edge_policy = nullptr);
 
   [[nodiscard]] MovementPreview preview(const HexPose& goal) const;
   [[nodiscard]] Result<void, MovementCommandRejection> handle(const movement::MoveTo& command);
@@ -114,6 +115,7 @@ public:
   [[nodiscard]] bool move_to(const HexPose& goal);
   [[nodiscard]] bool cancel();
   void request_combat_stop();
+  void set_edge_policy(const EdgeTraversalPolicy* policy) { edge_policy_ = policy; }
   [[nodiscard]] MovementAdvance advance(Tick tick);
   [[nodiscard]] MovementSnapshot snapshot() const;
   [[nodiscard]] bool restore(const MovementSnapshot& restored);
@@ -131,6 +133,7 @@ private:
   MovementConfig config_;
   MovementEventSink* events_;
   MovementCostAccount* costs_;
+  const EdgeTraversalPolicy* edge_policy_;
   MovementLifecycle lifecycle_;
   std::vector<HexPose> path_;
   std::size_t next_pose_{0};

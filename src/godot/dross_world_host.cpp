@@ -62,6 +62,11 @@ bool movement_cell_is_traversable(const std::int32_t q, const std::int32_t r) {
   return q != 0 || r != -1;
 }
 
+bool is_demo_door_transition(const HexCoord first, const HexCoord second) {
+  return (first == HexCoord{.q = 1, .r = 0} && second == HexCoord{.q = 2, .r = 0}) ||
+         (first == HexCoord{.q = 2, .r = 0} && second == HexCoord{.q = 1, .r = 0});
+}
+
 CompiledHexMap make_movement_map() {
   CompiledHexMapBuilder builder;
   for (std::int32_t r = -1; r <= 1; ++r) {
@@ -91,6 +96,12 @@ CompiledHexMap make_movement_map() {
         }
         if (!movement_cell_is_traversable(q, r) ||
             !movement_cell_is_traversable(adjacent.q, adjacent.r)) {
+          continue;
+        }
+        const auto current = HexCoord{.q = q, .r = r};
+        const auto crosses_divider = (current.q <= 1 && adjacent.q >= 2) ||
+                                     (adjacent.q <= 1 && current.q >= 2);
+        if (crosses_divider && !is_demo_door_transition(current, adjacent)) {
           continue;
         }
         static_cast<void>(
@@ -717,6 +728,9 @@ bool DrossWorldHost::restore_script_state(const godot::PackedByteArray& bytes) {
 
 bool DrossWorldHost::start_movement_scenario() {
   movement_state_ = std::make_unique<MovementScenarioState>();
+  if (door_state_) {
+    movement_state_->movement.set_edge_policy(&door_state_->runtime);
+  }
   return true;
 }
 
@@ -1116,6 +1130,7 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
   if (!next_movement->mode.restore(decoded->runtime.mode)) {
     return reject("save simulation mode snapshot is invalid");
   }
+  next_movement->movement.set_edge_policy(&next_door->runtime);
 
   movement_state_ = std::move(next_movement);
   door_state_ = std::move(next_door);
@@ -1228,6 +1243,9 @@ bool DrossWorldHost::start_door_scenario(const godot::Ref<DrossDoorDefinition>& 
     return false;
   }
   door_state_ = std::make_unique<DoorScenarioState>(std::move(*compiled));
+  if (movement_state_) {
+    movement_state_->movement.set_edge_policy(&door_state_->runtime);
+  }
   return true;
 }
 
