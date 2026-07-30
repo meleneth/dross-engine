@@ -2,6 +2,8 @@
 
 #include "content.hpp"
 
+#include <thump_demo/fsm/caretaker_machine.hpp>
+
 #include <dross/foundation/quantities.hpp>
 #include <dross/hex/compiled_hex_map.hpp>
 #include <dross/persistence/save_container.hpp>
@@ -99,8 +101,8 @@ CompiledHexMap make_movement_map() {
           continue;
         }
         const auto current = HexCoord{.q = q, .r = r};
-        const auto crosses_divider = (current.q <= 1 && adjacent.q >= 2) ||
-                                     (adjacent.q <= 1 && current.q >= 2);
+        const auto crosses_divider =
+            (current.q <= 1 && adjacent.q >= 2) || (adjacent.q <= 1 && current.q >= 2);
         if (crosses_divider && !is_demo_door_transition(current, adjacent)) {
           continue;
         }
@@ -142,14 +144,15 @@ struct DrossWorldHost::RuntimeState {
   std::unique_ptr<EngineRuntime> runtime;
 };
 
-struct DrossWorldHost::ScriptScenarioState final : DialogueRuntime::EventSink {
+struct DrossWorldHost::ScriptScenarioState final : DialogueRuntime::EventSink,
+                                                   QuestRuntime::EventSink {
   explicit ScriptScenarioState(const MasterSeed seed)
       : random{seed}, runtime{port, random}, mode{machine_trace},
-        inventory{WorldInstanceId{synthetic_instance}, {EntityId{7, 1}}}, quests{machine_trace},
-        dialogue{WorldInstanceId{synthetic_instance},
-                 {player.id(), caretaker.id()},
-                 machine_trace,
-                 this} {
+        inventory{WorldInstanceId{synthetic_instance}, {EntityId{7, 1}}},
+        quests{machine_trace, this}, dialogue{WorldInstanceId{synthetic_instance},
+                                              {player.id(), caretaker.id()},
+                                              machine_trace,
+                                              this} {
     port.set_world_instance(WorldInstanceId{synthetic_instance});
     port.set_inventory(&inventory);
     port.set_quests(&quests);
@@ -162,6 +165,75 @@ struct DrossWorldHost::ScriptScenarioState final : DialogueRuntime::EventSink {
     script_fault = !commit(result);
   }
   void publish(const dialogue::DialogueEnded&) override {}
+  void publish(const quest::QuestStarted& event) override {
+    port.set_tick(tick);
+    dispatch_script_event(runtime.on_quest_started(event, tick));
+  }
+  void publish(const quest::QuestAdvanced& event) override {
+    if (event.quest != ContentId::parse("thump_demo:mouse_quest").value()) {
+      return;
+    }
+    if (!caretaker_machine.observe_mouse_tail()) {
+      script_fault = true;
+      return;
+    }
+    port.set_tick(tick);
+    dispatch_script_event(runtime.on_quest_advanced(event, tick));
+  }
+  void publish(const quest::QuestCompleted& event) override {
+    if (event.quest != ContentId::parse("thump_demo:mouse_quest").value()) {
+      return;
+    }
+    if (!caretaker_machine.hand_in_tail()) {
+      script_fault = true;
+      return;
+    }
+    port.set_tick(tick);
+    dispatch_script_event(runtime.on_quest_completed(event, tick));
+  }
+  void publish(const quest::QuestFailed&) override {}
+
+  void dispatch_script_event(const ScriptEventResult& result) { script_fault = !commit(result); }
+
+  [[nodiscard]] bool contact_mouse() {
+    if (quests.status(ContentId::parse("thump_demo:mouse_quest").value()) !=
+        QuestStatus::inactive) {
+      return false;
+    }
+    const auto caretaker_before = caretaker_machine.snapshot();
+    const auto quests_before = quests.snapshot();
+    if (!caretaker_machine.contact_mouse() ||
+        !quests.handle(quest::StartQuest{
+            .quest = ContentId::parse("thump_demo:mouse_quest").value(),
+            .stage = ContentId::parse("thump_demo:hunt_mouse").value(),
+        }) ||
+        script_fault) {
+      static_cast<void>(caretaker_machine.restore(caretaker_before));
+      static_cast<void>(quests.restore(quests_before));
+      return false;
+    }
+    return true;
+  }
+
+  [[nodiscard]] bool restore_caretaker_from_quest() {
+    const auto quest_id = ContentId::parse("thump_demo:mouse_quest").value();
+    auto state = thump_demo::CaretakerState::waiting_for_mouse_contact;
+    switch (quests.status(quest_id)) {
+    case QuestStatus::inactive:
+      break;
+    case QuestStatus::active:
+      state = quests.stage(quest_id) == ContentId::parse("thump_demo:return_tail").value()
+                  ? thump_demo::CaretakerState::waiting_for_tail
+                  : thump_demo::CaretakerState::hunt_assigned;
+      break;
+    case QuestStatus::completed:
+      state = thump_demo::CaretakerState::settled;
+      break;
+    case QuestStatus::failed:
+      return false;
+    }
+    return caretaker_machine.restore({.state = state});
+  }
 
   [[nodiscard]] bool commit(const ScriptEventResult& result) {
     if (result.fault) {
@@ -169,12 +241,14 @@ struct DrossWorldHost::ScriptScenarioState final : DialogueRuntime::EventSink {
     }
     const auto inventory_before = inventory.snapshot();
     const auto quests_before = quests.snapshot();
+    const auto caretaker_before = caretaker_machine.snapshot();
     for (const auto& command : result.deferred_inventory_commands) {
       const auto handled =
           std::visit([this](const auto& typed) { return inventory.handle(typed); }, command);
       if (!handled) {
         static_cast<void>(inventory.restore(inventory_before));
         static_cast<void>(quests.restore(quests_before));
+        static_cast<void>(caretaker_machine.restore(caretaker_before));
         return false;
       }
     }
@@ -184,8 +258,15 @@ struct DrossWorldHost::ScriptScenarioState final : DialogueRuntime::EventSink {
       if (!handled) {
         static_cast<void>(inventory.restore(inventory_before));
         static_cast<void>(quests.restore(quests_before));
+        static_cast<void>(caretaker_machine.restore(caretaker_before));
         return false;
       }
+    }
+    if (script_fault) {
+      static_cast<void>(inventory.restore(inventory_before));
+      static_cast<void>(quests.restore(quests_before));
+      static_cast<void>(caretaker_machine.restore(caretaker_before));
+      return false;
     }
     return true;
   }
@@ -237,6 +318,7 @@ struct DrossWorldHost::ScriptScenarioState final : DialogueRuntime::EventSink {
   InventoryRuntime inventory;
   QuestRuntime quests;
   DialogueRuntime dialogue;
+  thump_demo::CaretakerMachine caretaker_machine;
   bool script_fault{false};
   Tick tick{0};
 };
@@ -287,8 +369,13 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
   void publish(const movement::MovementStarted&) override {
     record_event("dross:movement_started");
   }
-  void publish(const movement::ActorEnteredCell&) override {
+  void publish(const movement::ActorEnteredCell& event) override {
     record_event("dross:actor_entered_cell");
+    if (scripts != nullptr && event.pose.anchor.coord == HexCoord{.q = 2, .r = 0} &&
+        scripts->quests.status(ContentId::parse("thump_demo:mouse_quest").value()) ==
+            QuestStatus::inactive) {
+      static_cast<void>(scripts->contact_mouse());
+    }
   }
   void publish(const movement::MovementCompleted&) override {
     record_event("dross:movement_completed");
@@ -312,6 +399,7 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
   SimulationMode mode;
   Tick tick{0};
   std::vector<godot::String> recent_events;
+  ScriptScenarioState* scripts{nullptr};
 };
 
 struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
@@ -515,6 +603,9 @@ bool DrossWorldHost::start_script_scenario(
     }
   }
   script_state_ = std::move(next);
+  if (movement_state_) {
+    movement_state_->scripts = script_state_.get();
+  }
   return true;
 }
 
@@ -640,14 +731,8 @@ std::int64_t DrossWorldHost::get_inventory_count(const std::int64_t owner_sequen
       *parsed));
 }
 
-bool DrossWorldHost::accept_mouse_quest_dialogue() {
-  if (!script_state_) {
-    return false;
-  }
-  auto& scenario = *script_state_;
-  const auto dialogue_id = ContentId::parse("thump_demo:caretaker_dialogue").value();
-  const auto option = ContentId::parse("thump_demo:accept_mouse_quest").value();
-  return scenario.choose_dialogue_option(dialogue_id, option);
+bool DrossWorldHost::contact_field_mouse() {
+  return script_state_ && script_state_->contact_mouse();
 }
 
 bool DrossWorldHost::hand_in_mouse_tail_dialogue() {
@@ -664,6 +749,14 @@ bool DrossWorldHost::hand_in_mouse_tail_dialogue() {
     return false;
   }
   return scenario.choose_dialogue_option(dialogue_id, option);
+}
+
+godot::String DrossWorldHost::get_caretaker_state() const {
+  if (!script_state_) {
+    return {};
+  }
+  const auto state = script_state_->caretaker_machine.state_name();
+  return godot::String{std::string{state}.c_str()};
 }
 
 godot::String DrossWorldHost::get_quest_status(const godot::String& quest) const {
@@ -1142,12 +1235,16 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
   if (!script_state_->quests.restore(*decoded->quest)) {
     return reject("validated quest progress could not be installed");
   }
+  if (!script_state_->restore_caretaker_from_quest()) {
+    return reject("validated quest progress could not restore the caretaker FSM");
+  }
   if (!script_state_->dialogue.restore(*decoded->dialogue)) {
     return reject("validated dialogue session could not be installed");
   }
   if (!script_state_->random.restore(decoded->runtime.random)) {
     return reject("validated random streams could not be installed");
   }
+  movement_state_->scripts = script_state_.get();
   script_state_->tick = decoded->header.current_tick;
   last_load_error_ = godot::String{};
   return true;
@@ -1314,10 +1411,12 @@ void DrossWorldHost::_bind_methods() {
       &DrossWorldHost::get_script_state_int);
   godot::ClassDB::bind_method(godot::D_METHOD("get_inventory_count", "owner_sequence", "item"),
                               &DrossWorldHost::get_inventory_count);
-  godot::ClassDB::bind_method(godot::D_METHOD("accept_mouse_quest_dialogue"),
-                              &DrossWorldHost::accept_mouse_quest_dialogue);
+  godot::ClassDB::bind_method(godot::D_METHOD("contact_field_mouse"),
+                              &DrossWorldHost::contact_field_mouse);
   godot::ClassDB::bind_method(godot::D_METHOD("hand_in_mouse_tail_dialogue"),
                               &DrossWorldHost::hand_in_mouse_tail_dialogue);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_caretaker_state"),
+                              &DrossWorldHost::get_caretaker_state);
   godot::ClassDB::bind_method(godot::D_METHOD("get_quest_status", "quest"),
                               &DrossWorldHost::get_quest_status);
   godot::ClassDB::bind_method(godot::D_METHOD("get_quest_stage", "quest"),

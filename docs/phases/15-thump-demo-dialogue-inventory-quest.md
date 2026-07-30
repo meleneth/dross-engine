@@ -15,8 +15,8 @@ game-specific prose and behavior outside generic engine infrastructure.
 
 The player can:
 
-1. speak with the room caretaker;
-2. accept a request to deal with the field mouse;
+1. make contact with the field mouse;
+2. automatically receive the caretaker's request through the game-owned FSM;
 3. inspect the active quest and its authored stage;
 4. defeat the mouse with Thump;
 5. receive one `thump_demo:mouse_tail` inventory item through a scripted event
@@ -85,12 +85,22 @@ Phase 15 implements only the transitions consumed by ThumpDemo. Repeatable
 quests, branching graph interpretation, objective DSLs, and general runtime
 statechart authoring remain deferred.
 
+### ThumpDemo caretaker FSM
+
+`src/thump_demo/fsm/caretaker_machine.*` owns the compile-time
+`thump_demo::CaretakerMachine`. Its states are `waiting_for_mouse_contact`,
+`hunt_assigned`, `waiting_for_tail`, and `settled`. Committed mouse contact and
+quest events drive its SML transitions. The generic `QuestRuntime` remains the
+authority for quest facts; the caretaker machine is game-owned orchestration
+and reconstructs from those facts during load.
+
 ## GDScript examples
 
 The phase must leave three short, production-used examples:
 
-- `caretaker_dialogue.gd` contributes options from inventory and quest queries,
-  then submits deferred typed commands;
+- `caretaker_dialogue.gd` reacts to typed quest lifecycle events, contributes
+  options from inventory and quest queries, then submits deferred typed hand-in
+  commands;
 - `field_mouse.gd` reacts to committed death and grants the authored item;
 - `mouse_quest.gd` reacts to typed dialogue/inventory facts and records any
   script-local durable presentation state through `ctx.state`.
@@ -105,6 +115,7 @@ Write native behavior tests first for:
 
 - inventory grant, remove, rejection, ordering, snapshot, and restore;
 - every dialogue and quest SML transition and unexpected-event policy;
+- every ThumpDemo caretaker transition, rejection, snapshot, and restore path;
 - canonical dialogue option ordering;
 - unoffered or stale dialogue choice rejection with no state change;
 - quest transition rejection with no state change;

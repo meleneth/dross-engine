@@ -156,15 +156,6 @@ func _initialize() -> void:
 			"integrated exploration reload did not restore the saved actor cell")
 	check(is_zero_approx(demo.get_node("Player").position.x),
 			"integrated exploration reload did not reconstruct the player view")
-	check(demo.talk_to_caretaker(), "playable scene rejected the caretaker quest offer")
-	check(demo.get_node("DrossWorldHost").get_quest_stage(
-			"thump_demo:mouse_quest") == "thump_demo:hunt_mouse",
-			"playable scene did not project the accepted quest stage")
-	check(demo.save_game(), "integrated active-quest save was rejected")
-	check(demo.load_game(), "integrated active-quest reload was rejected")
-	check(demo.get_node("DrossWorldHost").get_quest_stage(
-			"thump_demo:mouse_quest") == "thump_demo:hunt_mouse",
-			"active quest stage did not survive save and reload")
 	check(not demo.preview_destination(2),
 			"reloaded closed door did not restore traversal blocking")
 	check(demo.toggle_door(), "reloaded route door could not be opened")
@@ -178,6 +169,14 @@ func _initialize() -> void:
 			"diagnostic tick did not follow authoritative fixed ticks")
 	check(demo.get_node("DrossWorldHost").get_movement_column() == 2,
 			"integrated player did not reach the authoritative destination")
+	check(demo.get_node("DrossWorldHost").get_quest_stage(
+			"thump_demo:mouse_quest") == "thump_demo:hunt_mouse",
+			"mouse contact did not automatically give the caretaker quest")
+	check(demo.get_node("DrossWorldHost").get_caretaker_state() == "hunt_assigned",
+			"mouse contact did not transition the ThumpDemo caretaker SML")
+	check(demo.get_node("DrossWorldHost").get_script_state_bool(
+			"thump_demo:caretaker_dialogue", 3, "fsm_hunt_assigned"),
+			"caretaker GDScript did not react to the FSM-triggered quest event")
 	check(demo.get_node("DrossWorldHost").get_recent_movement_events() ==
 			PackedStringArray([
 				"dross:movement_started",
@@ -185,6 +184,12 @@ func _initialize() -> void:
 				"dross:actor_entered_cell",
 				"dross:movement_completed",
 			]), "movement diagnostics did not preserve committed event order")
+	check(demo.get_node("DrossWorldHost").get_last_door_event() == "dross:door_opened",
+			"door diagnostics did not consume the committed open event")
+	check(demo.save_game(), "integrated active-quest save was rejected")
+	check(demo.load_game(), "integrated active-quest reload was rejected")
+	check(demo.get_node("DrossWorldHost").get_caretaker_state() == "hunt_assigned",
+			"active quest reload did not reconstruct the caretaker FSM")
 	check(demo.get_node("DrossWorldHost").get_canonical_capability_hash() != initial_hash,
 			"authoritative movement did not change the diagnostic hash")
 	check(is_equal_approx(demo.get_node("Player").position.x, sqrt(3.0) * 2.0),
@@ -207,8 +212,6 @@ func _initialize() -> void:
 	check(demo.get_node("DrossWorldHost").get_player_action_points() == 3,
 			"enemy pass did not begin a fresh authoritative player turn")
 
-	check(demo.get_node("DrossWorldHost").get_last_door_event() == "dross:door_opened",
-			"door diagnostics did not consume the committed open event")
 	check(is_equal_approx(demo.get_node("SideDoor").rotation_degrees.y, 90.0),
 			"integrated door animation did not reach the committed open state")
 	check(not demo.get_node("DrossWorldHost").is_door_presentation_pending(),
@@ -237,6 +240,11 @@ func _initialize() -> void:
 	check(demo.get_node("DrossWorldHost").get_quest_stage(
 			"thump_demo:mouse_quest") == "thump_demo:return_tail",
 			"return-tail quest boundary did not survive save")
+	check(demo.get_node("DrossWorldHost").get_caretaker_state() == "waiting_for_tail",
+			"QuestAdvanced did not transition the caretaker SML")
+	check(demo.get_node("DrossWorldHost").get_script_state_bool(
+			"thump_demo:caretaker_dialogue", 3, "fsm_waiting_for_tail"),
+			"caretaker GDScript did not react to QuestAdvanced")
 	check(demo.get_node("DrossWorldHost").get_script_state_bool(
 			"thump_demo:field_mouse", 2, "rule_checked"),
 			"field mouse did not contribute its typed ability rule")
@@ -257,6 +265,11 @@ func _initialize() -> void:
 	check(demo.get_node("DrossWorldHost").get_quest_status(
 			"thump_demo:mouse_quest") == "completed",
 			"playable scene did not complete the mouse quest")
+	check(demo.get_node("DrossWorldHost").get_caretaker_state() == "settled",
+			"QuestCompleted did not settle the caretaker SML")
+	check(demo.get_node("DrossWorldHost").get_script_state_bool(
+			"thump_demo:caretaker_dialogue", 3, "fsm_settled"),
+			"caretaker GDScript did not react to QuestCompleted")
 	check("×0" in demo.get_node("UI/InventoryStatus").text,
 			"playable inventory UI did not project the removed mouse tail")
 	check(demo.save_game(), "integrated completed-quest save was rejected")
@@ -283,6 +296,8 @@ func _initialize() -> void:
 	check(demo.get_node("DrossWorldHost").get_quest_status(
 			"thump_demo:mouse_quest") == "completed",
 			"completed-state reload did not restore quest completion")
+	check(demo.get_node("DrossWorldHost").get_caretaker_state() == "settled",
+			"completed-state reload did not reconstruct the caretaker SML")
 	check(demo.get_node("DrossWorldHost").get_inventory_count(
 			1, "thump_demo:mouse_tail") == 0,
 			"completed-state reload did not restore consumed inventory")

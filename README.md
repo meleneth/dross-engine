@@ -121,13 +121,13 @@ Other scaffolding commands described in the design documents remain planned.
 
 ## Run the Godot project
 
-Build `dross_godot` first, then open `godot/project.godot` in Godot 4.7.1:
+From the repository root:
 
 ```sh
-cmake --build --preset linux-debug --target dross_godot
-godot --editor --path godot
+./bin/dross-godot --editor
 ```
 
+The launcher verifies Godot 4.7.1 and incrementally builds `dross_godot`.
 The main project scene is
 `godot/thump_demo/scenes/phase14_vertical_slice.tscn`. Hover and click a hex,
 or use the arrow keys and Enter, to preview and commit movement; the preview
@@ -196,7 +196,8 @@ authoritative randomness comes from `context.random`.
 The production examples are deliberately short:
 
 - `godot/thump_demo/scripts/caretaker_dialogue.gd` gates dialogue outcomes with
-  inventory and quest queries, then submits typed quest and inventory commands;
+  inventory and quest queries, submits the typed tail hand-in, and reacts to
+  immutable quest events emitted alongside the game-owned caretaker SML;
 - `godot/thump_demo/scripts/field_mouse.gd` reacts to committed damage and death
   and grants the authored mouse-tail item;
 - `godot/thump_demo/scripts/mouse_quest.gd` reacts to committed death and
@@ -254,6 +255,14 @@ func on_actor_killed(
 These calls append commands to the callback transaction. Native inventory and
 quest runtimes validate and commit them only after the callback succeeds.
 Multi-command hand-ins roll back as a unit if any command rejects.
+
+The caretaker is the game-specific FSM example. Its Boost.Ext.SML machine lives
+in `src/thump_demo/fsm/caretaker_machine.*`, in namespace `thump_demo`, rather
+than in generic Dross infrastructure. Entering the mouse hex triggers its
+`MouseContacted` transition and starts the authoritative quest. The resulting
+`QuestStarted`, `QuestAdvanced`, and `QuestCompleted` facts are dispatched to
+`caretaker_dialogue.gd`, keeping known lifecycle state in C++ while leaving
+authored reactions and dialogue behavior in GDScript.
 
 ### Add game content or an engine capability?
 

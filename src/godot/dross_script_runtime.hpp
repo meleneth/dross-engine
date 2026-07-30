@@ -233,6 +233,18 @@ public:
   [[nodiscard]] Result<void, std::string>
   on_dialogue_option_chosen(const ScriptModule& module, const dialogue::DialogueOptionChosen& event,
                             ScriptCallbackTransaction& transaction, RandomStream& random) override;
+  [[nodiscard]] Result<void, std::string> on_quest_started(const ScriptModule& module,
+                                                           const quest::QuestStarted& event,
+                                                           ScriptCallbackTransaction& transaction,
+                                                           RandomStream& random) override;
+  [[nodiscard]] Result<void, std::string> on_quest_advanced(const ScriptModule& module,
+                                                            const quest::QuestAdvanced& event,
+                                                            ScriptCallbackTransaction& transaction,
+                                                            RandomStream& random) override;
+  [[nodiscard]] Result<void, std::string> on_quest_completed(const ScriptModule& module,
+                                                             const quest::QuestCompleted& event,
+                                                             ScriptCallbackTransaction& transaction,
+                                                             RandomStream& random) override;
   [[nodiscard]] Result<void, std::string>
   contribute_dialogue_options(const ScriptModule& module, const ScriptDialogueOptionQuery& query,
                               ScriptCallbackTransaction& transaction,
@@ -252,6 +264,9 @@ private:
     bool damage_applied{false};
     bool actor_killed{false};
     bool dialogue_option_chosen{false};
+    bool quest_started{false};
+    bool quest_advanced{false};
+    bool quest_completed{false};
     bool dialogue_options{false};
   };
   [[nodiscard]] Installed* find(const ScriptModule& module);

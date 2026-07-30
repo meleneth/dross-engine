@@ -50,6 +50,7 @@ var _last_event := "world initialized"
 var _selected_cell_facts := "none"
 var _door_tween: Tween
 var _combat_started := false
+var _mouse_contact_announced := false
 var _saved_state := PackedByteArray()
 
 
@@ -295,12 +296,7 @@ func talk_to_caretaker() -> bool:
 	_last_command = "TalkToCaretaker"
 	var quest_state := host.get_quest_status("thump_demo:mouse_quest")
 	var accepted := false
-	if quest_state == "inactive":
-		accepted = host.accept_mouse_quest_dialogue()
-		_last_event = "mouse quest accepted" if accepted else "quest offer rejected"
-		if accepted:
-			hud.add_log("Caretaker: Please deal with that field mouse.")
-	elif (
+	if (
 			quest_state == "active"
 			and host.get_quest_stage("thump_demo:mouse_quest") == "thump_demo:return_tail"
 			and host.get_inventory_count(1, "thump_demo:mouse_tail") > 0
@@ -310,7 +306,7 @@ func talk_to_caretaker() -> bool:
 		if accepted:
 			hud.add_log("Caretaker: That settles the mouse problem. Thank you.")
 	else:
-		_last_event = "caretaker has no available option"
+		_last_event = "caretaker is waiting for news about the mouse"
 	_refresh_diagnostics()
 	return accepted
 
@@ -409,6 +405,15 @@ func _refresh_views() -> void:
 	player_view.apply_presentation_snapshot(
 			from, to, host.get_movement_presentation_alpha())
 	if (
+		not _mouse_contact_announced
+		and host.get_caretaker_state() == "hunt_assigned"
+		and host.get_script_state_bool(
+			"thump_demo:caretaker_dialogue", 3, "fsm_hunt_assigned")
+	):
+		_mouse_contact_announced = true
+		_last_event = "mouse contact triggered the caretaker FSM"
+		hud.add_log("Caretaker: Since you found it, please deal with that field mouse.")
+	if (
 		host.get_movement_column() == 2
 		and host.get_movement_row() == 0
 		and host.get_movement_mode() == "exploration"
@@ -452,6 +457,7 @@ func _refresh_diagnostics() -> void:
 		"domain events: %s" % ", ".join(host.get_recent_movement_events()),
 		"combat events: %s" % ", ".join(host.get_recent_combat_events()),
 		"door event: %s" % host.get_last_door_event(),
+		"caretaker FSM: %s" % host.get_caretaker_state(),
 		"script callback: %s" % host.get_script_call_order(),
 		"seed: %d" % DEMO_SEED,
 		"hash: %s" % host.get_canonical_capability_hash(),

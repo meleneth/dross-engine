@@ -10,6 +10,9 @@
 #include <dross/generated/grant_item.hpp>
 #include <dross/generated/perform_ability.hpp>
 #include <dross/generated/place_entity.hpp>
+#include <dross/generated/quest_advanced.hpp>
+#include <dross/generated/quest_completed.hpp>
+#include <dross/generated/quest_started.hpp>
 #include <dross/generated/remove_item.hpp>
 #include <dross/generated/start_quest.hpp>
 #include <dross/identity/content_id.hpp>
@@ -218,6 +221,24 @@ public:
                             ScriptCallbackTransaction&, RandomStream&) {
     return {};
   }
+  [[nodiscard]] virtual Result<void, std::string> on_quest_started(const ScriptModule&,
+                                                                   const quest::QuestStarted&,
+                                                                   ScriptCallbackTransaction&,
+                                                                   RandomStream&) {
+    return {};
+  }
+  [[nodiscard]] virtual Result<void, std::string> on_quest_advanced(const ScriptModule&,
+                                                                    const quest::QuestAdvanced&,
+                                                                    ScriptCallbackTransaction&,
+                                                                    RandomStream&) {
+    return {};
+  }
+  [[nodiscard]] virtual Result<void, std::string> on_quest_completed(const ScriptModule&,
+                                                                     const quest::QuestCompleted&,
+                                                                     ScriptCallbackTransaction&,
+                                                                     RandomStream&) {
+    return {};
+  }
   [[nodiscard]] virtual Result<void, std::string>
   contribute_dialogue_options(const ScriptModule&, const ScriptDialogueOptionQuery&,
                               ScriptCallbackTransaction&, RandomStream&) {
@@ -261,6 +282,9 @@ public:
   [[nodiscard]] ScriptEventResult on_actor_killed(const combat::ActorKilled& event, Tick tick);
   [[nodiscard]] ScriptEventResult
   on_dialogue_option_chosen(const dialogue::DialogueOptionChosen& event, Tick tick);
+  [[nodiscard]] ScriptEventResult on_quest_started(const quest::QuestStarted& event, Tick tick);
+  [[nodiscard]] ScriptEventResult on_quest_advanced(const quest::QuestAdvanced& event, Tick tick);
+  [[nodiscard]] ScriptEventResult on_quest_completed(const quest::QuestCompleted& event, Tick tick);
   [[nodiscard]] ScriptDialogueOptionResult
   contribute_dialogue_options(const ScriptDialogueOptionQuery& query, Tick tick);
 

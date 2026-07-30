@@ -48,17 +48,20 @@ func _initialize() -> void:
 		mouse_module, caretaker_module, quest_module
 	]
 	check(host.start_script_scenario(modules, 12345), "ThumpDemo scripts failed to install")
-	check(host.accept_mouse_quest_dialogue(), "caretaker dialogue choice was rejected")
+	check(host.get_caretaker_state() == "waiting_for_mouse_contact",
+			"caretaker SML did not begin in its authored waiting state")
+	check(host.contact_field_mouse(), "mouse contact did not trigger the caretaker FSM")
 	check(host.get_script_state_bool(
-			"thump_demo:caretaker_dialogue", 3, "accepted_mouse_quest"),
-			"caretaker did not submit the typed quest command")
+			"thump_demo:caretaker_dialogue", 3, "fsm_hunt_assigned"),
+			"caretaker GDScript did not react to the committed QuestStarted event")
 	check(host.get_quest_status("thump_demo:mouse_quest") == "active",
-			"caretaker quest command did not commit")
-	check("thump_demo:caretaker_dialogue:contribute_dialogue_options" in
+			"caretaker mouse-contact transition did not start the quest")
+	check(host.get_caretaker_state() == "hunt_assigned",
+			"caretaker SML did not enter hunt_assigned")
+	check("thump_demo:caretaker_dialogue:on_quest_started" in
 			host.get_script_call_order(),
-			"caretaker did not contribute dialogue options through the typed query")
-	check(not host.accept_mouse_quest_dialogue(),
-			"already-active quest still offered the acceptance option")
+			"caretaker did not receive QuestStarted through the typed event port")
+	check(not host.contact_field_mouse(), "repeated mouse contact retriggered the caretaker FSM")
 	check(host.start_thump_scenario(thump), "Godot combat host rejected typed Thump")
 	check(host.get_mouse_health() == 3, "mouse did not start with authoritative health")
 	check(host.perform_thump(), "generic PerformAbility rejected Thump")
@@ -85,6 +88,11 @@ func _initialize() -> void:
 			"mouse quest script did not submit its typed stage advance")
 	check(host.get_quest_stage("thump_demo:mouse_quest") == "thump_demo:return_tail",
 			"mouse quest stage advance did not commit")
+	check(host.get_caretaker_state() == "waiting_for_tail",
+			"QuestAdvanced did not transition the caretaker SML")
+	check(host.get_script_state_bool(
+			"thump_demo:caretaker_dialogue", 3, "fsm_waiting_for_tail"),
+			"caretaker GDScript did not react to QuestAdvanced")
 	check(host.hand_in_mouse_tail_dialogue(), "caretaker rejected the valid tail hand-in")
 	check(host.get_script_state_bool(
 			"thump_demo:caretaker_dialogue", 3, "tail_hand_in_submitted"),
@@ -93,6 +101,11 @@ func _initialize() -> void:
 			"mouse tail was not removed by the hand-in")
 	check(host.get_quest_status("thump_demo:mouse_quest") == "completed",
 			"mouse quest did not complete after the hand-in")
+	check(host.get_caretaker_state() == "settled",
+			"QuestCompleted did not settle the caretaker SML")
+	check(host.get_script_state_bool(
+			"thump_demo:caretaker_dialogue", 3, "fsm_settled"),
+			"caretaker GDScript did not react to QuestCompleted")
 	check(host.get_script_state_int("thump_demo:field_mouse", 2, "reaction_roll") >= 0,
 			"field mouse reaction did not use deterministic RandomHub access")
 	host.queue_free()

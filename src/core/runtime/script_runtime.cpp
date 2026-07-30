@@ -514,6 +514,84 @@ TypedScriptRuntime::on_dialogue_option_chosen(const dialogue::DialogueOptionChos
   return result;
 }
 
+ScriptEventResult TypedScriptRuntime::on_quest_started(const quest::QuestStarted& event,
+                                                       const Tick tick) {
+  ScriptEventResult result;
+  for (const auto& module : modules_) {
+    ScriptCallbackTransaction transaction{module, state_};
+    auto callback = port_->on_quest_started(module, event, transaction, stream_for(module));
+    if (!callback) {
+      world_faulted_ = true;
+      result.fault = ScriptCallbackError{.module_id = module.module_id,
+                                         .scope = module.scope,
+                                         .callback = "on_quest_started",
+                                         .tick = tick,
+                                         .message = callback.error()};
+      return result;
+    }
+    state_.apply(transaction.state_writes());
+    result.deferred_inventory_commands.insert(result.deferred_inventory_commands.end(),
+                                              transaction.inventory_commands().begin(),
+                                              transaction.inventory_commands().end());
+    result.deferred_quest_commands.insert(result.deferred_quest_commands.end(),
+                                          transaction.quest_commands().begin(),
+                                          transaction.quest_commands().end());
+  }
+  return result;
+}
+
+ScriptEventResult TypedScriptRuntime::on_quest_advanced(const quest::QuestAdvanced& event,
+                                                        const Tick tick) {
+  ScriptEventResult result;
+  for (const auto& module : modules_) {
+    ScriptCallbackTransaction transaction{module, state_};
+    auto callback = port_->on_quest_advanced(module, event, transaction, stream_for(module));
+    if (!callback) {
+      world_faulted_ = true;
+      result.fault = ScriptCallbackError{.module_id = module.module_id,
+                                         .scope = module.scope,
+                                         .callback = "on_quest_advanced",
+                                         .tick = tick,
+                                         .message = callback.error()};
+      return result;
+    }
+    state_.apply(transaction.state_writes());
+    result.deferred_inventory_commands.insert(result.deferred_inventory_commands.end(),
+                                              transaction.inventory_commands().begin(),
+                                              transaction.inventory_commands().end());
+    result.deferred_quest_commands.insert(result.deferred_quest_commands.end(),
+                                          transaction.quest_commands().begin(),
+                                          transaction.quest_commands().end());
+  }
+  return result;
+}
+
+ScriptEventResult TypedScriptRuntime::on_quest_completed(const quest::QuestCompleted& event,
+                                                         const Tick tick) {
+  ScriptEventResult result;
+  for (const auto& module : modules_) {
+    ScriptCallbackTransaction transaction{module, state_};
+    auto callback = port_->on_quest_completed(module, event, transaction, stream_for(module));
+    if (!callback) {
+      world_faulted_ = true;
+      result.fault = ScriptCallbackError{.module_id = module.module_id,
+                                         .scope = module.scope,
+                                         .callback = "on_quest_completed",
+                                         .tick = tick,
+                                         .message = callback.error()};
+      return result;
+    }
+    state_.apply(transaction.state_writes());
+    result.deferred_inventory_commands.insert(result.deferred_inventory_commands.end(),
+                                              transaction.inventory_commands().begin(),
+                                              transaction.inventory_commands().end());
+    result.deferred_quest_commands.insert(result.deferred_quest_commands.end(),
+                                          transaction.quest_commands().begin(),
+                                          transaction.quest_commands().end());
+  }
+  return result;
+}
+
 ScriptDialogueOptionResult
 TypedScriptRuntime::contribute_dialogue_options(const ScriptDialogueOptionQuery& query,
                                                 const Tick tick) {

@@ -452,9 +452,13 @@ bool GodotScriptRuntime::discover_callbacks(const ScriptModule& module) {
   installed->actor_killed = installed->instance->has_method("on_actor_killed");
   installed->dialogue_option_chosen = installed->instance->has_method("on_dialogue_option_chosen");
   installed->dialogue_options = installed->instance->has_method("contribute_dialogue_options");
+  installed->quest_started = installed->instance->has_method("on_quest_started");
+  installed->quest_advanced = installed->instance->has_method("on_quest_advanced");
+  installed->quest_completed = installed->instance->has_method("on_quest_completed");
   return installed->placement || installed->ability || installed->entity_placed ||
          installed->damage_applied || installed->actor_killed ||
-         installed->dialogue_option_chosen || installed->dialogue_options;
+         installed->dialogue_option_chosen || installed->dialogue_options ||
+         installed->quest_started || installed->quest_advanced || installed->quest_completed;
 }
 
 Result<void, std::string> GodotScriptRuntime::invoke(const ScriptModule& module,
@@ -569,6 +573,43 @@ Result<void, std::string> GodotScriptRuntime::on_dialogue_option_chosen(
   godot::Array args;
   args.push_back(generated::godot_api::DrossDialogueOptionChosenEvent::from_core(event));
   return invoke(module, "on_dialogue_option_chosen", args, transaction, random);
+}
+
+Result<void, std::string>
+GodotScriptRuntime::on_quest_started(const ScriptModule& module, const quest::QuestStarted& event,
+                                     ScriptCallbackTransaction& transaction, RandomStream& random) {
+  auto* installed = find(module);
+  if (!installed || !installed->quest_started) {
+    return {};
+  }
+  godot::Array args;
+  args.push_back(generated::godot_api::DrossQuestStartedEvent::from_core(event));
+  return invoke(module, "on_quest_started", args, transaction, random);
+}
+
+Result<void, std::string>
+GodotScriptRuntime::on_quest_advanced(const ScriptModule& module, const quest::QuestAdvanced& event,
+                                      ScriptCallbackTransaction& transaction,
+                                      RandomStream& random) {
+  auto* installed = find(module);
+  if (!installed || !installed->quest_advanced) {
+    return {};
+  }
+  godot::Array args;
+  args.push_back(generated::godot_api::DrossQuestAdvancedEvent::from_core(event));
+  return invoke(module, "on_quest_advanced", args, transaction, random);
+}
+
+Result<void, std::string> GodotScriptRuntime::on_quest_completed(
+    const ScriptModule& module, const quest::QuestCompleted& event,
+    ScriptCallbackTransaction& transaction, RandomStream& random) {
+  auto* installed = find(module);
+  if (!installed || !installed->quest_completed) {
+    return {};
+  }
+  godot::Array args;
+  args.push_back(generated::godot_api::DrossQuestCompletedEvent::from_core(event));
+  return invoke(module, "on_quest_completed", args, transaction, random);
 }
 
 Result<void, std::string> GodotScriptRuntime::contribute_dialogue_options(

@@ -72,11 +72,16 @@ dross_enable_sanitizers(dross_core)
 
 add_library(thump_demo_support STATIC
   src/thump_demo/content.cpp
+  src/thump_demo/fsm/caretaker_machine.cpp
 )
 set_target_properties(thump_demo_support PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_link_libraries(thump_demo_support PUBLIC dross::core)
 target_compile_features(thump_demo_support PUBLIC cxx_std_20)
-target_include_directories(thump_demo_support PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/src/thump_demo")
+target_include_directories(thump_demo_support
+  PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/thump_demo")
+target_include_directories(thump_demo_support SYSTEM PRIVATE "${sml_SOURCE_DIR}/include")
 dross_target_warnings(thump_demo_support)
 dross_enable_sanitizers(thump_demo_support)
 
@@ -162,6 +167,7 @@ add_executable(dross_tests
   tests/unit/runtime/simulation_mode_test.cpp
   tests/unit/runtime/world_lifecycle_test.cpp
   tests/unit/thump_demo/content_test.cpp
+  tests/unit/thump_demo/caretaker_machine_test.cpp
   tests/unit/world/world_storage_test.cpp
 )
 target_link_libraries(dross_tests PRIVATE dross::core thump_demo_support Catch2::Catch2WithMain)

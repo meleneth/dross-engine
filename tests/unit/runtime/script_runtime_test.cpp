@@ -116,6 +116,18 @@ public:
     return {};
   }
 
+  dross::Result<void, std::string> on_quest_started(const dross::ScriptModule& module,
+                                                    const dross::quest::QuestStarted&,
+                                                    dross::ScriptCallbackTransaction& transaction,
+                                                    dross::RandomStream&) override {
+    calls.push_back("quest_started:" + std::string{module.module_id.canonical()});
+    transaction.set_state(dross::ScriptStateKey::parse("quest_started").value(), true);
+    if (fault_event) {
+      return tl::unexpected{std::string{"quest event failed"}};
+    }
+    return {};
+  }
+
   dross::Result<void, std::string> contribute_dialogue_options(
       const dross::ScriptModule& module, const dross::ScriptDialogueOptionQuery&,
       dross::ScriptCallbackTransaction& transaction, dross::RandomStream&) override {
@@ -357,6 +369,35 @@ TEST_CASE("script quest commands are deferred and discarded on callback fault") 
 
   port.fault_event = true;
   const auto rejected = runtime.on_dialogue_option_chosen(chosen, dross::Tick{2});
+  REQUIRE(rejected.fault);
+  CHECK(rejected.deferred_quest_commands.empty());
+}
+
+TEST_CASE("committed quest events reach typed scripts transactionally") {
+  RecordingPort port;
+  dross::RandomHub random{dross::MasterSeed{12}};
+  dross::TypedScriptRuntime runtime{port, random};
+  const auto module = entity_module("thump_demo:caretaker_dialogue", 3);
+  REQUIRE(runtime.install(module));
+  const auto started = dross::quest::QuestStarted{
+      .quest = id("thump_demo:mouse_quest"),
+      .stage = id("thump_demo:hunt_mouse"),
+  };
+
+  const auto accepted = runtime.on_quest_started(started, dross::Tick{1});
+  REQUIRE_FALSE(accepted.fault);
+  CHECK(port.calls.back() == "quest_started:thump_demo:caretaker_dialogue");
+  const auto address = dross::ScriptStateAddress{
+      .module_id = module.module_id,
+      .scope = module.scope,
+      .key = dross::ScriptStateKey::parse("quest_started").value(),
+  };
+  const auto* observed = runtime.state().find(address);
+  REQUIRE(observed != nullptr);
+  CHECK(std::get<bool>(*observed));
+
+  port.fault_event = true;
+  const auto rejected = runtime.on_quest_started(started, dross::Tick{2});
   REQUIRE(rejected.fault);
   CHECK(rejected.deferred_quest_commands.empty());
 }
