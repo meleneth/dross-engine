@@ -13,6 +13,7 @@ Recorded 2026-07-29 through commit `5517810`.
 | GitLab CI definition | Configured; run pending | Linux clean-cache, Clang, GCC, generator, Godot, package, replay, and sanitizer jobs are encoded |
 | Configured static analysis | Pass | clang-tidy completed all 34 translation units with project warnings treated as errors |
 | Architecture audit | Pass | Automated boundary tests and targeted source review found no live violation or dead production abstraction |
+| Dependency registration audit | Pass | Four unused packages removed; clean native graph passed 183 tests and Godot passed 8 scripts |
 | Linux GCC 14 debug | Pass | 183 of 183 CTest cases |
 | Linux Clang 19 ASan/UBSan | Pass with environment exception | 183 of 183 CTest cases with LeakSanitizer disabled |
 | Godot 4.7.1 Linux release boundary | Pass | 8 of 8 integration scripts |

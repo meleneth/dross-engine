@@ -50,10 +50,7 @@ Exact pins and upstream repositories are recorded in
 | eventpp | Apache-2.0 |
 | pcg-cpp | Apache-2.0 or MIT |
 | tl::expected | CC0-1.0 |
-| nlohmann/json | MIT |
 | BLAKE3 | CC0-1.0 or Apache-2.0 |
-| fmt | MIT |
-| spdlog | MIT |
 
 Build and test dependencies not shipped in the prototype are inventoried in
-`docs/dependency-lock.md`, including CPM.cmake, Catch2, RapidCheck, and GdUnit4.
+`docs/dependency-lock.md`, including CPM.cmake, Catch2, and GdUnit4.

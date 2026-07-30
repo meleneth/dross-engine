@@ -75,6 +75,9 @@ Reference: https://github.com/nlohmann/json
 
 Core persistence remains archive and DTO based so the container codec can evolve.
 
+Status: deferred. The vertical slice has no live JSON consumer, so this package
+is not acquired by the active build.
+
 ### BLAKE3
 
 Role: canonical state, content, and manifest hashes.
@@ -91,6 +94,9 @@ Reference: https://github.com/fmtlib/fmt
 
 Do not mix Godot `String` into core diagnostics.
 
+Status: deferred. The vertical slice has no live fmt consumer, so this package
+is not acquired by the active build.
+
 ### spdlog
 
 Role: infrastructure logging adapter where useful.
@@ -98,6 +104,9 @@ Role: infrastructure logging adapter where useful.
 Reference: https://github.com/gabime/spdlog
 
 Structured command and event traces remain Dross types rather than spdlog messages.
+
+Status: deferred. The vertical slice has no live spdlog adapter, so this package
+is not acquired by the active build.
 
 ## Build and tests
 
@@ -125,6 +134,10 @@ Role: property-based tests with shrinking.
 Reference: https://github.com/emil-e/rapidcheck
 
 If current compiler integration is broken, that is a phase 00 stop condition. Do not silently replace property tests with a few hand-selected examples.
+
+Status: deferred. Current invariant coverage uses exhaustive bounded tests with
+live production consumers; RapidCheck is not acquired until a property suite
+uses it.
 
 ### GdUnit4 6.x
 

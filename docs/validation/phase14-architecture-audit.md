@@ -8,6 +8,11 @@ Pass for the locally available source and Linux validation surface. No live
 boundary violation, duplicate authoritative model, forbidden nondeterministic
 API, or placeholder production path was found.
 
+A later dependency-registration pass found four packages with no live include
+or link consumer: nlohmann/json, fmt, spdlog, and RapidCheck. Their active CPM
+registrations and lock/notice entries were removed; their possible future roles
+remain documentation-only until a production or test consumer is introduced.
+
 Windows and Steam Deck device behavior are outside this source audit and remain
 unverified as recorded in the Phase 14 validation matrix.
 

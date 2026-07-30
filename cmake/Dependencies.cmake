@@ -30,7 +30,6 @@ CPMAddPackage(
   SYSTEM YES
   OPTIONS
     "EXPECTED_BUILD_TESTS OFF")
-CPMAddPackage(NAME nlohmann_json GITHUB_REPOSITORY nlohmann/json GIT_TAG v3.12.0 SYSTEM YES)
 CPMAddPackage(NAME blake3 GITHUB_REPOSITORY BLAKE3-team/BLAKE3 GIT_TAG 1.8.2 SYSTEM YES)
 if(blake3_ADDED)
   add_library(dross_blake3 STATIC
@@ -45,25 +44,6 @@ if(blake3_ADDED)
     BLAKE3_NO_SSE41)
   add_library(blake3::blake3 ALIAS dross_blake3)
 endif()
-CPMAddPackage(NAME fmt GITHUB_REPOSITORY fmtlib/fmt GIT_TAG 11.2.0 SYSTEM YES)
-CPMAddPackage(
-  NAME spdlog
-  GITHUB_REPOSITORY gabime/spdlog
-  GIT_TAG v1.15.3
-  SYSTEM YES
-  OPTIONS
-    "SPDLOG_BUILD_EXAMPLE OFF"
-    "SPDLOG_BUILD_TESTS OFF"
-    "SPDLOG_FMT_EXTERNAL ON")
-CPMAddPackage(
-  NAME rapidcheck
-  GITHUB_REPOSITORY emil-e/rapidcheck
-  GIT_TAG ff6af6fc683159deb51c543b065eba14dfcf329b
-  SYSTEM YES
-  OPTIONS
-    "RC_ENABLE_TESTS OFF"
-    "RC_ENABLE_EXAMPLES OFF")
-
 if(DROSS_BUILD_GODOT)
   set(GODOTCPP_USE_HOT_RELOAD ON CACHE BOOL "" FORCE)
   set(GODOTCPP_TARGET "template_debug" CACHE STRING "" FORCE)
