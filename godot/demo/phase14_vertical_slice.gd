@@ -278,6 +278,7 @@ func _refresh_diagnostics() -> void:
 		"last command: %s" % _last_command,
 		"last status: %s" % _last_event,
 		"domain events: %s" % ", ".join(host.get_recent_movement_events()),
+		"combat events: %s" % ", ".join(host.get_recent_combat_events()),
 		"door event: %s" % host.get_last_door_event(),
 		"script callback: %s" % host.get_script_call_order(),
 		"seed: %d" % DEMO_SEED,

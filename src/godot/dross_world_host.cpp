@@ -264,12 +264,14 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
   }
 
   void publish(const combat::AbilityCommitted& event) override {
+    record_event("dross:ability_committed");
     if (event.ability == ability.id) {
       last_cue = godot::String{ability.presentation_cue.canonical().data()};
     }
   }
 
   void publish(const combat::DamageApplied& event) override {
+    record_event("dross:damage_applied");
     if (scripts != nullptr) {
       scripts->port.set_tick(scripts->tick);
       script_fault = scripts->runtime.on_damage_applied(event, scripts->tick).fault.has_value();
@@ -277,11 +279,20 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
   }
 
   void publish(const combat::ActorKilled& event) override {
+    record_event("dross:actor_killed");
     if (scripts != nullptr) {
       scripts->port.set_tick(scripts->tick);
       script_fault =
           script_fault || scripts->runtime.on_actor_killed(event, scripts->tick).fault.has_value();
     }
+  }
+
+  void record_event(const godot::String& event_id) {
+    constexpr std::size_t diagnostic_event_limit = 8;
+    if (recent_events.size() == diagnostic_event_limit) {
+      recent_events.erase(recent_events.begin());
+    }
+    recent_events.push_back(event_id);
   }
 
   EntityRef player{WorldInstanceId{synthetic_instance}, EntityId{7, 1}};
@@ -293,6 +304,7 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
   bool killed{false};
   bool script_fault{false};
   godot::String last_cue;
+  std::vector<godot::String> recent_events;
 };
 
 struct DrossWorldHost::DoorScenarioState final : DoorRuntime::EventSink {
@@ -939,6 +951,16 @@ godot::String DrossWorldHost::get_last_presentation_cue() const {
   return combat_state_ ? combat_state_->last_cue : godot::String{};
 }
 
+godot::PackedStringArray DrossWorldHost::get_recent_combat_events() const {
+  godot::PackedStringArray events;
+  if (combat_state_) {
+    for (const auto& event : combat_state_->recent_events) {
+      events.push_back(event);
+    }
+  }
+  return events;
+}
+
 bool DrossWorldHost::start_door_scenario(const godot::Ref<DrossDoorDefinition>& definition) {
   if (definition.is_null()) {
     return false;
@@ -1063,6 +1085,8 @@ void DrossWorldHost::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("is_mouse_killed"), &DrossWorldHost::is_mouse_killed);
   godot::ClassDB::bind_method(godot::D_METHOD("get_last_presentation_cue"),
                               &DrossWorldHost::get_last_presentation_cue);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_recent_combat_events"),
+                              &DrossWorldHost::get_recent_combat_events);
   godot::ClassDB::bind_method(godot::D_METHOD("start_door_scenario", "definition"),
                               &DrossWorldHost::start_door_scenario);
   godot::ClassDB::bind_method(godot::D_METHOD("open_door"), &DrossWorldHost::open_door);

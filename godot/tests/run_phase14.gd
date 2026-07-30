@@ -119,6 +119,12 @@ func _initialize() -> void:
 	check(demo.perform_thump_action(), "integrated demo rejected Thump")
 	check(demo.get_node("DrossWorldHost").get_player_action_points() == 1,
 			"integrated Thump did not spend authoritative player AP")
+	check(demo.get_node("DrossWorldHost").get_recent_combat_events() ==
+			PackedStringArray([
+				"dross:ability_committed",
+				"dross:damage_applied",
+				"dross:actor_killed",
+			]), "combat diagnostics did not preserve committed event order")
 	check(demo.save_game(), "integrated post-combat save was rejected")
 	check(demo.get_saved_state() != exploration_save,
 			"changed integrated capabilities did not change canonical save bytes")

@@ -74,6 +74,7 @@ public:
   [[nodiscard]] std::int64_t get_mouse_health() const;
   [[nodiscard]] bool is_mouse_killed() const;
   [[nodiscard]] godot::String get_last_presentation_cue() const;
+  [[nodiscard]] godot::PackedStringArray get_recent_combat_events() const;
   [[nodiscard]] bool start_door_scenario(const godot::Ref<DrossDoorDefinition>& definition);
   [[nodiscard]] bool open_door();
   [[nodiscard]] bool close_door();
