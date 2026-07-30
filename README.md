@@ -103,8 +103,11 @@ godot --editor --path godot
 ```
 
 The main project scene is
-`godot/thump_demo/scenes/phase14_vertical_slice.tscn`. Run all Godot boundary
-tests with:
+`godot/thump_demo/scenes/phase14_vertical_slice.tscn`. Hover and click a hex,
+or use the arrow keys and Enter, to preview and commit movement; the preview
+shows the authoritative path cost. Press `C` for the caretaker, `D` for the
+door, `S`/`L` to save/load, and use the visible combat controls after
+approaching the field mouse. Run all Godot boundary tests with:
 
 ```sh
 godot --headless --path godot --script res://tests/run_all.gd

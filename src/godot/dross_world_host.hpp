@@ -57,14 +57,17 @@ public:
   [[nodiscard]] bool restore_script_state(const godot::PackedByteArray& bytes);
   [[nodiscard]] bool start_movement_scenario();
   [[nodiscard]] godot::Ref<DrossCompiledHexMap> get_movement_compiled_map() const;
-  [[nodiscard]] godot::Ref<DrossMovementPreview> preview_movement(std::int64_t destination_q) const;
-  [[nodiscard]] bool move_to(std::int64_t destination_q);
+  [[nodiscard]] godot::Ref<DrossMovementPreview> preview_movement(std::int64_t destination_q,
+                                                                  std::int64_t destination_r) const;
+  [[nodiscard]] bool move_to(std::int64_t destination_q, std::int64_t destination_r);
   [[nodiscard]] bool cancel_movement();
   [[nodiscard]] bool request_movement_combat();
   [[nodiscard]] bool advance_movement_tick();
   [[nodiscard]] std::int64_t get_movement_tick() const;
   [[nodiscard]] std::int64_t get_movement_column() const;
+  [[nodiscard]] std::int64_t get_movement_row() const;
   [[nodiscard]] std::int64_t get_movement_presentation_to_column() const;
+  [[nodiscard]] std::int64_t get_movement_presentation_to_row() const;
   [[nodiscard]] double get_movement_presentation_alpha() const;
   [[nodiscard]] godot::String get_movement_state() const;
   [[nodiscard]] godot::String get_movement_mode() const;
@@ -76,6 +79,8 @@ public:
   [[nodiscard]] bool
   start_thump_scenario(const godot::Ref<DrossAbilityDefinition>& ability_definition);
   [[nodiscard]] bool perform_thump();
+  [[nodiscard]] bool is_player_turn() const;
+  [[nodiscard]] bool end_player_turn();
   [[nodiscard]] std::int64_t get_player_action_points() const;
   [[nodiscard]] std::int64_t get_mouse_health() const;
   [[nodiscard]] bool is_mouse_killed() const;

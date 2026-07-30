@@ -17,11 +17,12 @@ class DrossMovementPreview final : public godot::RefCounted {
 
 public:
   void initialize(bool accepted, std::int64_t cost, std::int64_t duration_ticks,
-                  godot::PackedInt32Array path_columns);
+                  godot::PackedInt32Array path_columns, godot::PackedInt32Array path_rows);
   [[nodiscard]] bool is_accepted() const noexcept;
   [[nodiscard]] std::int64_t get_cost() const noexcept;
   [[nodiscard]] std::int64_t get_duration_ticks() const noexcept;
   [[nodiscard]] godot::PackedInt32Array get_path_columns() const;
+  [[nodiscard]] godot::PackedInt32Array get_path_rows() const;
   [[nodiscard]] godot::PackedStringArray get_path_cell_keys() const;
 
 protected:
@@ -32,6 +33,7 @@ private:
   std::int64_t cost_{0};
   std::int64_t duration_ticks_{0};
   godot::PackedInt32Array path_columns_;
+  godot::PackedInt32Array path_rows_;
   godot::PackedStringArray path_cell_keys_;
 };
 

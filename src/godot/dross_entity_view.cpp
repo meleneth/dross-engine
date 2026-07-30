@@ -10,14 +10,17 @@ namespace dross::godot_adapter {
 
 void DrossMovementPreview::initialize(const bool accepted, const std::int64_t cost,
                                       const std::int64_t duration_ticks,
-                                      godot::PackedInt32Array path_columns) {
+                                      godot::PackedInt32Array path_columns,
+                                      godot::PackedInt32Array path_rows) {
   accepted_ = accepted;
   cost_ = cost;
   duration_ticks_ = duration_ticks;
   path_columns_ = std::move(path_columns);
+  path_rows_ = std::move(path_rows);
   path_cell_keys_.clear();
-  for (const auto column : path_columns_) {
-    const auto key = std::string{"dross:phase11:"} + std::to_string(column) + ",0,0";
+  for (std::int64_t index = 0; index < path_columns_.size(); ++index) {
+    const auto key = std::string{"dross:phase11:"} + std::to_string(path_columns_[index]) + "," +
+                     std::to_string(path_rows_[index]) + ",0";
     path_cell_keys_.push_back(godot::String{key.c_str()});
   }
 }
@@ -26,6 +29,7 @@ bool DrossMovementPreview::is_accepted() const noexcept { return accepted_; }
 std::int64_t DrossMovementPreview::get_cost() const noexcept { return cost_; }
 std::int64_t DrossMovementPreview::get_duration_ticks() const noexcept { return duration_ticks_; }
 godot::PackedInt32Array DrossMovementPreview::get_path_columns() const { return path_columns_; }
+godot::PackedInt32Array DrossMovementPreview::get_path_rows() const { return path_rows_; }
 godot::PackedStringArray DrossMovementPreview::get_path_cell_keys() const {
   return path_cell_keys_;
 }
@@ -37,6 +41,8 @@ void DrossMovementPreview::_bind_methods() {
                               &DrossMovementPreview::get_duration_ticks);
   godot::ClassDB::bind_method(godot::D_METHOD("get_path_columns"),
                               &DrossMovementPreview::get_path_columns);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_path_rows"),
+                              &DrossMovementPreview::get_path_rows);
   godot::ClassDB::bind_method(godot::D_METHOD("get_path_cell_keys"),
                               &DrossMovementPreview::get_path_cell_keys);
 }

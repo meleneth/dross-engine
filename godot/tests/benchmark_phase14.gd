@@ -65,7 +65,7 @@ func _initialize() -> void:
 	for sample in SAMPLE_BATCHES:
 		var preview_started := Time.get_ticks_usec()
 		for iteration in 100:
-			movement_host.preview_movement(3)
+			movement_host.preview_movement(3, 0)
 		preview_samples.append(float(Time.get_ticks_usec() - preview_started) / 100.0)
 		var hash_started := Time.get_ticks_usec()
 		for iteration in 100:

@@ -48,6 +48,7 @@ position = Vector3(2.6, 0, 0)
 mesh = SubResource("FloorMesh")
 
 [node name="GridOverlay" type="DrossHexGridOverlay3D" parent="."]
+position = Vector3(0, 0.04, 0)
 cell_radius = 1.0
 
 [node name="Player" type="DrossEntityView" parent="."]
@@ -95,7 +96,7 @@ offset_top = 58.0
 offset_right = 800.0
 offset_bottom = 88.0
 theme_override_font_sizes/font_size = 16
-text = "Mouse hover + click move   Esc cancel   C caretaker   T Thump   D door   S save   L load"
+text = "Mouse hover + click or arrow keys move   Esc cancel   C caretaker   D door   S save   L load"
 
 [node name="PathPreview" type="Label" parent="UI"]
 offset_left = 24.0
@@ -124,3 +125,37 @@ offset_top = 158.0
 offset_right = 800.0
 offset_bottom = 182.0
 theme_override_font_sizes/font_size = 16
+
+[node name="CombatPanel" type="PanelContainer" parent="UI"]
+visible = false
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -380.0
+offset_top = 20.0
+offset_right = -24.0
+offset_bottom = 132.0
+grow_horizontal = 0
+
+[node name="Content" type="VBoxContainer" parent="UI/CombatPanel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="TurnStatus" type="Label" parent="UI/CombatPanel/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Your turn"
+
+[node name="Actions" type="HBoxContainer" parent="UI/CombatPanel/Content"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Thump" type="Button" parent="UI/CombatPanel/Content/Actions"]
+custom_minimum_size = Vector2(140, 42)
+layout_mode = 2
+text = "Thump (2 AP)"
+
+[node name="EndTurn" type="Button" parent="UI/CombatPanel/Content/Actions"]
+custom_minimum_size = Vector2(140, 42)
+layout_mode = 2
+text = "End Turn"

@@ -48,33 +48,48 @@ CompiledHexMap make_synthetic_map() {
   return std::move(builder).build().value();
 }
 
-HexCellId movement_cell(const std::int32_t q) {
+HexCellId movement_cell(const std::int32_t q, const std::int32_t r = 0) {
   return {.region = RegionId{ContentId::parse("dross:phase11").value()},
-          .coord = {.q = q, .r = 0},
+          .coord = {.q = q, .r = r},
           .layer = 0};
 }
 
-HexPose movement_pose(const std::int32_t q) {
-  return {.anchor = movement_cell(q), .facing = HexFacing::east};
+HexPose movement_pose(const std::int32_t q, const std::int32_t r = 0) {
+  return {.anchor = movement_cell(q, r), .facing = HexFacing::east};
 }
 
 CompiledHexMap make_movement_map() {
   CompiledHexMapBuilder builder;
-  for (std::int32_t q = 0; q < 4; ++q) {
-    static_cast<void>(builder.add_cell(CellFacts{
-        .id = movement_cell(q),
-        .surface_height = Millimeters{0},
-        .terrain = ContentId::parse("dross:floor").value(),
-        .base_cost = MovementCost{1},
-        .clearance = Clearance::open,
-        .traversable = true,
-        .semantic_tags = {},
-    }));
-    if (q > 0) {
-      static_cast<void>(
-          builder.add_edge(movement_cell(q - 1), movement_cell(q),
-                           DirectionalEdgeFacts{.traversable = true, .cost = MovementCost{1}},
-                           DirectionalEdgeFacts{.traversable = true, .cost = MovementCost{1}}));
+  for (std::int32_t r = -1; r <= 1; ++r) {
+    for (std::int32_t q = 0; q < 4; ++q) {
+      static_cast<void>(builder.add_cell(CellFacts{
+          .id = movement_cell(q, r),
+          .surface_height = Millimeters{0},
+          .terrain = ContentId::parse("dross:floor").value(),
+          .base_cost = MovementCost{1},
+          .clearance = Clearance::open,
+          .traversable = true,
+          .semantic_tags = {},
+      }));
+    }
+  }
+  constexpr std::array forward_directions{
+      HexDirection::east,
+      HexDirection::southeast,
+      HexDirection::southwest,
+  };
+  for (std::int32_t r = -1; r <= 1; ++r) {
+    for (std::int32_t q = 0; q < 4; ++q) {
+      for (const auto direction : forward_directions) {
+        const auto adjacent = neighbor(HexCoord{.q = q, .r = r}, direction);
+        if (adjacent.q < 0 || adjacent.q > 3 || adjacent.r < -1 || adjacent.r > 1) {
+          continue;
+        }
+        static_cast<void>(
+            builder.add_edge(movement_cell(q, r), movement_cell(adjacent.q, adjacent.r),
+                             DirectionalEdgeFacts{.traversable = true, .cost = MovementCost{1}},
+                             DirectionalEdgeFacts{.traversable = true, .cost = MovementCost{1}}));
+      }
     }
   }
   return std::move(builder).build().value();
@@ -283,7 +298,7 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
 struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
                                                    AbilityResolver::RuleSource {
   CombatScenarioState(AbilityDefinition definition, ScriptScenarioState* script_scenario,
-                      const std::int32_t player_q)
+                      const HexCoord player_coord)
       : ability{std::move(definition)}, scripts{script_scenario},
         session{{
             {.entity = player, .initiative = 10, .maximum_action_points = 3},
@@ -291,8 +306,12 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
         }},
         resolver{session,
                  {
-                     {.entity = player, .pose = movement_pose(player_q), .health = HitPoints{8}},
-                     {.entity = mouse, .pose = movement_pose(player_q + 1), .health = HitPoints{3}},
+                     {.entity = player,
+                      .pose = movement_pose(player_coord.q, player_coord.r),
+                      .health = HitPoints{8}},
+                     {.entity = mouse,
+                      .pose = movement_pose(player_coord.q + 1, player_coord.r),
+                      .health = HitPoints{3}},
                  },
                  this,
                  nullptr,
@@ -712,30 +731,37 @@ godot::Ref<DrossCompiledHexMap> DrossWorldHost::get_movement_compiled_map() cons
 }
 
 godot::Ref<DrossMovementPreview>
-DrossWorldHost::preview_movement(const std::int64_t destination_q) const {
+DrossWorldHost::preview_movement(const std::int64_t destination_q,
+                                 const std::int64_t destination_r) const {
   godot::Ref<DrossMovementPreview> output;
   output.instantiate();
-  if (!movement_state_ || destination_q < 0 || destination_q > 3) {
-    output->initialize(false, 0, 0, {});
+  if (!movement_state_ || destination_q < 0 || destination_q > 3 || destination_r < -1 ||
+      destination_r > 1) {
+    output->initialize(false, 0, 0, {}, {});
     return output;
   }
-  const auto preview =
-      movement_state_->movement.preview(movement_pose(static_cast<std::int32_t>(destination_q)));
+  const auto preview = movement_state_->movement.preview(movement_pose(
+      static_cast<std::int32_t>(destination_q), static_cast<std::int32_t>(destination_r)));
   godot::PackedInt32Array columns;
+  godot::PackedInt32Array rows;
   for (const auto& path_pose : preview.path) {
     columns.push_back(path_pose.anchor.coord.q);
+    rows.push_back(path_pose.anchor.coord.r);
   }
   output->initialize(preview.accepted, static_cast<std::int64_t>(preview.cost.value()),
-                     static_cast<std::int64_t>(preview.duration_ticks), std::move(columns));
+                     static_cast<std::int64_t>(preview.duration_ticks), std::move(columns),
+                     std::move(rows));
   return output;
 }
 
-bool DrossWorldHost::move_to(const std::int64_t destination_q) {
-  return movement_state_ && destination_q >= 0 && destination_q <= 3 &&
+bool DrossWorldHost::move_to(const std::int64_t destination_q, const std::int64_t destination_r) {
+  return movement_state_ && destination_q >= 0 && destination_q <= 3 && destination_r >= -1 &&
+         destination_r <= 1 &&
          movement_state_->movement
              .handle(movement::MoveTo{
                  .entity = movement_state_->entity,
-                 .destination = movement_pose(static_cast<std::int32_t>(destination_q)),
+                 .destination = movement_pose(static_cast<std::int32_t>(destination_q),
+                                              static_cast<std::int32_t>(destination_r)),
              })
              .has_value();
 }
@@ -782,6 +808,10 @@ std::int64_t DrossWorldHost::get_movement_column() const {
   return movement_state_ ? movement_state_->movement.pose().anchor.coord.q : -1;
 }
 
+std::int64_t DrossWorldHost::get_movement_row() const {
+  return movement_state_ ? movement_state_->movement.pose().anchor.coord.r : 0;
+}
+
 std::int64_t DrossWorldHost::get_movement_presentation_to_column() const {
   if (!movement_state_) {
     return -1;
@@ -792,6 +822,18 @@ std::int64_t DrossWorldHost::get_movement_presentation_to_column() const {
     return snapshot.path[snapshot.next_pose].anchor.coord.q;
   }
   return snapshot.pose.anchor.coord.q;
+}
+
+std::int64_t DrossWorldHost::get_movement_presentation_to_row() const {
+  if (!movement_state_) {
+    return 0;
+  }
+  const auto snapshot = movement_state_->movement.snapshot();
+  if (snapshot.state == MovementLifecycleState::traversing &&
+      snapshot.next_pose < snapshot.path.size()) {
+    return snapshot.path[snapshot.next_pose].anchor.coord.r;
+  }
+  return snapshot.pose.anchor.coord.r;
 }
 
 double DrossWorldHost::get_movement_presentation_alpha() const {
@@ -1103,9 +1145,10 @@ bool DrossWorldHost::start_thump_scenario(
   if (!ability) {
     return false;
   }
-  const auto player_q = movement_state_ ? movement_state_->movement.pose().anchor.coord.q : 0;
+  const auto player_coord =
+      movement_state_ ? movement_state_->movement.pose().anchor.coord : HexCoord{.q = 0, .r = 0};
   combat_state_ =
-      std::make_unique<CombatScenarioState>(std::move(*ability), script_state_.get(), player_q);
+      std::make_unique<CombatScenarioState>(std::move(*ability), script_state_.get(), player_coord);
   return true;
 }
 
@@ -1123,6 +1166,21 @@ bool DrossWorldHost::perform_thump() {
     return false;
   }
   return !combat_state_->script_fault;
+}
+
+bool DrossWorldHost::is_player_turn() const {
+  return combat_state_ && !is_mouse_killed() &&
+         combat_state_->session.active_actor() == combat_state_->player.id();
+}
+
+bool DrossWorldHost::end_player_turn() {
+  if (!is_player_turn() || !combat_state_->session.end_turn(combat_state_->player.id())) {
+    return false;
+  }
+  if (!is_mouse_killed() && combat_state_->session.active_actor() == combat_state_->mouse.id()) {
+    return combat_state_->session.end_turn(combat_state_->mouse.id());
+  }
+  return true;
 }
 
 std::int64_t DrossWorldHost::get_player_action_points() const {
@@ -1246,9 +1304,9 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::start_movement_scenario);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_compiled_map"),
                               &DrossWorldHost::get_movement_compiled_map);
-  godot::ClassDB::bind_method(godot::D_METHOD("preview_movement", "destination_q"),
+  godot::ClassDB::bind_method(godot::D_METHOD("preview_movement", "destination_q", "destination_r"),
                               &DrossWorldHost::preview_movement);
-  godot::ClassDB::bind_method(godot::D_METHOD("move_to", "destination_q"),
+  godot::ClassDB::bind_method(godot::D_METHOD("move_to", "destination_q", "destination_r"),
                               &DrossWorldHost::move_to);
   godot::ClassDB::bind_method(godot::D_METHOD("cancel_movement"), &DrossWorldHost::cancel_movement);
   godot::ClassDB::bind_method(godot::D_METHOD("request_movement_combat"),
@@ -1259,8 +1317,12 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::get_movement_tick);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_column"),
                               &DrossWorldHost::get_movement_column);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_movement_row"),
+                              &DrossWorldHost::get_movement_row);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_presentation_to_column"),
                               &DrossWorldHost::get_movement_presentation_to_column);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_movement_presentation_to_row"),
+                              &DrossWorldHost::get_movement_presentation_to_row);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_presentation_alpha"),
                               &DrossWorldHost::get_movement_presentation_alpha);
   godot::ClassDB::bind_method(godot::D_METHOD("get_movement_state"),
@@ -1280,6 +1342,8 @@ void DrossWorldHost::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("start_thump_scenario", "ability_definition"),
                               &DrossWorldHost::start_thump_scenario);
   godot::ClassDB::bind_method(godot::D_METHOD("perform_thump"), &DrossWorldHost::perform_thump);
+  godot::ClassDB::bind_method(godot::D_METHOD("is_player_turn"), &DrossWorldHost::is_player_turn);
+  godot::ClassDB::bind_method(godot::D_METHOD("end_player_turn"), &DrossWorldHost::end_player_turn);
   godot::ClassDB::bind_method(godot::D_METHOD("get_player_action_points"),
                               &DrossWorldHost::get_player_action_points);
   godot::ClassDB::bind_method(godot::D_METHOD("get_mouse_health"),

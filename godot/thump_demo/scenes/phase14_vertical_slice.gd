@@ -16,9 +16,14 @@ const DOOR_ANIMATION_SECONDS := 0.25
 @onready var status: Label = $UI/Status
 @onready var quest_status: Label = $UI/QuestStatus
 @onready var inventory_status: Label = $UI/InventoryStatus
+@onready var combat_panel: PanelContainer = $UI/CombatPanel
+@onready var turn_status: Label = $UI/CombatPanel/Content/TurnStatus
+@onready var thump_button: Button = $UI/CombatPanel/Content/Actions/Thump
+@onready var end_turn_button: Button = $UI/CombatPanel/Content/Actions/EndTurn
 
 var _accumulator := 0.0
 var _destination_q := 0
+var _destination_r := 0
 var _last_command := "startup"
 var _last_event := "world initialized"
 var _selected_cell_facts := "none"
@@ -68,7 +73,9 @@ func _ready() -> void:
 		_fail_startup("side door definition")
 		return
 
-	preview_destination(3)
+	thump_button.pressed.connect(perform_thump_action)
+	end_turn_button.pressed.connect(end_combat_turn)
+	preview_destination(3, 0)
 	_refresh_views()
 
 
@@ -97,9 +104,13 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.pressed:
 			request_previewed_move()
 	elif event.is_action_pressed("ui_left"):
-		preview_destination(maxi(0, _destination_q - 1))
+		preview_destination(maxi(0, _destination_q - 1), _destination_r)
 	elif event.is_action_pressed("ui_right"):
-		preview_destination(mini(3, _destination_q + 1))
+		preview_destination(mini(3, _destination_q + 1), _destination_r)
+	elif event.is_action_pressed("ui_up"):
+		preview_destination(_destination_q, maxi(-1, _destination_r - 1))
+	elif event.is_action_pressed("ui_down"):
+		preview_destination(_destination_q, mini(1, _destination_r + 1))
 	elif event.is_action_pressed("ui_accept"):
 		request_previewed_move()
 	elif event is InputEventKey and event.pressed and not event.echo:
@@ -118,35 +129,38 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func hover_world_position(world_position: Vector3) -> bool:
-	var destination_q := clampi(roundi(world_position.x / sqrt(3.0)), 0, 3)
-	return preview_destination(destination_q)
+	var destination := _world_to_hex(world_position)
+	return preview_destination(clampi(destination.x, 0, 3), clampi(destination.y, -1, 1))
 
 
-func preview_destination(destination_q: int) -> bool:
-	var preview: DrossMovementPreview = host.preview_movement(destination_q)
+func preview_destination(destination_q: int, destination_r: int = 0) -> bool:
+	var preview: DrossMovementPreview = host.preview_movement(destination_q, destination_r)
 	_destination_q = destination_q
+	_destination_r = destination_r
 	if not preview.is_accepted():
-		path_preview.text = "Cell %d is unreachable" % destination_q
+		path_preview.text = "Cell (%d, %d) is unreachable" % [destination_q, destination_r]
 		_selected_cell_facts = "unreachable"
 		_refresh_diagnostics()
 		return false
-	var columns: PackedStringArray = []
-	for column in preview.get_path_columns():
-		columns.append(str(column))
+	var cells: PackedStringArray = []
+	var columns := preview.get_path_columns()
+	var rows := preview.get_path_rows()
+	for index in range(columns.size()):
+		cells.append("(%d,%d)" % [columns[index], rows[index]])
 	path_preview.text = "Preview: %s  cost=%d  ticks=%d" % [
-		" → ".join(columns),
+		" → ".join(cells),
 		preview.get_cost(),
 		preview.get_duration_ticks(),
 	]
 	grid_overlay.path_cell_keys = preview.get_path_cell_keys()
-	_selected_cell_facts = _compiled_cell_facts(destination_q)
+	_selected_cell_facts = _compiled_cell_facts(destination_q, destination_r)
 	_refresh_diagnostics()
 	return true
 
 
 func request_previewed_move() -> bool:
-	_last_command = "MoveTo(%d)" % _destination_q
-	var accepted := host.move_to(_destination_q)
+	_last_command = "MoveTo(%d, %d)" % [_destination_q, _destination_r]
+	var accepted := host.move_to(_destination_q, _destination_r)
 	_last_event = "movement accepted" if accepted else "movement rejected"
 	_refresh_diagnostics()
 	return accepted
@@ -184,6 +198,14 @@ func perform_thump_action() -> bool:
 		]
 	else:
 		_last_event = "Thump rejected"
+	_refresh_diagnostics()
+	return accepted
+
+
+func end_combat_turn() -> bool:
+	_last_command = "EndTurn"
+	var accepted := host.end_player_turn()
+	_last_event = "player turn ended; mouse passed" if accepted else "End Turn rejected"
 	_refresh_diagnostics()
 	return accepted
 
@@ -290,15 +312,19 @@ func load_game() -> bool:
 
 
 func _refresh_views() -> void:
-	var from := Vector3(
-			sqrt(3.0) * float(host.get_movement_column()), player_view.position.y, 0.0)
-	var to := Vector3(
-			sqrt(3.0) * float(host.get_movement_presentation_to_column()),
-			player_view.position.y,
-			0.0)
+	var from := _hex_to_world(
+		host.get_movement_column(), host.get_movement_row(), player_view.position.y)
+	var to := _hex_to_world(
+		host.get_movement_presentation_to_column(),
+		host.get_movement_presentation_to_row(),
+		player_view.position.y)
 	player_view.apply_presentation_snapshot(
 			from, to, host.get_movement_presentation_alpha())
-	if host.get_movement_column() == 2 and host.get_movement_mode() == "exploration":
+	if (
+		host.get_movement_column() == 2
+		and host.get_movement_row() == 0
+		and host.get_movement_mode() == "exploration"
+	):
 		if host.request_movement_combat():
 			_last_command = "RequestCombatStart"
 			_last_event = "combat pending until safe boundary"
@@ -315,12 +341,21 @@ func _refresh_diagnostics() -> void:
 	inventory_status.text = "Inventory: mouse tail ×%d" % host.get_inventory_count(
 		1, "thump_demo:mouse_tail"
 	)
+	combat_panel.visible = _combat_started
+	if _combat_started:
+		if host.is_mouse_killed():
+			turn_status.text = "Combat won — field mouse defeated"
+		else:
+			turn_status.text = "Your turn — %d AP" % host.get_player_action_points()
+		thump_button.disabled = not host.is_player_turn()
+		end_turn_button.disabled = not host.is_player_turn()
 	diagnostics.text = "\n".join([
 		"tick: %d" % host.get_movement_tick(),
 		"mode: %s" % host.get_movement_mode(),
-		"selected cell: q=%d r=0" % _destination_q,
+		"selected cell: q=%d r=%d" % [_destination_q, _destination_r],
 		"selected facts: %s" % _selected_cell_facts,
-		"actor cell: q=%d r=0" % host.get_movement_column(),
+		"actor cell: q=%d r=%d" % [
+			host.get_movement_column(), host.get_movement_row()],
 		"last command: %s" % _last_command,
 		"last status: %s" % _last_event,
 		"domain events: %s" % ", ".join(host.get_recent_movement_events()),
@@ -335,16 +370,40 @@ func _refresh_diagnostics() -> void:
 	])
 
 
-func _compiled_cell_facts(destination_q: int) -> String:
+func _compiled_cell_facts(destination_q: int, destination_r: int) -> String:
 	var compiled_map := host.get_movement_compiled_map()
 	var cell_keys := compiled_map.get_cell_keys()
 	var traversability := compiled_map.get_traversability()
 	var provenance := compiled_map.get_provenance()
-	if destination_q < 0 or destination_q >= cell_keys.size():
+	var wanted := "dross:phase11:%d,%d,0" % [destination_q, destination_r]
+	var index := cell_keys.find(wanted)
+	if index < 0:
 		return "unavailable"
-	var traversal_text := "traversable" if traversability[destination_q] != 0 else "blocked"
-	var provenance_text := "automatic" if provenance[destination_q] == 0 else "override"
-	return "%s %s %s" % [cell_keys[destination_q], traversal_text, provenance_text]
+	var traversal_text := "traversable" if traversability[index] != 0 else "blocked"
+	var provenance_text := "automatic" if provenance[index] == 0 else "override"
+	return "%s %s %s" % [cell_keys[index], traversal_text, provenance_text]
+
+
+func _hex_to_world(q: int, r: int, y: float) -> Vector3:
+	return Vector3(sqrt(3.0) * (float(q) + float(r) / 2.0), y, 1.5 * float(r))
+
+
+func _world_to_hex(world_position: Vector3) -> Vector2i:
+	var fractional_q := sqrt(3.0) / 3.0 * world_position.x - world_position.z / 3.0
+	var fractional_r := 2.0 / 3.0 * world_position.z
+	var cube_x := roundi(fractional_q)
+	var cube_z := roundi(fractional_r)
+	var cube_y := roundi(-fractional_q - fractional_r)
+	var x_error := absf(float(cube_x) - fractional_q)
+	var y_error := absf(float(cube_y) + fractional_q + fractional_r)
+	var z_error := absf(float(cube_z) - fractional_r)
+	if x_error > y_error and x_error > z_error:
+		cube_x = -cube_y - cube_z
+	elif y_error > z_error:
+		cube_y = -cube_x - cube_z
+	else:
+		cube_z = -cube_x - cube_y
+	return Vector2i(cube_x, cube_z)
 
 
 func _fail_startup(surface: String) -> void:

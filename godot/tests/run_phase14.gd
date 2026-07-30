@@ -17,7 +17,7 @@ func _initialize() -> void:
 	var overlay: DrossHexGridOverlay3D = demo.get_node("GridOverlay")
 	var compiled_map: DrossCompiledHexMap = demo.get_node(
 			"DrossWorldHost").get_movement_compiled_map()
-	check(compiled_map.get_cell_count() == 4,
+	check(compiled_map.get_cell_count() == 12,
 			"integrated overlay did not receive the authoritative movement map")
 	check(overlay.get_cell_keys() == compiled_map.get_cell_keys(),
 			"runtime grid differs from the authoritative movement map")
@@ -48,6 +48,10 @@ func _initialize() -> void:
 	check("selected facts: dross:phase11:1,0,0 traversable automatic" in
 			demo.get_node("UI/Diagnostics").text,
 			"pointer hover did not expose compiled cell facts in diagnostics")
+	check(demo.preview_destination(1, 1),
+			"integrated demo did not preview movement into another hex row")
+	check(overlay.path_cell_keys.has("dross:phase11:1,1,0"),
+			"multi-row path preview did not highlight its authoritative destination")
 	check(demo.preview_destination(2), "integrated demo did not preview a reachable path")
 	check(overlay.path_cell_keys == PackedStringArray([
 		"dross:phase11:0,0,0",
@@ -107,6 +111,13 @@ func _initialize() -> void:
 	check(demo.advance_authoritative_tick(), "combat safe-boundary tick failed")
 	check(demo.get_node("DrossWorldHost").get_movement_mode() == "combat",
 			"safe boundary did not enter combat")
+	check(demo.get_node("UI/CombatPanel").visible,
+			"combat did not reveal the turn controls")
+	check("Your turn" in demo.get_node("UI/CombatPanel/Content/TurnStatus").text,
+			"combat UI did not project the authoritative active turn")
+	check(demo.end_combat_turn(), "combat UI could not end the player turn")
+	check(demo.get_node("DrossWorldHost").get_player_action_points() == 3,
+			"enemy pass did not begin a fresh authoritative player turn")
 
 	check(demo.toggle_door(), "integrated demo rejected OpenDoor")
 	check(demo.get_node("DrossWorldHost").is_door_open(),
