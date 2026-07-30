@@ -304,8 +304,11 @@ TEST_CASE("script inventory commands are deferred and discarded on callback faul
   const auto accepted = runtime.on_actor_killed(killed, dross::Tick{1});
   REQUIRE_FALSE(accepted.fault);
   REQUIRE(accepted.deferred_inventory_commands.size() == 1);
-  CHECK(accepted.deferred_inventory_commands.front().owner == killed.killer);
-  CHECK(accepted.deferred_inventory_commands.front().item == id("thump_demo:mouse_tail"));
+  const auto* grant =
+      std::get_if<dross::inventory::GrantItem>(&accepted.deferred_inventory_commands.front());
+  REQUIRE(grant != nullptr);
+  CHECK(grant->owner == killed.killer);
+  CHECK(grant->item == id("thump_demo:mouse_tail"));
 
   port.fault_event = true;
   const auto rejected = runtime.on_actor_killed(killed, dross::Tick{2});

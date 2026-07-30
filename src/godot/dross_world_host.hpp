@@ -50,6 +50,7 @@ public:
   [[nodiscard]] std::int64_t get_inventory_count(std::int64_t owner_sequence,
                                                  const godot::String& item) const;
   [[nodiscard]] bool accept_mouse_quest_dialogue();
+  [[nodiscard]] bool hand_in_mouse_tail_dialogue();
   [[nodiscard]] godot::String get_quest_status(const godot::String& quest) const;
   [[nodiscard]] godot::String get_quest_stage(const godot::String& quest) const;
   [[nodiscard]] godot::PackedByteArray save_script_state() const;

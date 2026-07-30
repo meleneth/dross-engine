@@ -80,6 +80,14 @@ func _initialize() -> void:
 			"mouse quest script did not submit its typed stage advance")
 	check(host.get_quest_stage("thump_demo:mouse_quest") == "thump_demo:return_tail",
 			"mouse quest stage advance did not commit")
+	check(host.hand_in_mouse_tail_dialogue(), "caretaker rejected the valid tail hand-in")
+	check(host.get_script_state_bool(
+			"thump_demo:caretaker_dialogue", 3, "tail_hand_in_submitted"),
+			"caretaker did not submit the typed hand-in commands")
+	check(host.get_inventory_count(1, "thump_demo:mouse_tail") == 0,
+			"mouse tail was not removed by the hand-in")
+	check(host.get_quest_status("thump_demo:mouse_quest") == "completed",
+			"mouse quest did not complete after the hand-in")
 	check(host.get_script_state_int("thump_demo:field_mouse", 2, "reaction_roll") >= 0,
 			"field mouse reaction did not use deterministic RandomHub access")
 	host.queue_free()

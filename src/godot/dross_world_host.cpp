@@ -125,20 +125,36 @@ struct DrossWorldHost::ScriptScenarioState final : DialogueRuntime::EventSink {
   void publish(const dialogue::DialogueOptionChosen& event) override {
     port.set_tick(tick);
     const auto result = runtime.on_dialogue_option_chosen(event, tick);
-    script_fault = result.fault.has_value();
-    if (script_fault) {
-      return;
+    script_fault = !commit(result);
+  }
+  void publish(const dialogue::DialogueEnded&) override {}
+
+  [[nodiscard]] bool commit(const ScriptEventResult& result) {
+    if (result.fault) {
+      return false;
+    }
+    const auto inventory_before = inventory.snapshot();
+    const auto quests_before = quests.snapshot();
+    for (const auto& command : result.deferred_inventory_commands) {
+      const auto handled =
+          std::visit([this](const auto& typed) { return inventory.handle(typed); }, command);
+      if (!handled) {
+        static_cast<void>(inventory.restore(inventory_before));
+        static_cast<void>(quests.restore(quests_before));
+        return false;
+      }
     }
     for (const auto& command : result.deferred_quest_commands) {
       const auto handled =
           std::visit([this](const auto& typed) { return quests.handle(typed); }, command);
       if (!handled) {
-        script_fault = true;
-        return;
+        static_cast<void>(inventory.restore(inventory_before));
+        static_cast<void>(quests.restore(quests_before));
+        return false;
       }
     }
+    return true;
   }
-  void publish(const dialogue::DialogueEnded&) override {}
 
   EntityRef player{WorldInstanceId{synthetic_instance}, EntityId{7, 1}};
   EntityRef caretaker{WorldInstanceId{synthetic_instance}, EntityId{7, 3}};
@@ -319,23 +335,7 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
     if (scripts != nullptr) {
       scripts->port.set_tick(scripts->tick);
       const auto result = scripts->runtime.on_actor_killed(event, scripts->tick);
-      script_fault = script_fault || result.fault.has_value();
-      if (!script_fault) {
-        for (const auto& command : result.deferred_inventory_commands) {
-          if (!scripts->inventory.handle(command)) {
-            script_fault = true;
-            break;
-          }
-        }
-        for (const auto& command : result.deferred_quest_commands) {
-          const auto handled = std::visit(
-              [this](const auto& typed) { return scripts->quests.handle(typed); }, command);
-          if (!handled) {
-            script_fault = true;
-            break;
-          }
-        }
-      }
+      script_fault = script_fault || !scripts->commit(result);
     }
   }
 
@@ -581,7 +581,38 @@ bool DrossWorldHost::accept_mouse_quest_dialogue() {
                                                                .option = option})) {
     return false;
   }
-  return !scenario.script_fault;
+  return !scenario.script_fault && scenario.dialogue.handle(dialogue::EndDialogue{
+                                       .initiator = scenario.player,
+                                       .partner = scenario.caretaker,
+                                       .dialogue = dialogue_id,
+                                   });
+}
+
+bool DrossWorldHost::hand_in_mouse_tail_dialogue() {
+  if (!script_state_) {
+    return false;
+  }
+  auto& scenario = *script_state_;
+  const auto dialogue_id = ContentId::parse("thump_demo:caretaker_dialogue").value();
+  const auto option = ContentId::parse("thump_demo:hand_over_mouse_tail").value();
+  if (scenario.quests.stage(ContentId::parse("thump_demo:mouse_quest").value()) !=
+          ContentId::parse("thump_demo:return_tail").value() ||
+      !scenario.inventory.has(scenario.player, ContentId::parse("thump_demo:mouse_tail").value(),
+                              1) ||
+      !scenario.dialogue.handle(dialogue::BeginDialogue{
+          .initiator = scenario.player, .partner = scenario.caretaker, .dialogue = dialogue_id}) ||
+      !scenario.dialogue.offer_options({option}) ||
+      !scenario.dialogue.handle(dialogue::ChooseDialogueOption{.initiator = scenario.player,
+                                                               .partner = scenario.caretaker,
+                                                               .dialogue = dialogue_id,
+                                                               .option = option})) {
+    return false;
+  }
+  return !scenario.script_fault && scenario.dialogue.handle(dialogue::EndDialogue{
+                                       .initiator = scenario.player,
+                                       .partner = scenario.caretaker,
+                                       .dialogue = dialogue_id,
+                                   });
 }
 
 godot::String DrossWorldHost::get_quest_status(const godot::String& quest) const {
@@ -1167,6 +1198,8 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::get_inventory_count);
   godot::ClassDB::bind_method(godot::D_METHOD("accept_mouse_quest_dialogue"),
                               &DrossWorldHost::accept_mouse_quest_dialogue);
+  godot::ClassDB::bind_method(godot::D_METHOD("hand_in_mouse_tail_dialogue"),
+                              &DrossWorldHost::hand_in_mouse_tail_dialogue);
   godot::ClassDB::bind_method(godot::D_METHOD("get_quest_status", "quest"),
                               &DrossWorldHost::get_quest_status);
   godot::ClassDB::bind_method(godot::D_METHOD("get_quest_stage", "quest"),

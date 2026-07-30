@@ -139,6 +139,23 @@ bool DrossCommandApi::grant_item(const std::int64_t owner_lineage,
   return true;
 }
 
+bool DrossCommandApi::remove_item(const std::int64_t owner_lineage,
+                                  const std::int64_t owner_sequence, const godot::String& item,
+                                  const std::int64_t count) {
+  auto parsed = ContentId::parse(utf8(item));
+  if (!transaction_ || !parsed || owner_lineage < 0 || owner_sequence <= 0 || count <= 0 ||
+      count > std::numeric_limits<std::uint32_t>::max()) {
+    return false;
+  }
+  transaction_->submit(inventory::RemoveItem{
+      .owner = EntityRef{world_instance_, EntityId{static_cast<std::uint64_t>(owner_lineage),
+                                                   static_cast<std::uint64_t>(owner_sequence)}},
+      .item = *std::move(parsed),
+      .count = static_cast<std::uint32_t>(count),
+  });
+  return true;
+}
+
 bool DrossCommandApi::start_quest(const godot::String& quest, const godot::String& stage) {
   auto parsed_quest = ContentId::parse(utf8(quest));
   auto parsed_stage = ContentId::parse(utf8(stage));
@@ -181,6 +198,9 @@ void DrossCommandApi::_bind_methods() {
   godot::ClassDB::bind_method(
       godot::D_METHOD("grant_item", "owner_lineage", "owner_sequence", "item", "count"),
       &DrossCommandApi::grant_item);
+  godot::ClassDB::bind_method(
+      godot::D_METHOD("remove_item", "owner_lineage", "owner_sequence", "item", "count"),
+      &DrossCommandApi::remove_item);
   godot::ClassDB::bind_method(godot::D_METHOD("start_quest", "quest", "stage"),
                               &DrossCommandApi::start_quest);
   godot::ClassDB::bind_method(

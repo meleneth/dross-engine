@@ -10,6 +10,7 @@
 #include <dross/generated/grant_item.hpp>
 #include <dross/generated/perform_ability.hpp>
 #include <dross/generated/place_entity.hpp>
+#include <dross/generated/remove_item.hpp>
 #include <dross/generated/start_quest.hpp>
 #include <dross/identity/content_id.hpp>
 #include <dross/identity/ids.hpp>
@@ -123,6 +124,7 @@ enum class ScriptModeCommand : std::uint8_t {
 
 using ScriptQuestCommand =
     std::variant<quest::StartQuest, quest::AdvanceQuest, quest::CompleteQuest>;
+using ScriptInventoryCommand = std::variant<inventory::GrantItem, inventory::RemoveItem>;
 
 class ScriptCallbackTransaction {
 public:
@@ -131,7 +133,7 @@ public:
   void add_rule(ScriptRuleContribution contribution);
   void submit(PlaceEntityEnvelope command);
   void request_combat();
-  void submit(inventory::GrantItem command);
+  void submit(ScriptInventoryCommand command);
   void submit(ScriptQuestCommand command);
   void set_state(ScriptStateKey key, ScriptStateValue value);
   [[nodiscard]] const ScriptStateValue* state(const ScriptStateKey& key) const;
@@ -146,7 +148,7 @@ public:
   [[nodiscard]] const std::vector<ScriptModeCommand>& mode_commands() const noexcept {
     return mode_commands_;
   }
-  [[nodiscard]] const std::vector<inventory::GrantItem>& inventory_commands() const noexcept {
+  [[nodiscard]] const std::vector<ScriptInventoryCommand>& inventory_commands() const noexcept {
     return inventory_commands_;
   }
   [[nodiscard]] const std::vector<ScriptQuestCommand>& quest_commands() const noexcept {
@@ -160,7 +162,7 @@ private:
   std::vector<PlaceEntityEnvelope> commands_;
   std::vector<ScriptStateWrite> state_writes_;
   std::vector<ScriptModeCommand> mode_commands_;
-  std::vector<inventory::GrantItem> inventory_commands_;
+  std::vector<ScriptInventoryCommand> inventory_commands_;
   std::vector<ScriptQuestCommand> quest_commands_;
 };
 
@@ -212,7 +214,7 @@ struct ScriptRuleResult {
   std::optional<ContentId> reason;
   std::vector<PlaceEntityEnvelope> deferred_commands;
   std::vector<ScriptModeCommand> deferred_mode_commands;
-  std::vector<inventory::GrantItem> deferred_inventory_commands;
+  std::vector<ScriptInventoryCommand> deferred_inventory_commands;
   std::vector<ScriptQuestCommand> deferred_quest_commands;
   std::optional<ScriptCallbackError> fault;
 };
@@ -220,7 +222,7 @@ struct ScriptRuleResult {
 struct ScriptEventResult {
   std::vector<PlaceEntityEnvelope> deferred_commands;
   std::vector<ScriptModeCommand> deferred_mode_commands;
-  std::vector<inventory::GrantItem> deferred_inventory_commands;
+  std::vector<ScriptInventoryCommand> deferred_inventory_commands;
   std::vector<ScriptQuestCommand> deferred_quest_commands;
   std::optional<ScriptCallbackError> fault;
 };

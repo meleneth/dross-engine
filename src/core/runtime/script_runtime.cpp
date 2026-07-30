@@ -231,7 +231,7 @@ void ScriptCallbackTransaction::request_combat() {
   mode_commands_.push_back(ScriptModeCommand::request_combat);
 }
 
-void ScriptCallbackTransaction::submit(inventory::GrantItem command) {
+void ScriptCallbackTransaction::submit(ScriptInventoryCommand command) {
   inventory_commands_.push_back(std::move(command));
 }
 
@@ -299,7 +299,7 @@ ScriptRuleResult TypedScriptRuntime::contribute_placement(const placement::Place
   std::vector<ScriptStateWrite> pending_state;
   std::vector<PlaceEntityEnvelope> pending_commands;
   std::vector<ScriptModeCommand> pending_mode_commands;
-  std::vector<inventory::GrantItem> pending_inventory_commands;
+  std::vector<ScriptInventoryCommand> pending_inventory_commands;
   std::vector<ScriptQuestCommand> pending_quest_commands;
   for (const auto& module : modules_) {
     ScriptCallbackTransaction transaction{module, state_};
@@ -355,7 +355,7 @@ ScriptRuleResult TypedScriptRuntime::contribute_ability(const combat::PerformAbi
   std::vector<ScriptStateWrite> pending_state;
   std::vector<PlaceEntityEnvelope> pending_commands;
   std::vector<ScriptModeCommand> pending_mode_commands;
-  std::vector<inventory::GrantItem> pending_inventory_commands;
+  std::vector<ScriptInventoryCommand> pending_inventory_commands;
   std::vector<ScriptQuestCommand> pending_quest_commands;
   for (const auto& module : modules_) {
     ScriptCallbackTransaction transaction{module, state_};
