@@ -129,7 +129,7 @@ int run_hex_pathing_scenario() {
   const dross::PathPlanner& planner = implementation;
   dross::OccupancyIndex occupancy;
   const dross::EntityId actor{9, 1};
-  const dross::TraversalPolicy policy{dross::MovementCost{1}};
+  const dross::TraversalPolicy policy{.rotation_cost = dross::MovementCost{1}};
   const dross::HexPose start{.anchor = fixture_cell(0, 0), .facing = dross::HexFacing::east};
   const auto single_path =
       planner.plan(*map, occupancy, single, start,
