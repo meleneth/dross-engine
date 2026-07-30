@@ -136,18 +136,22 @@ A separate Godot integration scenario proves:
 
 ## Acceptance checklist
 
-- [ ] no Godot include in `dross_core`;
-- [ ] EnTT stores all authoritative entities and components;
-- [ ] eventpp carries live domain events with real listeners;
-- [ ] SML machines control world mode, movement, combat, and door lifecycles where those states are distinct;
-- [ ] visible editor and runtime grids use the same compiled map;
-- [ ] footprint and facing are authoritative;
-- [ ] asymmetric multi-cell footprint tests pass even though demo actors are single-cell;
-- [ ] GDScript cannot mutate components;
-- [ ] command rejection is side-effect free;
-- [ ] animation cannot cause or prevent domain mutation;
-- [ ] save and load preserve every required state;
-- [ ] replay matches canonical hashes;
-- [ ] all generators are clean and idempotent;
+- [x] no Godot include in `dross_core`;
+- [x] EnTT stores all authoritative entities and components;
+- [x] eventpp carries live domain events with real listeners;
+- [x] SML machines control world mode, movement, combat, and door lifecycles where those states are distinct;
+- [x] visible editor and runtime grids use the same compiled map;
+- [x] footprint and facing are authoritative;
+- [x] asymmetric multi-cell footprint tests pass even though demo actors are single-cell;
+- [x] GDScript cannot mutate components;
+- [x] command rejection is side-effect free;
+- [x] animation cannot cause or prevent domain mutation;
+- [x] save and load preserve every required state;
+- [x] replay matches canonical hashes on the validated Linux target;
+- [x] all generators are clean and idempotent;
 - [ ] Linux GCC, Linux Clang, sanitizer, Windows, and Godot headless CI pass;
-- [ ] no introduced abstraction is unused.
+- [x] no introduced abstraction is unused.
+
+The evidence for each checked item, and the unavailable portions of the open
+platform item, are recorded in
+`docs/validation/phase14-acceptance-evidence.md`.
