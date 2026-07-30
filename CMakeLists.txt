@@ -110,6 +110,14 @@ target_compile_features(dross_headless PRIVATE cxx_std_20)
 dross_target_warnings(dross_headless)
 dross_enable_sanitizers(dross_headless)
 
+add_executable(dross_benchmarks
+  tools/dross_benchmark/main.cpp
+)
+target_link_libraries(dross_benchmarks PRIVATE dross::core)
+target_compile_features(dross_benchmarks PRIVATE cxx_std_20)
+dross_target_warnings(dross_benchmarks)
+dross_enable_sanitizers(dross_benchmarks)
+
 add_executable(dross_tests
   generated/tests/generated_schema_compile.cpp
   tests/unit/foundation/version_test.cpp
