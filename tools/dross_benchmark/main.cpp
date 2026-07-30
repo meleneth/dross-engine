@@ -15,6 +15,8 @@ namespace {
 constexpr std::int32_t map_cell_count = 256;
 constexpr std::size_t sample_count = 100;
 constexpr std::size_t plans_per_sample = 10;
+constexpr std::size_t p95_numerator = 95;
+constexpr std::size_t percentile_denominator = 100;
 
 [[nodiscard]] dross::ContentId content_id(const char* value) {
   return dross::ContentId::parse(value).value();
@@ -63,9 +65,7 @@ constexpr std::size_t plans_per_sample = 10;
   return values[rank - 1];
 }
 
-} // namespace
-
-int main() {
+int run_benchmark() {
   const auto map = make_map();
   const auto footprint =
       dross::FootprintDefinition::create(dross::FootprintId{content_id("benchmark:single")},
@@ -76,7 +76,7 @@ int main() {
   const dross::EntityId actor{1, 1};
   const dross::HexPose start{.anchor = cell(0), .facing = dross::HexFacing::east};
   const dross::HexPose goal{.anchor = cell(map_cell_count - 1), .facing = dross::HexFacing::east};
-  const dross::TraversalPolicy policy{dross::MovementCost{1}};
+  const dross::TraversalPolicy policy{.rotation_cost = dross::MovementCost{1}};
 
   const auto warmup = planner.plan(map, occupancy, footprint, start, goal, policy, actor);
   if (!warmup) {
@@ -102,6 +102,20 @@ int main() {
 
   std::cout << std::fixed << std::setprecision(3) << "path_preview_large cells=" << map_cell_count
             << " poses=" << warmup->poses.size() << " median_us=" << percentile(samples, 1, 2)
-            << " p95_us=" << percentile(samples, 95, 100) << " samples=" << samples.size() << '\n';
+            << " p95_us=" << percentile(samples, p95_numerator, percentile_denominator)
+            << " samples=" << samples.size() << '\n';
   return 0;
+}
+
+} // namespace
+
+int main() {
+  try {
+    return run_benchmark();
+  } catch (const std::exception& error) {
+    std::cerr << "benchmark failed: " << error.what() << '\n';
+  } catch (...) {
+    std::cerr << "benchmark failed with an unknown exception\n";
+  }
+  return 1;
 }
