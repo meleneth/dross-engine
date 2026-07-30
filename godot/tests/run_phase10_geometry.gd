@@ -13,8 +13,9 @@ func _initialize() -> void:
 	var room: Node3D = load("res://thump_demo/scenes/phase10_room.tscn").instantiate()
 	get_root().add_child(room)
 	var region: DrossHexGridRegion3D = room.get_node("GridRegion")
-	check(region.optional_door_edge == "demo:room:0,0,0|demo:room:1,0,0",
-			"demo room did not retain its optional side-door edge")
+	check(region.optional_door_edge ==
+			"thump_demo:room:0,0,0|thump_demo:room:1,0,0",
+			"ThumpDemo room did not retain its optional side-door edge")
 
 	await physics_frame
 	await physics_frame
@@ -38,7 +39,7 @@ func _initialize() -> void:
 	var recompiled: DrossCompiledHexMap = region.compile_map()
 	check(recompiled.cell_keys == compiled.cell_keys, "rebake changed canonical cell identity")
 	check(recompiled.provenance == compiled.provenance, "rebake erased the manual override")
-	check(region.select_cell_at_local(region.cell_center(1, 0)) == "demo:room:1,0,0",
+	check(region.select_cell_at_local(region.cell_center(1, 0)) == "thump_demo:room:1,0,0",
 			"viewport selection did not map to the correct HexCellId")
 	var overlay := DrossHexGridOverlay3D.new()
 	overlay.compiled_map = recompiled
