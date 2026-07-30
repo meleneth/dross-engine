@@ -109,7 +109,14 @@ GODOT_BIN=/path/to/Godot_v4.7.1-stable_linux.x86_64 \
 ```
 
 The output directory must be absent or empty. Windows packaging and a real
-Steam Deck device smoke are not currently verified.
+Steam Deck device smoke are not currently verified. A Windows host with Visual
+Studio, Ninja, Git Bash, and Godot 4.7.1 can run the corresponding unverified
+packaging workflow:
+
+```sh
+GODOT_BIN=/c/path/to/Godot_v4.7.1-stable_win64.exe \
+  bin/package-windows /c/path/to/dross-package
+```
 
 ## Author maps and typed content
 

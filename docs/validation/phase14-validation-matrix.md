@@ -17,7 +17,8 @@ Recorded 2026-07-29 through commit `5517810`.
 | Deterministic replay | Pass | 2 checkpoints and 6 events verified |
 | Repeated replay recording | Pass | Byte-identical SHA-256 `0e3aad2bb199ad005749e7614aaafae51e1679ca5ff4adcb391808606ef64bb6` |
 | Linux x86_64 package | Pass | Fresh release package exported after sanitizer artifact isolation, checksum-verified, and smoke-launched outside the repository |
-| Windows | Unverified | No Windows host, runner, or export template is available |
+| Windows package preflight | Pass with platform exception | Script lint, host guard, export preset parsing, and resource-pack export pass on Linux |
+| Windows | Unverified | Native build and package scripts are present, but no Windows host or runner is available |
 | Steam Deck device | Unverified | No device is available; compatibility is inferred only from the Linux x86_64 package |
 
 The Phase 09 Godot fault-fixture scripts intentionally print two script errors.

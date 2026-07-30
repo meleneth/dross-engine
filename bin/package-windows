@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+godot_bin="${GODOT_BIN:-}"
+output_dir="${1:-${repo_root}/build/package-windows}"
+
+if [[ "${OS:-}" != "Windows_NT" ]]; then
+  echo "Windows prototype packaging must run on a Windows host" >&2
+  exit 2
+fi
+if [[ -z "${godot_bin}" || ! -x "${godot_bin}" ]]; then
+  echo "GODOT_BIN must name an executable Godot 4.7.1 Windows binary" >&2
+  exit 2
+fi
+if [[ -e "${output_dir}" ]] &&
+  [[ -n "$(find "${output_dir}" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+  echo "package output must be absent or empty: ${output_dir}" >&2
+  exit 2
+fi
+
+cmake --preset windows-msvc-release
+cmake --build --preset windows-msvc-release
+
+staging_dir="$(mktemp -d "${TEMP:-/tmp}/dross-package-windows.XXXXXX")"
+cleanup() {
+  rm -rf "${staging_dir}"
+}
+trap cleanup EXIT
+
+export APPDATA="${staging_dir}/appdata"
+export LOCALAPPDATA="${staging_dir}/localappdata"
+
+"${godot_bin}" --headless --path "${repo_root}/godot" \
+  --export-pack "Windows Prototype" "${staging_dir}/dross-engine.pck" \
+  >"${staging_dir}/export.log" 2>&1
+
+install -m 0755 "${godot_bin}" "${staging_dir}/dross-engine.exe"
+install -d "${staging_dir}/bin"
+install -m 0755 "${repo_root}/godot/bin/dross_godot.dll" \
+  "${staging_dir}/bin/dross_godot.dll"
+
+(
+  cd "${staging_dir}"
+  ./dross-engine.exe --headless --main-pack dross-engine.pck --quit-after 3 \
+    >smoke.log 2>&1
+)
+if rg -n "SCRIPT ERROR:|^ERROR:" "${staging_dir}/smoke.log"; then
+  echo "packaged prototype emitted runtime errors" >&2
+  exit 1
+fi
+
+install -m 0644 "${repo_root}/LICENSE" "${staging_dir}/LICENSE"
+install -m 0644 "${repo_root}/THIRD_PARTY_NOTICES.md" \
+  "${staging_dir}/THIRD_PARTY_NOTICES.md"
+
+(
+  cd "${staging_dir}"
+  sha256sum dross-engine.exe dross-engine.pck bin/dross_godot.dll \
+    LICENSE THIRD_PARTY_NOTICES.md >SHA256SUMS
+)
+
+mkdir -p "${output_dir}"
+cp -a "${staging_dir}/dross-engine.exe" "${staging_dir}/dross-engine.pck" \
+  "${staging_dir}/bin" "${staging_dir}/LICENSE" "${staging_dir}/THIRD_PARTY_NOTICES.md" \
+  "${staging_dir}/SHA256SUMS" "${staging_dir}/smoke.log" "${output_dir}/"
+echo "Windows prototype package: ${output_dir}"
