@@ -1,6 +1,7 @@
 #pragma once
 
 #include <dross/random/random_hub.hpp>
+#include <dross/runtime/inventory_runtime.hpp>
 #include <dross/runtime/script_runtime.hpp>
 
 #include <godot_cpp/classes/logger.hpp>
@@ -101,13 +102,25 @@ class DrossQueryApi final : public godot::RefCounted {
 
 public:
   [[nodiscard]] bool is_owner(std::int64_t lineage, std::int64_t sequence) const;
-  void attach(const ScriptScope* scope) { scope_ = scope; }
+  [[nodiscard]] std::int64_t inventory_count(std::int64_t owner_lineage,
+                                             std::int64_t owner_sequence,
+                                             const godot::String& item) const;
+  [[nodiscard]] bool has_item(std::int64_t owner_lineage, std::int64_t owner_sequence,
+                              const godot::String& item, std::int64_t count) const;
+  void attach(const ScriptScope* scope, const InventoryRuntime* inventory,
+              WorldInstanceId world_instance) {
+    scope_ = scope;
+    inventory_ = inventory;
+    world_instance_ = world_instance;
+  }
 
 protected:
   static void _bind_methods();
 
 private:
   const ScriptScope* scope_{nullptr};
+  const InventoryRuntime* inventory_{nullptr};
+  WorldInstanceId world_instance_{0};
 };
 
 class DrossScriptContext final : public godot::RefCounted {
@@ -123,7 +136,8 @@ public:
   [[nodiscard]] std::int64_t get_owner_lineage() const;
   [[nodiscard]] std::int64_t get_owner_sequence() const;
   void attach(const ScriptModule& module, ScriptCallbackTransaction& transaction,
-              RandomStream& random, Tick tick, WorldInstanceId world_instance);
+              RandomStream& random, Tick tick, WorldInstanceId world_instance,
+              const InventoryRuntime* inventory);
   void detach();
 
 protected:
@@ -183,6 +197,7 @@ public:
                                                           RandomStream& random) override;
   void set_tick(Tick tick) { tick_ = tick; }
   void set_world_instance(WorldInstanceId value) { world_instance_ = value; }
+  void set_inventory(const InventoryRuntime* value) { inventory_ = value; }
   [[nodiscard]] const std::vector<std::string>& calls() const noexcept { return calls_; }
 
 private:
@@ -203,6 +218,7 @@ private:
   std::vector<std::string> calls_;
   Tick tick_{0};
   WorldInstanceId world_instance_{0};
+  const InventoryRuntime* inventory_{nullptr};
 };
 
 } // namespace dross::godot_adapter

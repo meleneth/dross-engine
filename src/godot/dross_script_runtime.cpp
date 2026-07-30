@@ -152,9 +152,41 @@ bool DrossQueryApi::is_owner(const std::int64_t lineage, const std::int64_t sequ
              EntityId{static_cast<std::uint64_t>(lineage), static_cast<std::uint64_t>(sequence)};
 }
 
+std::int64_t DrossQueryApi::inventory_count(const std::int64_t owner_lineage,
+                                            const std::int64_t owner_sequence,
+                                            const godot::String& item) const {
+  auto parsed = ContentId::parse(utf8(item));
+  if (!inventory_ || !parsed || owner_lineage < 0 || owner_sequence <= 0) {
+    return 0;
+  }
+  return static_cast<std::int64_t>(inventory_->count(
+      EntityRef{world_instance_, EntityId{static_cast<std::uint64_t>(owner_lineage),
+                                          static_cast<std::uint64_t>(owner_sequence)}},
+      *parsed));
+}
+
+bool DrossQueryApi::has_item(const std::int64_t owner_lineage, const std::int64_t owner_sequence,
+                             const godot::String& item, const std::int64_t count) const {
+  auto parsed = ContentId::parse(utf8(item));
+  if (!inventory_ || !parsed || owner_lineage < 0 || owner_sequence <= 0 || count <= 0 ||
+      count > std::numeric_limits<std::uint32_t>::max()) {
+    return false;
+  }
+  return inventory_->has(
+      EntityRef{world_instance_, EntityId{static_cast<std::uint64_t>(owner_lineage),
+                                          static_cast<std::uint64_t>(owner_sequence)}},
+      *parsed, static_cast<std::uint32_t>(count));
+}
+
 void DrossQueryApi::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("is_owner", "lineage", "sequence"),
                               &DrossQueryApi::is_owner);
+  godot::ClassDB::bind_method(
+      godot::D_METHOD("inventory_count", "owner_lineage", "owner_sequence", "item"),
+      &DrossQueryApi::inventory_count);
+  godot::ClassDB::bind_method(
+      godot::D_METHOD("has_item", "owner_lineage", "owner_sequence", "item", "count"),
+      &DrossQueryApi::has_item);
 }
 
 DrossScriptContext::DrossScriptContext() {
@@ -178,20 +210,21 @@ std::int64_t DrossScriptContext::get_owner_sequence() const {
 
 void DrossScriptContext::attach(const ScriptModule& module, ScriptCallbackTransaction& transaction,
                                 RandomStream& random, const Tick tick,
-                                const WorldInstanceId world_instance) {
+                                const WorldInstanceId world_instance,
+                                const InventoryRuntime* inventory) {
   module_ = &module;
   tick_ = static_cast<std::int64_t>(tick.value());
   state_->attach(&transaction);
   random_->attach(&random);
   commands_->attach(&transaction, world_instance);
-  query_->attach(&module.scope);
+  query_->attach(&module.scope, inventory, world_instance);
 }
 
 void DrossScriptContext::detach() {
   state_->attach(nullptr);
   random_->attach(nullptr);
   commands_->attach(nullptr, WorldInstanceId{0});
-  query_->attach(nullptr);
+  query_->attach(nullptr, nullptr, WorldInstanceId{0});
   module_ = nullptr;
 }
 
@@ -291,7 +324,7 @@ Result<void, std::string> GodotScriptRuntime::invoke(const ScriptModule& module,
   }
   godot::Ref<DrossScriptContext> context;
   context.instantiate();
-  context->attach(module, transaction, random, tick_, world_instance_);
+  context->attach(module, transaction, random, tick_, world_instance_, inventory_);
   auto call_args = args;
   call_args.push_back(context);
   godot::Ref<DrossCallbackLogger> logger;

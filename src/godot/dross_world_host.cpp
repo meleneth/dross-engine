@@ -112,6 +112,7 @@ struct DrossWorldHost::ScriptScenarioState {
       : random{seed}, runtime{port, random}, mode{machine_trace},
         inventory{WorldInstanceId{synthetic_instance}, {EntityId{7, 1}}} {
     port.set_world_instance(WorldInstanceId{synthetic_instance});
+    port.set_inventory(&inventory);
   }
 
   GodotScriptRuntime port;
