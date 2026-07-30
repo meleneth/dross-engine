@@ -1,6 +1,6 @@
 # ADR-0025: Native Facts and Game-Authored Orchestration
 
-Status: Proposed
+Status: Accepted
 
 ## Context
 

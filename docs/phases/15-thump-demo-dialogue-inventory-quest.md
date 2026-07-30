@@ -2,8 +2,8 @@
 
 ## Status
 
-**Blocked on ADR acceptance.** ADR-0025 defines the proposed ownership boundary
-for the new authoritative capabilities and game-authored GDScript behavior.
+**Active.** ADR-0025 is accepted. Implementation begins with the Dross versus
+ThumpDemo project and namespace boundary before adding new capabilities.
 
 ## Goal
 
