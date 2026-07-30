@@ -262,6 +262,60 @@ void resume_from_exploration_save(const dross::SaveContainer& save,
   target.caretaker = *restored_caretaker;
 }
 
+struct ThumpQuestContent {
+  dross::ContentId quest{content_id("thump_demo:mouse_quest")};
+  dross::ContentId hunt{content_id("thump_demo:hunt_mouse")};
+  dross::ContentId return_tail{content_id("thump_demo:return_tail")};
+  dross::ContentId tail{content_id("thump_demo:mouse_tail")};
+  dross::ContentId dialogue{content_id("thump_demo:caretaker_dialogue")};
+  dross::ContentId accept{content_id("thump_demo:accept_mouse_quest")};
+  dross::ContentId hand_over{content_id("thump_demo:hand_over_mouse_tail")};
+  dross::ContentId leave{content_id("thump_demo:leave")};
+};
+
+void accept_mouse_quest(dross::DialogueRuntime& dialogue, dross::QuestRuntime& quests,
+                        const dross::EntityRef& player, const dross::EntityRef& caretaker,
+                        const ThumpQuestContent& content) {
+  if (!dialogue.handle(dross::dialogue::BeginDialogue{
+          .initiator = player, .partner = caretaker, .dialogue = content.dialogue}) ||
+      !dialogue.offer_options({content.leave, content.accept}) ||
+      !dialogue.handle(dross::dialogue::ChooseDialogueOption{.initiator = player,
+                                                             .partner = caretaker,
+                                                             .dialogue = content.dialogue,
+                                                             .option = content.accept}) ||
+      !quests.handle(dross::quest::StartQuest{.quest = content.quest, .stage = content.hunt}) ||
+      !dialogue.handle(dross::dialogue::EndDialogue{
+          .initiator = player, .partner = caretaker, .dialogue = content.dialogue})) {
+    throw std::logic_error{"ThumpDemo caretaker quest acceptance failed"};
+  }
+}
+
+void hand_in_mouse_tail(dross::DialogueRuntime& dialogue, dross::InventoryRuntime& inventory,
+                        dross::QuestRuntime& quests, const dross::EntityRef& player,
+                        const dross::EntityRef& caretaker, const ThumpQuestContent& content) {
+  if (!dialogue.handle(dross::dialogue::BeginDialogue{
+          .initiator = player, .partner = caretaker, .dialogue = content.dialogue})) {
+    throw std::logic_error{"ThumpDemo caretaker hand-in dialogue failed"};
+  }
+  std::vector<dross::ContentId> options{content.leave};
+  if (inventory.has(player, content.tail) && quests.stage(content.quest) == content.return_tail) {
+    options.push_back(content.hand_over);
+  }
+  if (!dialogue.offer_options(std::move(options)) ||
+      !dialogue.handle(dross::dialogue::ChooseDialogueOption{.initiator = player,
+                                                             .partner = caretaker,
+                                                             .dialogue = content.dialogue,
+                                                             .option = content.hand_over}) ||
+      !inventory.handle(
+          dross::inventory::RemoveItem{.owner = player, .item = content.tail, .count = 1}) ||
+      !quests.handle(dross::quest::CompleteQuest{.quest = content.quest,
+                                                 .expected_stage = content.return_tail}) ||
+      !dialogue.handle(dross::dialogue::EndDialogue{
+          .initiator = player, .partner = caretaker, .dialogue = content.dialogue})) {
+    throw std::logic_error{"ThumpDemo caretaker hand-in commit failed"};
+  }
+}
+
 ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_boundary) {
   auto instance = dross::WorldInstanceId{initial_world_instance};
   auto world = std::make_unique<dross::WorldStorage>(
@@ -285,38 +339,8 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   auto dialogue = std::make_unique<dross::DialogueRuntime>(
       instance, std::vector{player.id(), caretaker.id()}, trace, &events);
   dross::QuestRuntime quests{trace, &events};
-  const auto mouse_quest = content_id("thump_demo:mouse_quest");
-  const auto hunt_mouse = content_id("thump_demo:hunt_mouse");
-  const auto return_tail = content_id("thump_demo:return_tail");
-  const auto mouse_tail = content_id("thump_demo:mouse_tail");
-  const auto caretaker_dialogue = content_id("thump_demo:caretaker_dialogue");
-  const auto accept_quest = content_id("thump_demo:accept_mouse_quest");
-  const auto hand_over_tail = content_id("thump_demo:hand_over_mouse_tail");
-  const auto leave = content_id("thump_demo:leave");
-  if (!dialogue->handle(dross::dialogue::BeginDialogue{
-          .initiator = player,
-          .partner = caretaker,
-          .dialogue = caretaker_dialogue,
-      }) ||
-      !dialogue->offer_options({leave, accept_quest}) ||
-      !dialogue->handle(dross::dialogue::ChooseDialogueOption{
-          .initiator = player,
-          .partner = caretaker,
-          .dialogue = caretaker_dialogue,
-          .option = accept_quest,
-      })) {
-    throw std::logic_error{"ThumpDemo caretaker quest offer failed"};
-  }
-  if (!quests.handle(dross::quest::StartQuest{.quest = mouse_quest, .stage = hunt_mouse})) {
-    throw std::logic_error{"ThumpDemo mouse quest start failed"};
-  }
-  if (!dialogue->handle(dross::dialogue::EndDialogue{
-          .initiator = player,
-          .partner = caretaker,
-          .dialogue = caretaker_dialogue,
-      })) {
-    throw std::logic_error{"ThumpDemo caretaker quest dialogue end failed"};
-  }
+  const ThumpQuestContent quest_content;
+  accept_mouse_quest(*dialogue, quests, player, caretaker, quest_content);
   std::unique_ptr<dross::CombatSession> combat;
   dross::RandomStream* damage_random = nullptr;
   std::unique_ptr<dross::AbilityResolver> resolver;
@@ -472,15 +496,15 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   }
   if (!inventory->handle(dross::inventory::GrantItem{
           .owner = player,
-          .item = mouse_tail,
+          .item = quest_content.tail,
           .count = 1,
       })) {
     throw std::logic_error{"ThumpDemo mouse-tail grant failed"};
   }
   if (!quests.handle(dross::quest::AdvanceQuest{
-          .quest = mouse_quest,
-          .expected_stage = hunt_mouse,
-          .next_stage = return_tail,
+          .quest = quest_content.quest,
+          .expected_stage = quest_content.hunt,
+          .next_stage = quest_content.return_tail,
       })) {
     throw std::logic_error{"ThumpDemo mouse quest advance failed"};
   }
@@ -497,38 +521,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
        .dialogue = dialogue->snapshot()}));
   save_checkpoints.push_back(
       SaveCheckpoint{.name = "tail-held-tick-1", .save = save_checkpoint(dross::Tick{1}, true)});
-  if (!dialogue->handle(dross::dialogue::BeginDialogue{
-          .initiator = player,
-          .partner = caretaker,
-          .dialogue = caretaker_dialogue,
-      })) {
-    throw std::logic_error{"ThumpDemo caretaker hand-in dialogue failed"};
-  }
-  std::vector<dross::ContentId> hand_in_options{leave};
-  if (inventory->has(player, mouse_tail) && quests.stage(mouse_quest) == return_tail) {
-    hand_in_options.push_back(hand_over_tail);
-  }
-  if (!dialogue->offer_options(std::move(hand_in_options)) ||
-      !dialogue->handle(dross::dialogue::ChooseDialogueOption{
-          .initiator = player,
-          .partner = caretaker,
-          .dialogue = caretaker_dialogue,
-          .option = hand_over_tail,
-      }) ||
-      !inventory->handle(dross::inventory::RemoveItem{
-          .owner = player,
-          .item = mouse_tail,
-          .count = 1,
-      }) ||
-      !quests.handle(
-          dross::quest::CompleteQuest{.quest = mouse_quest, .expected_stage = return_tail}) ||
-      !dialogue->handle(dross::dialogue::EndDialogue{
-          .initiator = player,
-          .partner = caretaker,
-          .dialogue = caretaker_dialogue,
-      })) {
-    throw std::logic_error{"ThumpDemo caretaker hand-in commit failed"};
-  }
+  hand_in_mouse_tail(*dialogue, *inventory, quests, player, caretaker, quest_content);
   checkpoints.push_back(dross::canonical_checkpoint(
       dross::Tick{2}, *world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
       std::span<const dross::PlaceEntityEnvelope>{},
