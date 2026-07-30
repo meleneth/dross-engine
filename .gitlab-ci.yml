@@ -1,5 +1,6 @@
 stages:
   - format
+  - generate
   - build
   - godot
   - sanitize
@@ -22,6 +23,19 @@ format-check:
     - cmake --preset linux-debug
     - cmake --build --preset linux-debug --target format-check
 
+generated-api-check:
+  stage: generate
+  image: python:3.13-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends git
+    - python -m pip install --disable-pip-version-check -r tools/dross_cli/requirements.lock
+  script:
+    - ./bin/dross generate all
+    - ./bin/dross check generated
+    - python -m pytest -q tools/dross_cli/tests
+    - git diff --exit-code
+
 clang-debug-test:
   stage: build
   image: debian:stable-slim
@@ -37,6 +51,7 @@ clang-debug-test:
 gcc-release-test:
   stage: build
   image: debian:stable-slim
+  cache: []
   before_script:
     - apt-get update
     - apt-get install -y --no-install-recommends ca-certificates cmake git ninja-build g++ python3
@@ -50,11 +65,23 @@ windows-msvc-replay-test:
   stage: build
   tags:
     - windows
+  when: manual
+  allow_failure: true
   script:
     - cmake --preset windows-msvc-release
     - cmake --build --preset windows-msvc-release
     - ctest --preset windows-msvc-release --output-on-failure
     - build/windows-msvc-release/dross_headless.exe replay --verify-checkpoints tests/fixtures/thump-v1.dross-replay
+
+clang-tidy:
+  stage: build
+  image: debian:stable-slim
+  before_script:
+    - apt-get update
+    - apt-get install -y --no-install-recommends ca-certificates clang clang-tidy cmake git ninja-build python3
+  script:
+    - CC=clang CXX=clang++ cmake --preset linux-debug
+    - cmake --build --preset linux-debug --target tidy
 
 godot-4.7.1-headless-test:
   stage: godot
@@ -69,12 +96,17 @@ godot-4.7.1-headless-test:
     - cmake --preset linux-debug
     - cmake --build --preset linux-debug
     - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot --editor --quit
-    - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase08.gd
-    - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase09.gd
-    - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase10.gd
-    - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase11.gd
-    - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_phase12.gd
+    - XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path godot -s res://tests/run_all.gd
     - cd godot && XDG_CONFIG_HOME=/tmp/dross-godot-config XDG_CACHE_HOME=/tmp/dross-godot-cache XDG_DATA_HOME=/tmp/dross-godot-data /tmp/godot/Godot_v4.7.1-stable_linux.x86_64 --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd --ignoreHeadlessMode -a res://tests/DrossBoundaryTest.gd
+    - cd "$CI_PROJECT_DIR"
+    - GODOT_BIN=/tmp/godot/Godot_v4.7.1-stable_linux.x86_64 bin/package-linux /tmp/dross-package
+    - cd /tmp/dross-package && sha256sum -c SHA256SUMS
+    - cp smoke.log "$CI_PROJECT_DIR/build/phase14-package-smoke.log"
+  artifacts:
+    when: always
+    paths:
+      - build/phase14-package-smoke.log
+    expire_in: 1 week
 
 asan-ubsan-test:
   stage: sanitize

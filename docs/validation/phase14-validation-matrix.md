@@ -9,6 +9,7 @@ Recorded 2026-07-29 through commit `5517810`.
 | Generated APIs | Pass | `generate all` and `check generated` left no diff |
 | Generator and schema tests | Pass | 6 of 6 pytest cases |
 | Vertical-slice acceptance mapping | Pass with platform exception | 14 of 15 criteria have direct evidence; the combined cross-platform criterion remains open |
+| GitLab CI definition | Configured; run pending | Linux clean-cache, Clang, GCC, generator, Godot, package, replay, and sanitizer jobs are encoded |
 | Configured static analysis | Pass | clang-tidy completed all 34 translation units with project warnings treated as errors |
 | Architecture audit | Pass | Automated boundary tests and targeted source review found no live violation or dead production abstraction |
 | Linux GCC 14 debug | Pass | 183 of 183 CTest cases |
