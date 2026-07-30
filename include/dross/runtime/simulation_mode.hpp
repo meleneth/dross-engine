@@ -1,5 +1,7 @@
 #pragma once
 
+#include <dross/foundation/result.hpp>
+#include <dross/generated/request_combat_start.hpp>
 #include <dross/runtime/machine_trace.hpp>
 
 #include <cstdint>
@@ -19,6 +21,11 @@ struct SimulationModeSnapshot {
   [[nodiscard]] bool operator==(const SimulationModeSnapshot&) const = default;
 };
 
+enum class SimulationModeCommandRejection : std::uint8_t {
+  invalid_participants,
+  rejected,
+};
+
 class SimulationMode {
 public:
   explicit SimulationMode(MachineTraceSink& trace);
@@ -29,6 +36,8 @@ public:
   SimulationMode& operator=(const SimulationMode&) = delete;
 
   [[nodiscard]] bool request_combat();
+  [[nodiscard]] Result<void, SimulationModeCommandRejection>
+  handle(const combat::RequestCombatStart& command);
   [[nodiscard]] bool reach_safe_boundary();
   [[nodiscard]] bool end_combat();
 

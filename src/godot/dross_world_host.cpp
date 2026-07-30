@@ -133,7 +133,8 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
                  entity,
                  restored ? restored->pose : movement_pose(0),
                  MovementConfig{.ticks_per_transition = movement_transition_ticks},
-                 this} {
+                 this},
+        mode{machine_trace} {
     if (restored != nullptr && !movement.restore(*restored)) {
       throw std::logic_error{"movement boundary snapshot restore failed"};
     }
@@ -169,9 +170,9 @@ struct DrossWorldHost::MovementScenarioState final : MovementEventSink {
   OccupancyIndex occupancy;
   WeightedAStarPathPlanner planner;
   MovementRuntime movement;
+  NullMachineTrace machine_trace;
+  SimulationMode mode;
   Tick tick{0};
-  bool combat_pending{false};
-  bool combat{false};
 };
 
 struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
@@ -560,10 +561,15 @@ bool DrossWorldHost::cancel_movement() {
 }
 
 bool DrossWorldHost::request_movement_combat() {
-  if (!movement_state_ || movement_state_->combat_pending || movement_state_->combat) {
+  if (!movement_state_ ||
+      !movement_state_->mode
+           .handle(combat::RequestCombatStart{
+               .requester = movement_state_->entity,
+               .opponent = EntityRef{WorldInstanceId{synthetic_instance}, EntityId{7, 2}},
+           })
+           .has_value()) {
     return false;
   }
-  movement_state_->combat_pending = true;
   movement_state_->movement.request_combat_stop();
   return true;
 }
@@ -573,11 +579,10 @@ bool DrossWorldHost::advance_movement_tick() {
     return false;
   }
   const auto result = movement_state_->movement.advance(movement_state_->tick);
-  if (result == MovementAdvance::combat_boundary ||
-      (movement_state_->combat_pending &&
-       movement_state_->movement.state() == MovementLifecycleState::idle)) {
-    movement_state_->combat_pending = false;
-    movement_state_->combat = true;
+  if ((result == MovementAdvance::combat_boundary ||
+       movement_state_->movement.state() == MovementLifecycleState::idle) &&
+      movement_state_->mode.state() == SimulationModeState::combat_pending) {
+    static_cast<void>(movement_state_->mode.reach_safe_boundary());
   }
   movement_state_->tick = Tick{movement_state_->tick.value() + 1};
   return true;
@@ -633,10 +638,11 @@ godot::String DrossWorldHost::get_movement_mode() const {
   if (!movement_state_) {
     return "none";
   }
-  if (movement_state_->combat) {
+  if (movement_state_->mode.state() == SimulationModeState::combat) {
     return "combat";
   }
-  return movement_state_->combat_pending ? "combat_pending" : "exploration";
+  return movement_state_->mode.state() == SimulationModeState::combat_pending ? "combat_pending"
+                                                                              : "exploration";
 }
 
 godot::String DrossWorldHost::get_canonical_capability_hash() const {
@@ -673,9 +679,6 @@ godot::PackedByteArray DrossWorldHost::save_integrated_state() const {
       door_state_->runtime.presentation_pending()) {
     return output;
   }
-  const auto mode = movement_state_->combat           ? SimulationModeState::combat
-                    : movement_state_->combat_pending ? SimulationModeState::combat_pending
-                                                      : SimulationModeState::exploration;
   SaveContainer container{
       .header =
           SaveHeader{
@@ -693,7 +696,7 @@ godot::PackedByteArray DrossWorldHost::save_integrated_state() const {
           SaveRuntimeSnapshot{
               .random = script_state_->random.snapshot(),
               .lifecycle = WorldLifecycleSnapshot{.state = WorldLifecycleState::running},
-              .mode = SimulationModeSnapshot{.state = mode},
+              .mode = movement_state_->mode.snapshot(),
           },
       .content_manifest = first_slice_content_manifest(),
       .combat = {},
@@ -841,8 +844,9 @@ bool DrossWorldHost::restore_integrated_state(const godot::PackedByteArray& byte
     return reject("save mode and combat capability disagree");
   }
   next_movement->tick = decoded->header.current_tick;
-  next_movement->combat_pending = saved_mode == SimulationModeState::combat_pending;
-  next_movement->combat = saved_mode == SimulationModeState::combat;
+  if (!next_movement->mode.restore(decoded->runtime.mode)) {
+    return reject("save simulation mode snapshot is invalid");
+  }
 
   movement_state_ = std::move(next_movement);
   door_state_ = std::move(next_door);
@@ -864,7 +868,7 @@ bool DrossWorldHost::start_thump_scenario(
   if (movement_state_ && movement_state_->movement.state() != MovementLifecycleState::idle) {
     return false;
   }
-  if (movement_state_ && !movement_state_->combat) {
+  if (movement_state_ && movement_state_->mode.state() != SimulationModeState::combat) {
     return false;
   }
   auto ability = ability_definition->compile_core();

@@ -31,6 +31,26 @@ TEST_CASE("duplicate combat requests are rejected and traced") {
   CHECK(trace.entries().back().destination == dross::MachineStateId::combat_pending);
 }
 
+TEST_CASE("typed combat request validates participants before changing mode") {
+  dross::InMemoryMachineTrace trace;
+  dross::SimulationMode mode{trace};
+  const dross::EntityRef player{dross::WorldInstanceId{1}, dross::EntityId{7, 1}};
+  const dross::EntityRef foreign{dross::WorldInstanceId{2}, dross::EntityId{7, 2}};
+
+  const auto rejected =
+      mode.handle(dross::combat::RequestCombatStart{.requester = player, .opponent = foreign});
+  REQUIRE_FALSE(rejected);
+  CHECK(rejected.error() == dross::SimulationModeCommandRejection::invalid_participants);
+  CHECK(mode.state() == dross::SimulationModeState::exploration);
+  CHECK(trace.entries().empty());
+
+  REQUIRE(mode.handle(dross::combat::RequestCombatStart{
+      .requester = player,
+      .opponent = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 2}},
+  }));
+  CHECK(mode.state() == dross::SimulationModeState::combat_pending);
+}
+
 TEST_CASE("safe boundary outside combat pending is visibly rejected") {
   dross::InMemoryMachineTrace trace;
   dross::SimulationMode mode{trace};

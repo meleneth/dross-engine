@@ -110,6 +110,18 @@ bool SimulationMode::request_combat() {
   return process(CombatRequested{}, MachineEventId::combat_requested);
 }
 
+Result<void, SimulationModeCommandRejection>
+SimulationMode::handle(const combat::RequestCombatStart& command) {
+  if (command.requester == command.opponent ||
+      command.requester.world_instance() != command.opponent.world_instance()) {
+    return tl::unexpected{SimulationModeCommandRejection::invalid_participants};
+  }
+  if (!request_combat()) {
+    return tl::unexpected{SimulationModeCommandRejection::rejected};
+  }
+  return {};
+}
+
 bool SimulationMode::reach_safe_boundary() {
   return process(SafeBoundaryReached{}, MachineEventId::safe_boundary_reached);
 }
