@@ -54,3 +54,17 @@ Exact pins and upstream repositories are recorded in
 
 Build and test dependencies not shipped in the prototype are inventoried in
 `docs/dependency-lock.md`, including CPM.cmake, Catch2, and GdUnit4.
+
+## Kenney prototype asset kits
+
+The Godot playground includes the Furniture Kit 2.0 and Nature Kit 2.1,
+created and distributed by Kenney under the Creative Commons Zero 1.0
+Universal license (CC0-1.0):
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Only the directly Godot-importable GLB editions are retained. Exact source
+pages, archive checksums, collection contents, and copies of the
+publisher-supplied license notices are stored with each collection:
+
+- `godot/assets/third_party/kenney/furniture-kit/`
+- `godot/assets/third_party/kenney/nature-kit/`
