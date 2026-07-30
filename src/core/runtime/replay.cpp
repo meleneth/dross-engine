@@ -473,20 +473,15 @@ std::vector<std::byte> encode_replay(const ReplayLog& replay) {
   return {writer.bytes().begin(), writer.bytes().end()};
 }
 
-Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::byte> bytes) {
-  ByteReader reader{bytes};
-  const auto magic = reader.read_string();
-  const auto engine_major = reader.read_u16();
-  const auto engine_minor = reader.read_u16();
-  const auto engine_patch = reader.read_u16();
-  const auto schema_version = reader.read_u32();
-  const auto scenario = reader.read_content_id();
+namespace {
+
+Result<ContentManifest, ReplayDecodeError> decode_replay_manifest(ByteReader& reader) {
   const auto package_count = reader.read_u64();
   if (!package_count || *package_count > reader.remaining()) {
     return tl::unexpected{ReplayDecodeError::invalid_format};
   }
-  ContentManifest content_manifest;
-  content_manifest.reserve(static_cast<std::size_t>(*package_count));
+  ContentManifest manifest;
+  manifest.reserve(static_cast<std::size_t>(*package_count));
   for (std::uint64_t package = 0; package < *package_count; ++package) {
     const auto package_id = reader.read_content_id();
     const auto major = reader.read_u16();
@@ -510,12 +505,31 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
     if (!content_hash) {
       return tl::unexpected{ReplayDecodeError::invalid_format};
     }
-    content_manifest.push_back(ContentPackageRecord{
+    manifest.push_back(ContentPackageRecord{
         .package_id = *package_id,
         .version = {.major = *major, .minor = *minor, .patch = *patch},
         .dependencies = std::move(dependencies),
         .content_hash = *content_hash,
     });
+  }
+  return manifest;
+}
+
+struct DecodedReplayPreamble {
+  ReplayHeader header;
+  std::uint64_t command_count;
+};
+
+Result<DecodedReplayPreamble, ReplayDecodeError> decode_replay_preamble(ByteReader& reader) {
+  const auto magic = reader.read_string();
+  const auto engine_major = reader.read_u16();
+  const auto engine_minor = reader.read_u16();
+  const auto engine_patch = reader.read_u16();
+  const auto schema_version = reader.read_u32();
+  const auto scenario = reader.read_content_id();
+  auto manifest = decode_replay_manifest(reader);
+  if (!manifest) {
+    return tl::unexpected{manifest.error()};
   }
   const auto master_seed = reader.read_u64();
   const auto algorithm_version = reader.read_u32();
@@ -524,32 +538,44 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
       !schema_version || !scenario || !master_seed || !algorithm_version || !command_count) {
     return tl::unexpected{ReplayDecodeError::invalid_format};
   }
-  ReplayLog result{
-      .header = ReplayHeader{.engine_version = SemanticVersion{.major = *engine_major,
-                                                               .minor = *engine_minor,
-                                                               .patch = *engine_patch},
-                             .schema_version = *schema_version,
-                             .scenario = *scenario,
-                             .content_manifest = std::move(content_manifest),
-                             .master_seed = MasterSeed{*master_seed},
-                             .random_algorithm_version = *algorithm_version},
-      .external_commands = {},
-      .machine_trace = {},
-      .canonical_events = {},
-      .checkpoints = {},
+  return DecodedReplayPreamble{
+      .header =
+          ReplayHeader{
+              .engine_version = SemanticVersion{.major = *engine_major,
+                                                .minor = *engine_minor,
+                                                .patch = *engine_patch},
+              .schema_version = *schema_version,
+              .scenario = *scenario,
+              .content_manifest = *std::move(manifest),
+              .master_seed = MasterSeed{*master_seed},
+              .random_algorithm_version = *algorithm_version,
+          },
+      .command_count = *command_count,
   };
-  for (std::uint64_t index = 0; index < *command_count; ++index) {
+}
+
+Result<std::vector<PlaceEntityEnvelope>, ReplayDecodeError>
+decode_replay_commands(ByteReader& reader, const std::uint64_t count) {
+  std::vector<PlaceEntityEnvelope> commands;
+  commands.reserve(static_cast<std::size_t>(count));
+  for (std::uint64_t index = 0; index < count; ++index) {
     auto command = read_command(reader);
     if (!command) {
       return tl::unexpected{command.error()};
     }
-    result.external_commands.push_back(*std::move(command));
+    commands.push_back(*std::move(command));
   }
-  const auto trace_count = reader.read_u64();
-  if (!trace_count) {
+  return commands;
+}
+
+Result<std::vector<MachineTraceEntry>, ReplayDecodeError> decode_replay_trace(ByteReader& reader) {
+  const auto count = reader.read_u64();
+  if (!count) {
     return tl::unexpected{ReplayDecodeError::invalid_format};
   }
-  for (std::uint64_t index = 0; index < *trace_count; ++index) {
+  std::vector<MachineTraceEntry> trace;
+  trace.reserve(static_cast<std::size_t>(*count));
+  for (std::uint64_t index = 0; index < *count; ++index) {
     const auto machine = reader.read_u16();
     const auto source = reader.read_u16();
     const auto destination = reader.read_u16();
@@ -563,7 +589,7 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
         *outcome > static_cast<std::uint16_t>(MachineEventOutcome::rejected)) {
       return tl::unexpected{ReplayDecodeError::invalid_format};
     }
-    result.machine_trace.push_back(MachineTraceEntry{
+    trace.push_back(MachineTraceEntry{
         .machine = static_cast<MachineFamily>(*machine),
         .source = static_cast<MachineStateId>(*source),
         .destination = static_cast<MachineStateId>(*destination),
@@ -571,71 +597,146 @@ Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::by
         .outcome = static_cast<MachineEventOutcome>(*outcome),
     });
   }
-  const auto event_count = reader.read_u64();
-  if (!event_count || *event_count > reader.remaining()) {
+  return trace;
+}
+
+Result<std::vector<std::string>, ReplayDecodeError> decode_replay_events(ByteReader& reader) {
+  const auto count = reader.read_u64();
+  if (!count || *count > reader.remaining()) {
     return tl::unexpected{ReplayDecodeError::invalid_format};
   }
-  result.canonical_events.reserve(static_cast<std::size_t>(*event_count));
-  for (std::uint64_t index = 0; index < *event_count; ++index) {
+  std::vector<std::string> events;
+  events.reserve(static_cast<std::size_t>(*count));
+  for (std::uint64_t index = 0; index < *count; ++index) {
     auto event = reader.read_string();
     if (!event) {
       return tl::unexpected{ReplayDecodeError::invalid_format};
     }
-    result.canonical_events.push_back(std::move(*event));
+    events.push_back(*std::move(event));
   }
-  const auto checkpoint_count = reader.read_u64();
-  if (!checkpoint_count) {
+  return events;
+}
+
+Result<CheckpointSections, ReplayDecodeError> decode_checkpoint_sections(ByteReader& reader) {
+  const auto count = reader.read_u64();
+  if (!count) {
     return tl::unexpected{ReplayDecodeError::invalid_format};
   }
-  for (std::uint64_t index = 0; index < *checkpoint_count; ++index) {
-    const auto tick = reader.read_u64();
-    const auto section_count = reader.read_u64();
-    if (!tick || !section_count) {
+  CheckpointSections sections;
+  for (std::uint64_t index = 0; index < *count; ++index) {
+    const auto section = reader.read_u16();
+    const auto hash = read_hash(reader);
+    if (!section || !hash ||
+        *section > static_cast<std::uint16_t>(CheckpointSection::capabilities) ||
+        !sections.emplace(static_cast<CheckpointSection>(*section), *hash).second) {
       return tl::unexpected{ReplayDecodeError::invalid_format};
     }
-    CanonicalCheckpoint checkpoint{
-        .tick = Tick{*tick}, .sections = {}, .details = {}, .overall = {}};
-    for (std::uint64_t section_index = 0; section_index < *section_count; ++section_index) {
-      const auto section = reader.read_u16();
+  }
+  return sections;
+}
+
+Result<CheckpointDetails, ReplayDecodeError> decode_checkpoint_details(ByteReader& reader) {
+  const auto section_count = reader.read_u64();
+  if (!section_count) {
+    return tl::unexpected{ReplayDecodeError::invalid_format};
+  }
+  CheckpointDetails details;
+  for (std::uint64_t section_index = 0; section_index < *section_count; ++section_index) {
+    const auto section = reader.read_u16();
+    const auto detail_count = reader.read_u64();
+    if (!section || !detail_count ||
+        *section > static_cast<std::uint16_t>(CheckpointSection::capabilities)) {
+      return tl::unexpected{ReplayDecodeError::invalid_format};
+    }
+    auto& entries = details[static_cast<CheckpointSection>(*section)];
+    for (std::uint64_t detail = 0; detail < *detail_count; ++detail) {
+      const auto name = reader.read_string();
       const auto hash = read_hash(reader);
-      if (!section || !hash ||
-          *section > static_cast<std::uint16_t>(CheckpointSection::capabilities) ||
-          !checkpoint.sections.emplace(static_cast<CheckpointSection>(*section), *hash).second) {
+      if (!name || !hash || !entries.emplace(*name, *hash).second) {
         return tl::unexpected{ReplayDecodeError::invalid_format};
       }
     }
-    const auto detail_section_count = reader.read_u64();
-    if (!detail_section_count) {
-      return tl::unexpected{ReplayDecodeError::invalid_format};
+  }
+  return details;
+}
+
+Result<CanonicalCheckpoint, ReplayDecodeError> decode_replay_checkpoint(ByteReader& reader) {
+  const auto tick = reader.read_u64();
+  if (!tick) {
+    return tl::unexpected{ReplayDecodeError::invalid_format};
+  }
+  auto sections = decode_checkpoint_sections(reader);
+  if (!sections) {
+    return tl::unexpected{sections.error()};
+  }
+  auto details = decode_checkpoint_details(reader);
+  if (!details) {
+    return tl::unexpected{details.error()};
+  }
+  const auto overall = read_hash(reader);
+  if (!overall) {
+    return tl::unexpected{ReplayDecodeError::invalid_format};
+  }
+  return CanonicalCheckpoint{
+      .tick = Tick{*tick},
+      .sections = *std::move(sections),
+      .details = *std::move(details),
+      .overall = *overall,
+  };
+}
+
+Result<std::vector<CanonicalCheckpoint>, ReplayDecodeError>
+decode_replay_checkpoints(ByteReader& reader) {
+  const auto count = reader.read_u64();
+  if (!count) {
+    return tl::unexpected{ReplayDecodeError::invalid_format};
+  }
+  std::vector<CanonicalCheckpoint> checkpoints;
+  checkpoints.reserve(static_cast<std::size_t>(*count));
+  for (std::uint64_t index = 0; index < *count; ++index) {
+    auto checkpoint = decode_replay_checkpoint(reader);
+    if (!checkpoint) {
+      return tl::unexpected{checkpoint.error()};
     }
-    for (std::uint64_t detail_section = 0; detail_section < *detail_section_count;
-         ++detail_section) {
-      const auto section = reader.read_u16();
-      const auto detail_count = reader.read_u64();
-      if (!section || !detail_count ||
-          *section > static_cast<std::uint16_t>(CheckpointSection::capabilities)) {
-        return tl::unexpected{ReplayDecodeError::invalid_format};
-      }
-      auto& entries = checkpoint.details[static_cast<CheckpointSection>(*section)];
-      for (std::uint64_t detail = 0; detail < *detail_count; ++detail) {
-        const auto name = reader.read_string();
-        const auto hash = read_hash(reader);
-        if (!name || !hash || !entries.emplace(*name, *hash).second) {
-          return tl::unexpected{ReplayDecodeError::invalid_format};
-        }
-      }
-    }
-    const auto overall = read_hash(reader);
-    if (!overall) {
-      return tl::unexpected{ReplayDecodeError::invalid_format};
-    }
-    checkpoint.overall = *overall;
-    result.checkpoints.push_back(std::move(checkpoint));
+    checkpoints.push_back(*std::move(checkpoint));
+  }
+  return checkpoints;
+}
+
+} // namespace
+
+Result<ReplayLog, ReplayDecodeError> decode_replay(const std::span<const std::byte> bytes) {
+  ByteReader reader{bytes};
+  auto preamble = decode_replay_preamble(reader);
+  if (!preamble) {
+    return tl::unexpected{preamble.error()};
+  }
+  auto commands = decode_replay_commands(reader, preamble->command_count);
+  if (!commands) {
+    return tl::unexpected{commands.error()};
+  }
+  auto trace = decode_replay_trace(reader);
+  if (!trace) {
+    return tl::unexpected{trace.error()};
+  }
+  auto events = decode_replay_events(reader);
+  if (!events) {
+    return tl::unexpected{events.error()};
+  }
+  auto checkpoints = decode_replay_checkpoints(reader);
+  if (!checkpoints) {
+    return tl::unexpected{checkpoints.error()};
   }
   if (reader.remaining() != 0) {
     return tl::unexpected{ReplayDecodeError::invalid_format};
   }
-  return result;
+  return ReplayLog{
+      .header = std::move(preamble->header),
+      .external_commands = *std::move(commands),
+      .machine_trace = *std::move(trace),
+      .canonical_events = *std::move(events),
+      .checkpoints = *std::move(checkpoints),
+  };
 }
 
 namespace {
