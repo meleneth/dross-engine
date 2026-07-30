@@ -104,7 +104,7 @@ OccupancyIndex::restore(const std::span<const OccupancyPlacement> placements,
         OccupancyError{.reason = OccupancyErrorReason::invalid_revision, .cell = std::nullopt}};
   }
   OccupancyIndex restored;
-  const auto rebuilt = restored.rebuild(placements);
+  auto rebuilt = restored.rebuild(placements);
   if (!rebuilt) {
     return rebuilt;
   }

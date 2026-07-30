@@ -76,7 +76,7 @@ public:
   [[nodiscard]] bool accept();
   [[nodiscard]] bool finish();
   [[nodiscard]] bool block();
-  [[nodiscard]] bool restore(MovementLifecycleState state);
+  [[nodiscard]] bool restore(MovementLifecycleState restored);
   [[nodiscard]] MovementLifecycleState state() const;
 
 private:
@@ -116,7 +116,7 @@ public:
   void request_combat_stop();
   [[nodiscard]] MovementAdvance advance(Tick tick);
   [[nodiscard]] MovementSnapshot snapshot() const;
-  [[nodiscard]] bool restore(const MovementSnapshot& snapshot);
+  [[nodiscard]] bool restore(const MovementSnapshot& restored);
 
   [[nodiscard]] const HexPose& pose() const noexcept { return pose_; }
   [[nodiscard]] MovementLifecycleState state() const { return lifecycle_.state(); }

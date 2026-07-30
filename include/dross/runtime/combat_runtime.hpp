@@ -95,7 +95,7 @@ public:
   [[nodiscard]] std::vector<EntityId> turn_order() const;
   [[nodiscard]] CombatSessionState state() const;
   [[nodiscard]] CombatSessionSnapshot snapshot() const;
-  [[nodiscard]] bool restore(const CombatSessionSnapshot& snapshot);
+  [[nodiscard]] bool restore(const CombatSessionSnapshot& restored);
   [[nodiscard]] bool can_spend(EntityId actor, MovementCost cost) const override;
   [[nodiscard]] bool spend(EntityId actor, MovementCost cost) override;
 
