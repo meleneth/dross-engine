@@ -71,6 +71,10 @@ func _initialize() -> void:
 			"integrated exploration reload did not restore the saved actor cell")
 	check(is_zero_approx(demo.get_node("Player").position.x),
 			"integrated exploration reload did not reconstruct the player view")
+	check(demo.talk_to_caretaker(), "playable scene rejected the caretaker quest offer")
+	check(demo.get_node("DrossWorldHost").get_quest_stage(
+			"thump_demo:mouse_quest") == "thump_demo:hunt_mouse",
+			"playable scene did not project the accepted quest stage")
 	check(demo.preview_destination(2), "reloaded demo did not preview a reachable path")
 	check(demo.request_previewed_move(), "reloaded demo rejected MoveTo")
 	check(demo.advance_authoritative_tick(), "reloaded first movement tick failed")
@@ -134,17 +138,28 @@ func _initialize() -> void:
 	check(demo.get_node("DrossWorldHost").is_mouse_killed(),
 			"integrated demo did not commit mouse death")
 	check(demo.get_node("DrossWorldHost").get_script_state_bool(
-			"demo:field_mouse", 2, "rule_checked"),
+			"thump_demo:field_mouse", 2, "rule_checked"),
 			"field mouse did not contribute its typed ability rule")
 	check(demo.get_node("DrossWorldHost").get_script_state_bool(
-			"demo:field_mouse", 2, "attacked"),
+			"thump_demo:field_mouse", 2, "attacked"),
 			"field mouse did not react to committed damage")
 	check(demo.get_node("DrossWorldHost").get_script_state_bool(
-			"demo:field_mouse", 2, "killed"),
+			"thump_demo:field_mouse", 2, "killed"),
 			"field mouse did not react to committed death")
 	check(demo.get_node("DrossWorldHost").get_script_state_int(
-			"demo:field_mouse", 2, "reaction_roll") >= 0,
+			"thump_demo:field_mouse", 2, "reaction_roll") >= 0,
 			"field mouse reaction did not use deterministic RandomHub access")
+	check("return_tail" in demo.get_node("UI/QuestStatus").text,
+			"playable quest UI did not project the return stage")
+	check("×1" in demo.get_node("UI/InventoryStatus").text,
+			"playable inventory UI did not project the mouse tail")
+	check(demo.talk_to_caretaker(), "playable scene rejected the valid mouse-tail hand-in")
+	check(demo.get_node("DrossWorldHost").get_quest_status(
+			"thump_demo:mouse_quest") == "completed",
+			"playable scene did not complete the mouse quest")
+	check("×0" in demo.get_node("UI/InventoryStatus").text,
+			"playable inventory UI did not project the removed mouse tail")
+	check(demo.save_game(), "integrated completed-quest save was rejected")
 	var completed_hash: String = demo.get_node(
 			"DrossWorldHost").get_canonical_capability_hash()
 	check(demo.toggle_door(), "post-combat CloseDoor was rejected")

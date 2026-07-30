@@ -14,6 +14,8 @@ const DOOR_ANIMATION_SECONDS := 0.25
 @onready var path_preview: Label = $UI/PathPreview
 @onready var diagnostics: Label = $UI/Diagnostics
 @onready var status: Label = $UI/Status
+@onready var quest_status: Label = $UI/QuestStatus
+@onready var inventory_status: Label = $UI/InventoryStatus
 
 var _accumulator := 0.0
 var _destination_q := 0
@@ -37,9 +39,22 @@ func _ready() -> void:
 	mouse_module.entity_sequence = 2
 	mouse_module.state_schema_version = 1
 	mouse_module.script = load("res://thump_demo/scripts/field_mouse.gd")
-	var mouse_modules: Array[DrossScriptModuleDefinition] = [mouse_module]
-	if not host.start_script_scenario(mouse_modules, DEMO_SEED):
-		_fail_startup("field mouse script")
+	var caretaker_module := DrossScriptModuleDefinition.new()
+	caretaker_module.module_id = "thump_demo:caretaker_dialogue"
+	caretaker_module.scope_kind = 1
+	caretaker_module.entity_sequence = 3
+	caretaker_module.state_schema_version = 1
+	caretaker_module.script = load("res://thump_demo/scripts/caretaker_dialogue.gd")
+	var quest_module := DrossScriptModuleDefinition.new()
+	quest_module.module_id = "thump_demo:mouse_quest"
+	quest_module.scope_kind = 0
+	quest_module.state_schema_version = 1
+	quest_module.script = load("res://thump_demo/scripts/mouse_quest.gd")
+	var modules: Array[DrossScriptModuleDefinition] = [
+		mouse_module, caretaker_module, quest_module
+	]
+	if not host.start_script_scenario(modules, DEMO_SEED):
+		_fail_startup("ThumpDemo scripts")
 		return
 
 	var door := DrossDoorDefinition.new()
@@ -96,6 +111,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			save_game()
 		elif event.keycode == KEY_L:
 			load_game()
+		elif event.keycode == KEY_C:
+			talk_to_caretaker()
 		elif event.keycode == KEY_ESCAPE:
 			cancel_movement()
 
@@ -153,7 +170,7 @@ func advance_authoritative_tick() -> bool:
 
 
 func perform_thump_action() -> bool:
-	_last_command = "PerformAbility(dross_demo:thump)"
+	_last_command = "PerformAbility(thump_demo:thump)"
 	if not _ensure_combat_started():
 		_last_event = "Thump unavailable outside combat"
 		_refresh_diagnostics()
@@ -167,6 +184,26 @@ func perform_thump_action() -> bool:
 		]
 	else:
 		_last_event = "Thump rejected"
+	_refresh_diagnostics()
+	return accepted
+
+
+func talk_to_caretaker() -> bool:
+	_last_command = "TalkToCaretaker"
+	var quest_state := host.get_quest_status("thump_demo:mouse_quest")
+	var accepted := false
+	if quest_state == "inactive":
+		accepted = host.accept_mouse_quest_dialogue()
+		_last_event = "mouse quest accepted" if accepted else "quest offer rejected"
+	elif (
+			quest_state == "active"
+			and host.get_quest_stage("thump_demo:mouse_quest") == "thump_demo:return_tail"
+			and host.get_inventory_count(1, "thump_demo:mouse_tail") > 0
+	):
+		accepted = host.hand_in_mouse_tail_dialogue()
+		_last_event = "mouse quest completed" if accepted else "tail hand-in rejected"
+	else:
+		_last_event = "caretaker has no available option"
 	_refresh_diagnostics()
 	return accepted
 
@@ -269,6 +306,15 @@ func _refresh_views() -> void:
 
 
 func _refresh_diagnostics() -> void:
+	var quest_state := host.get_quest_status("thump_demo:mouse_quest")
+	var quest_stage := host.get_quest_stage("thump_demo:mouse_quest")
+	quest_status.text = "Quest: %s%s" % [
+		quest_state,
+		(" — %s" % quest_stage) if not quest_stage.is_empty() else "",
+	]
+	inventory_status.text = "Inventory: mouse tail ×%d" % host.get_inventory_count(
+		1, "thump_demo:mouse_tail"
+	)
 	diagnostics.text = "\n".join([
 		"tick: %d" % host.get_movement_tick(),
 		"mode: %s" % host.get_movement_mode(),

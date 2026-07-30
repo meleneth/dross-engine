@@ -95,7 +95,7 @@ offset_top = 58.0
 offset_right = 800.0
 offset_bottom = 88.0
 theme_override_font_sizes/font_size = 16
-text = "Mouse hover + click move   Esc cancel   T Thump   D door   S save   L load"
+text = "Mouse hover + click move   Esc cancel   C caretaker   T Thump   D door   S save   L load"
 
 [node name="PathPreview" type="Label" parent="UI"]
 offset_left = 24.0
@@ -106,7 +106,21 @@ theme_override_font_sizes/font_size = 16
 
 [node name="Diagnostics" type="Label" parent="UI"]
 offset_left = 24.0
-offset_top = 130.0
+offset_top = 190.0
 offset_right = 540.0
-offset_bottom = 350.0
+offset_bottom = 410.0
 theme_override_font_sizes/font_size = 15
+
+[node name="QuestStatus" type="Label" parent="UI"]
+offset_left = 24.0
+offset_top = 130.0
+offset_right = 800.0
+offset_bottom = 154.0
+theme_override_font_sizes/font_size = 16
+
+[node name="InventoryStatus" type="Label" parent="UI"]
+offset_left = 24.0
+offset_top = 158.0
+offset_right = 800.0
+offset_bottom = 182.0
+theme_override_font_sizes/font_size = 16
