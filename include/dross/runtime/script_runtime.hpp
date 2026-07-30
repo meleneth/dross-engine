@@ -5,6 +5,7 @@
 #include <dross/generated/advance_quest.hpp>
 #include <dross/generated/complete_quest.hpp>
 #include <dross/generated/damage_applied.hpp>
+#include <dross/generated/dialogue_option_chosen.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/grant_item.hpp>
 #include <dross/generated/perform_ability.hpp>
@@ -199,6 +200,11 @@ public:
                                                                   RandomStream&) {
     return {};
   }
+  [[nodiscard]] virtual Result<void, std::string>
+  on_dialogue_option_chosen(const ScriptModule&, const dialogue::DialogueOptionChosen&,
+                            ScriptCallbackTransaction&, RandomStream&) {
+    return {};
+  }
 };
 
 struct ScriptRuleResult {
@@ -230,6 +236,8 @@ public:
   [[nodiscard]] ScriptEventResult on_entity_placed(const placement::EntityPlaced& event, Tick tick);
   [[nodiscard]] ScriptEventResult on_damage_applied(const combat::DamageApplied& event, Tick tick);
   [[nodiscard]] ScriptEventResult on_actor_killed(const combat::ActorKilled& event, Tick tick);
+  [[nodiscard]] ScriptEventResult
+  on_dialogue_option_chosen(const dialogue::DialogueOptionChosen& event, Tick tick);
 
   [[nodiscard]] const std::vector<ScriptModule>& modules() const noexcept { return modules_; }
   [[nodiscard]] const ScriptStateBag& state() const noexcept { return state_; }

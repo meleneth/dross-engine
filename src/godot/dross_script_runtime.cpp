@@ -383,8 +383,9 @@ bool GodotScriptRuntime::discover_callbacks(const ScriptModule& module) {
   installed->entity_placed = installed->instance->has_method("on_entity_placed");
   installed->damage_applied = installed->instance->has_method("on_damage_applied");
   installed->actor_killed = installed->instance->has_method("on_actor_killed");
+  installed->dialogue_option_chosen = installed->instance->has_method("on_dialogue_option_chosen");
   return installed->placement || installed->ability || installed->entity_placed ||
-         installed->damage_applied || installed->actor_killed;
+         installed->damage_applied || installed->actor_killed || installed->dialogue_option_chosen;
 }
 
 Result<void, std::string> GodotScriptRuntime::invoke(const ScriptModule& module,
@@ -487,6 +488,18 @@ GodotScriptRuntime::on_actor_killed(const ScriptModule& module, const combat::Ac
   godot::Array args;
   args.push_back(generated::godot_api::DrossActorKilledEvent::from_core(event));
   return invoke(module, "on_actor_killed", args, transaction, random);
+}
+
+Result<void, std::string> GodotScriptRuntime::on_dialogue_option_chosen(
+    const ScriptModule& module, const dialogue::DialogueOptionChosen& event,
+    ScriptCallbackTransaction& transaction, RandomStream& random) {
+  auto* installed = find(module);
+  if (!installed || !installed->dialogue_option_chosen) {
+    return {};
+  }
+  godot::Array args;
+  args.push_back(generated::godot_api::DrossDialogueOptionChosenEvent::from_core(event));
+  return invoke(module, "on_dialogue_option_chosen", args, transaction, random);
 }
 
 } // namespace dross::godot_adapter

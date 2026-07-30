@@ -482,6 +482,34 @@ ScriptEventResult TypedScriptRuntime::on_actor_killed(const combat::ActorKilled&
   return result;
 }
 
+ScriptEventResult
+TypedScriptRuntime::on_dialogue_option_chosen(const dialogue::DialogueOptionChosen& event,
+                                              const Tick tick) {
+  ScriptEventResult result;
+  for (const auto& module : modules_) {
+    ScriptCallbackTransaction transaction{module, state_};
+    auto callback =
+        port_->on_dialogue_option_chosen(module, event, transaction, stream_for(module));
+    if (!callback) {
+      world_faulted_ = true;
+      result.fault = ScriptCallbackError{.module_id = module.module_id,
+                                         .scope = module.scope,
+                                         .callback = "on_dialogue_option_chosen",
+                                         .tick = tick,
+                                         .message = callback.error()};
+      return result;
+    }
+    state_.apply(transaction.state_writes());
+    result.deferred_inventory_commands.insert(result.deferred_inventory_commands.end(),
+                                              transaction.inventory_commands().begin(),
+                                              transaction.inventory_commands().end());
+    result.deferred_quest_commands.insert(result.deferred_quest_commands.end(),
+                                          transaction.quest_commands().begin(),
+                                          transaction.quest_commands().end());
+  }
+  return result;
+}
+
 RandomStream& TypedScriptRuntime::stream_for(const ScriptModule& module) {
   return random_->stream(
       script_child_stream_id(module.module_id, module.scope.entity.value_or(EntityId{0, 0})));

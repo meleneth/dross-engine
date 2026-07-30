@@ -205,6 +205,9 @@ public:
                                                           const combat::ActorKilled& event,
                                                           ScriptCallbackTransaction& transaction,
                                                           RandomStream& random) override;
+  [[nodiscard]] Result<void, std::string>
+  on_dialogue_option_chosen(const ScriptModule& module, const dialogue::DialogueOptionChosen& event,
+                            ScriptCallbackTransaction& transaction, RandomStream& random) override;
   void set_tick(Tick tick) { tick_ = tick; }
   void set_world_instance(WorldInstanceId value) { world_instance_ = value; }
   void set_inventory(const InventoryRuntime* value) { inventory_ = value; }
@@ -219,6 +222,7 @@ private:
     bool entity_placed{false};
     bool damage_applied{false};
     bool actor_killed{false};
+    bool dialogue_option_chosen{false};
   };
   [[nodiscard]] Installed* find(const ScriptModule& module);
   [[nodiscard]] Result<void, std::string>

@@ -7,6 +7,7 @@
 #include <dross/persistence/save_container.hpp>
 #include <dross/random/random_hub.hpp>
 #include <dross/runtime/command_event_kernel.hpp>
+#include <dross/runtime/dialogue_runtime.hpp>
 #include <dross/runtime/fixed_tick_runtime.hpp>
 #include <dross/runtime/machine_trace.hpp>
 #include <dross/runtime/movement_runtime.hpp>
@@ -107,15 +108,40 @@ struct DrossWorldHost::RuntimeState {
   std::unique_ptr<EngineRuntime> runtime;
 };
 
-struct DrossWorldHost::ScriptScenarioState {
+struct DrossWorldHost::ScriptScenarioState final : DialogueRuntime::EventSink {
   explicit ScriptScenarioState(const MasterSeed seed)
       : random{seed}, runtime{port, random}, mode{machine_trace},
-        inventory{WorldInstanceId{synthetic_instance}, {EntityId{7, 1}}}, quests{machine_trace} {
+        inventory{WorldInstanceId{synthetic_instance}, {EntityId{7, 1}}}, quests{machine_trace},
+        dialogue{WorldInstanceId{synthetic_instance},
+                 {player.id(), caretaker.id()},
+                 machine_trace,
+                 this} {
     port.set_world_instance(WorldInstanceId{synthetic_instance});
     port.set_inventory(&inventory);
     port.set_quests(&quests);
   }
 
+  void publish(const dialogue::DialogueStarted&) override {}
+  void publish(const dialogue::DialogueOptionChosen& event) override {
+    port.set_tick(tick);
+    const auto result = runtime.on_dialogue_option_chosen(event, tick);
+    script_fault = result.fault.has_value();
+    if (script_fault) {
+      return;
+    }
+    for (const auto& command : result.deferred_quest_commands) {
+      const auto handled =
+          std::visit([this](const auto& typed) { return quests.handle(typed); }, command);
+      if (!handled) {
+        script_fault = true;
+        return;
+      }
+    }
+  }
+  void publish(const dialogue::DialogueEnded&) override {}
+
+  EntityRef player{WorldInstanceId{synthetic_instance}, EntityId{7, 1}};
+  EntityRef caretaker{WorldInstanceId{synthetic_instance}, EntityId{7, 3}};
   GodotScriptRuntime port;
   RandomHub random;
   TypedScriptRuntime runtime;
@@ -123,6 +149,8 @@ struct DrossWorldHost::ScriptScenarioState {
   SimulationMode mode;
   InventoryRuntime inventory;
   QuestRuntime quests;
+  DialogueRuntime dialogue;
+  bool script_fault{false};
   Tick tick{0};
 };
 
@@ -535,6 +563,45 @@ std::int64_t DrossWorldHost::get_inventory_count(const std::int64_t owner_sequen
       EntityRef{WorldInstanceId{synthetic_instance},
                 EntityId{7, static_cast<std::uint64_t>(owner_sequence)}},
       *parsed));
+}
+
+bool DrossWorldHost::accept_mouse_quest_dialogue() {
+  if (!script_state_) {
+    return false;
+  }
+  auto& scenario = *script_state_;
+  const auto dialogue_id = ContentId::parse("thump_demo:caretaker_dialogue").value();
+  const auto option = ContentId::parse("thump_demo:accept_mouse_quest").value();
+  if (!scenario.dialogue.handle(dialogue::BeginDialogue{
+          .initiator = scenario.player, .partner = scenario.caretaker, .dialogue = dialogue_id}) ||
+      !scenario.dialogue.offer_options({option}) ||
+      !scenario.dialogue.handle(dialogue::ChooseDialogueOption{.initiator = scenario.player,
+                                                               .partner = scenario.caretaker,
+                                                               .dialogue = dialogue_id,
+                                                               .option = option})) {
+    return false;
+  }
+  return !scenario.script_fault;
+}
+
+godot::String DrossWorldHost::get_quest_status(const godot::String& quest) const {
+  const auto text = quest.utf8();
+  const auto parsed =
+      ContentId::parse(std::string_view{text.get_data(), static_cast<std::size_t>(text.length())});
+  if (!script_state_ || !parsed) {
+    return {};
+  }
+  switch (script_state_->quests.status(*parsed)) {
+  case QuestStatus::inactive:
+    return "inactive";
+  case QuestStatus::active:
+    return "active";
+  case QuestStatus::completed:
+    return "completed";
+  case QuestStatus::failed:
+    return "failed";
+  }
+  return {};
 }
 
 godot::PackedByteArray DrossWorldHost::save_script_state() const {
@@ -1087,6 +1154,10 @@ void DrossWorldHost::_bind_methods() {
       &DrossWorldHost::get_script_state_int);
   godot::ClassDB::bind_method(godot::D_METHOD("get_inventory_count", "owner_sequence", "item"),
                               &DrossWorldHost::get_inventory_count);
+  godot::ClassDB::bind_method(godot::D_METHOD("accept_mouse_quest_dialogue"),
+                              &DrossWorldHost::accept_mouse_quest_dialogue);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_quest_status", "quest"),
+                              &DrossWorldHost::get_quest_status);
   godot::ClassDB::bind_method(godot::D_METHOD("save_script_state"),
                               &DrossWorldHost::save_script_state);
   godot::ClassDB::bind_method(godot::D_METHOD("restore_script_state", "bytes"),

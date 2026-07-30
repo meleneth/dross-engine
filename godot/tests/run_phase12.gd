@@ -33,8 +33,20 @@ func _initialize() -> void:
 	mouse_module.entity_sequence = 2
 	mouse_module.state_schema_version = 1
 	mouse_module.script = load("res://thump_demo/scripts/field_mouse.gd")
-	var mouse_modules: Array[DrossScriptModuleDefinition] = [mouse_module]
-	check(host.start_script_scenario(mouse_modules, 12345), "field mouse script failed to install")
+	var caretaker_module := DrossScriptModuleDefinition.new()
+	caretaker_module.module_id = "thump_demo:caretaker_dialogue"
+	caretaker_module.scope_kind = 1
+	caretaker_module.entity_sequence = 3
+	caretaker_module.state_schema_version = 1
+	caretaker_module.script = load("res://thump_demo/scripts/caretaker_dialogue.gd")
+	var modules: Array[DrossScriptModuleDefinition] = [mouse_module, caretaker_module]
+	check(host.start_script_scenario(modules, 12345), "ThumpDemo scripts failed to install")
+	check(host.accept_mouse_quest_dialogue(), "caretaker dialogue choice was rejected")
+	check(host.get_script_state_bool(
+			"thump_demo:caretaker_dialogue", 3, "accepted_mouse_quest"),
+			"caretaker did not submit the typed quest command")
+	check(host.get_quest_status("thump_demo:mouse_quest") == "active",
+			"caretaker quest command did not commit")
 	check(host.start_thump_scenario(thump), "Godot combat host rejected typed Thump")
 	check(host.get_mouse_health() == 3, "mouse did not start with authoritative health")
 	check(host.perform_thump(), "generic PerformAbility rejected Thump")
@@ -52,9 +64,9 @@ func _initialize() -> void:
 			"field mouse did not submit its deferred typed reward")
 	check(host.get_script_state_int("thump_demo:field_mouse", 2, "tails_before_reward") == 0,
 			"field mouse inventory query did not observe the pre-reward count")
-	check(not host.get_script_state_bool(
+	check(host.get_script_state_bool(
 			"thump_demo:field_mouse", 2, "mouse_quest_was_active"),
-			"field mouse quest query did not observe the inactive lifecycle")
+			"field mouse quest query did not observe the active lifecycle")
 	check(host.get_inventory_count(1, "thump_demo:mouse_tail") == 1,
 			"deferred mouse-tail reward did not commit")
 	check(host.get_script_state_int("thump_demo:field_mouse", 2, "reaction_roll") >= 0,

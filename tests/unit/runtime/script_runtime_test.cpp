@@ -94,6 +94,15 @@ public:
           .count = 1,
       });
     }
+    if (fault_event) {
+      return tl::unexpected{std::string{"event failed"}};
+    }
+    return {};
+  }
+
+  dross::Result<void, std::string> on_dialogue_option_chosen(
+      const dross::ScriptModule&, const dross::dialogue::DialogueOptionChosen&,
+      dross::ScriptCallbackTransaction& transaction, dross::RandomStream&) override {
     if (start_mouse_quest) {
       transaction.submit(dross::quest::StartQuest{
           .quest = id("thump_demo:mouse_quest"),
@@ -310,13 +319,14 @@ TEST_CASE("script quest commands are deferred and discarded on callback fault") 
   dross::RandomHub random{dross::MasterSeed{10}};
   dross::TypedScriptRuntime runtime{port, random};
   REQUIRE(runtime.install(entity_module("thump_demo:caretaker_dialogue", 3)));
-  const auto killed = dross::combat::ActorKilled{
-      .killer = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 1}},
-      .target = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 2}},
-      .ability = id("thump_demo:thump"),
+  const auto chosen = dross::dialogue::DialogueOptionChosen{
+      .initiator = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 1}},
+      .partner = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 3}},
+      .dialogue = id("thump_demo:caretaker_dialogue"),
+      .option = id("thump_demo:accept_mouse_quest"),
   };
 
-  const auto accepted = runtime.on_actor_killed(killed, dross::Tick{1});
+  const auto accepted = runtime.on_dialogue_option_chosen(chosen, dross::Tick{1});
   REQUIRE_FALSE(accepted.fault);
   REQUIRE(accepted.deferred_quest_commands.size() == 1);
   const auto* start =
@@ -326,7 +336,7 @@ TEST_CASE("script quest commands are deferred and discarded on callback fault") 
   CHECK(start->stage == id("thump_demo:hunt_mouse"));
 
   port.fault_event = true;
-  const auto rejected = runtime.on_actor_killed(killed, dross::Tick{2});
+  const auto rejected = runtime.on_dialogue_option_chosen(chosen, dross::Tick{2});
   REQUIRE(rejected.fault);
   CHECK(rejected.deferred_quest_commands.empty());
 }
