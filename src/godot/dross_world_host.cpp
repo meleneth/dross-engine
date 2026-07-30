@@ -299,6 +299,14 @@ struct DrossWorldHost::CombatScenarioState final : AbilityResolver::EventSink,
             break;
           }
         }
+        for (const auto& command : result.deferred_quest_commands) {
+          const auto handled = std::visit(
+              [this](const auto& typed) { return scripts->quests.handle(typed); }, command);
+          if (!handled) {
+            script_fault = true;
+            break;
+          }
+        }
       }
     }
   }

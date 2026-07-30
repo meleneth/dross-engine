@@ -235,6 +235,10 @@ void ScriptCallbackTransaction::submit(inventory::GrantItem command) {
   inventory_commands_.push_back(std::move(command));
 }
 
+void ScriptCallbackTransaction::submit(ScriptQuestCommand command) {
+  quest_commands_.push_back(std::move(command));
+}
+
 void ScriptCallbackTransaction::set_state(ScriptStateKey key, ScriptStateValue value) {
   state_writes_.push_back(ScriptStateWrite{
       .address =
@@ -290,11 +294,13 @@ ScriptRuleResult TypedScriptRuntime::contribute_placement(const placement::Place
                           .deferred_commands = {},
                           .deferred_mode_commands = {},
                           .deferred_inventory_commands = {},
+                          .deferred_quest_commands = {},
                           .fault = {}};
   std::vector<ScriptStateWrite> pending_state;
   std::vector<PlaceEntityEnvelope> pending_commands;
   std::vector<ScriptModeCommand> pending_mode_commands;
   std::vector<inventory::GrantItem> pending_inventory_commands;
+  std::vector<ScriptQuestCommand> pending_quest_commands;
   for (const auto& module : modules_) {
     ScriptCallbackTransaction transaction{module, state_};
     auto callback = port_->contribute_placement(module, query, transaction, stream_for(module));
@@ -322,6 +328,9 @@ ScriptRuleResult TypedScriptRuntime::contribute_placement(const placement::Place
     pending_inventory_commands.insert(pending_inventory_commands.end(),
                                       transaction.inventory_commands().begin(),
                                       transaction.inventory_commands().end());
+    pending_quest_commands.insert(pending_quest_commands.end(),
+                                  transaction.quest_commands().begin(),
+                                  transaction.quest_commands().end());
     if (!result.accepted) {
       return result;
     }
@@ -330,6 +339,7 @@ ScriptRuleResult TypedScriptRuntime::contribute_placement(const placement::Place
   result.deferred_commands = std::move(pending_commands);
   result.deferred_mode_commands = std::move(pending_mode_commands);
   result.deferred_inventory_commands = std::move(pending_inventory_commands);
+  result.deferred_quest_commands = std::move(pending_quest_commands);
   return result;
 }
 
@@ -340,11 +350,13 @@ ScriptRuleResult TypedScriptRuntime::contribute_ability(const combat::PerformAbi
                           .deferred_commands = {},
                           .deferred_mode_commands = {},
                           .deferred_inventory_commands = {},
+                          .deferred_quest_commands = {},
                           .fault = {}};
   std::vector<ScriptStateWrite> pending_state;
   std::vector<PlaceEntityEnvelope> pending_commands;
   std::vector<ScriptModeCommand> pending_mode_commands;
   std::vector<inventory::GrantItem> pending_inventory_commands;
+  std::vector<ScriptQuestCommand> pending_quest_commands;
   for (const auto& module : modules_) {
     ScriptCallbackTransaction transaction{module, state_};
     auto callback = port_->contribute_ability(module, query, transaction, stream_for(module));
@@ -372,6 +384,9 @@ ScriptRuleResult TypedScriptRuntime::contribute_ability(const combat::PerformAbi
     pending_inventory_commands.insert(pending_inventory_commands.end(),
                                       transaction.inventory_commands().begin(),
                                       transaction.inventory_commands().end());
+    pending_quest_commands.insert(pending_quest_commands.end(),
+                                  transaction.quest_commands().begin(),
+                                  transaction.quest_commands().end());
     if (!result.accepted) {
       return result;
     }
@@ -380,6 +395,7 @@ ScriptRuleResult TypedScriptRuntime::contribute_ability(const combat::PerformAbi
   result.deferred_commands = std::move(pending_commands);
   result.deferred_mode_commands = std::move(pending_mode_commands);
   result.deferred_inventory_commands = std::move(pending_inventory_commands);
+  result.deferred_quest_commands = std::move(pending_quest_commands);
   return result;
 }
 
@@ -407,6 +423,9 @@ ScriptEventResult TypedScriptRuntime::on_entity_placed(const placement::EntityPl
     result.deferred_inventory_commands.insert(result.deferred_inventory_commands.end(),
                                               transaction.inventory_commands().begin(),
                                               transaction.inventory_commands().end());
+    result.deferred_quest_commands.insert(result.deferred_quest_commands.end(),
+                                          transaction.quest_commands().begin(),
+                                          transaction.quest_commands().end());
   }
   return result;
 }
@@ -430,6 +449,9 @@ ScriptEventResult TypedScriptRuntime::on_damage_applied(const combat::DamageAppl
     result.deferred_inventory_commands.insert(result.deferred_inventory_commands.end(),
                                               transaction.inventory_commands().begin(),
                                               transaction.inventory_commands().end());
+    result.deferred_quest_commands.insert(result.deferred_quest_commands.end(),
+                                          transaction.quest_commands().begin(),
+                                          transaction.quest_commands().end());
   }
   return result;
 }
@@ -453,6 +475,9 @@ ScriptEventResult TypedScriptRuntime::on_actor_killed(const combat::ActorKilled&
     result.deferred_inventory_commands.insert(result.deferred_inventory_commands.end(),
                                               transaction.inventory_commands().begin(),
                                               transaction.inventory_commands().end());
+    result.deferred_quest_commands.insert(result.deferred_quest_commands.end(),
+                                          transaction.quest_commands().begin(),
+                                          transaction.quest_commands().end());
   }
   return result;
 }

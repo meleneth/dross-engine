@@ -85,6 +85,11 @@ public:
   void request_combat();
   [[nodiscard]] bool grant_item(std::int64_t owner_lineage, std::int64_t owner_sequence,
                                 const godot::String& item, std::int64_t count);
+  [[nodiscard]] bool start_quest(const godot::String& quest, const godot::String& stage);
+  [[nodiscard]] bool advance_quest(const godot::String& quest, const godot::String& expected_stage,
+                                   const godot::String& next_stage);
+  [[nodiscard]] bool complete_quest(const godot::String& quest,
+                                    const godot::String& expected_stage);
   void attach(ScriptCallbackTransaction* transaction, WorldInstanceId world_instance) {
     transaction_ = transaction;
     world_instance_ = world_instance;

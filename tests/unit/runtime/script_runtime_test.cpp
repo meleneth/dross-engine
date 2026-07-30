@@ -35,6 +35,7 @@ public:
   bool fault_event{false};
   bool request_combat{false};
   bool grant_reward{false};
+  bool start_mouse_quest{false};
   std::vector<std::string> calls;
   std::vector<std::uint64_t> rolls;
 
@@ -91,6 +92,12 @@ public:
           .owner = event.killer,
           .item = id("thump_demo:mouse_tail"),
           .count = 1,
+      });
+    }
+    if (start_mouse_quest) {
+      transaction.submit(dross::quest::StartQuest{
+          .quest = id("thump_demo:mouse_quest"),
+          .stage = id("thump_demo:hunt_mouse"),
       });
     }
     if (fault_event) {
@@ -295,4 +302,31 @@ TEST_CASE("script inventory commands are deferred and discarded on callback faul
   const auto rejected = runtime.on_actor_killed(killed, dross::Tick{2});
   REQUIRE(rejected.fault);
   CHECK(rejected.deferred_inventory_commands.empty());
+}
+
+TEST_CASE("script quest commands are deferred and discarded on callback fault") {
+  RecordingPort port;
+  port.start_mouse_quest = true;
+  dross::RandomHub random{dross::MasterSeed{10}};
+  dross::TypedScriptRuntime runtime{port, random};
+  REQUIRE(runtime.install(entity_module("thump_demo:caretaker_dialogue", 3)));
+  const auto killed = dross::combat::ActorKilled{
+      .killer = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 1}},
+      .target = dross::EntityRef{dross::WorldInstanceId{1}, dross::EntityId{7, 2}},
+      .ability = id("thump_demo:thump"),
+  };
+
+  const auto accepted = runtime.on_actor_killed(killed, dross::Tick{1});
+  REQUIRE_FALSE(accepted.fault);
+  REQUIRE(accepted.deferred_quest_commands.size() == 1);
+  const auto* start =
+      std::get_if<dross::quest::StartQuest>(&accepted.deferred_quest_commands.front());
+  REQUIRE(start != nullptr);
+  CHECK(start->quest == id("thump_demo:mouse_quest"));
+  CHECK(start->stage == id("thump_demo:hunt_mouse"));
+
+  port.fault_event = true;
+  const auto rejected = runtime.on_actor_killed(killed, dross::Tick{2});
+  REQUIRE(rejected.fault);
+  CHECK(rejected.deferred_quest_commands.empty());
 }

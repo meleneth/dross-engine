@@ -2,11 +2,14 @@
 
 #include <dross/foundation/result.hpp>
 #include <dross/generated/actor_killed.hpp>
+#include <dross/generated/advance_quest.hpp>
+#include <dross/generated/complete_quest.hpp>
 #include <dross/generated/damage_applied.hpp>
 #include <dross/generated/entity_placed.hpp>
 #include <dross/generated/grant_item.hpp>
 #include <dross/generated/perform_ability.hpp>
 #include <dross/generated/place_entity.hpp>
+#include <dross/generated/start_quest.hpp>
 #include <dross/identity/content_id.hpp>
 #include <dross/identity/ids.hpp>
 #include <dross/random/random_hub.hpp>
@@ -117,6 +120,9 @@ enum class ScriptModeCommand : std::uint8_t {
   request_combat,
 };
 
+using ScriptQuestCommand =
+    std::variant<quest::StartQuest, quest::AdvanceQuest, quest::CompleteQuest>;
+
 class ScriptCallbackTransaction {
 public:
   ScriptCallbackTransaction(const ScriptModule& module, const ScriptStateBag& state);
@@ -125,6 +131,7 @@ public:
   void submit(PlaceEntityEnvelope command);
   void request_combat();
   void submit(inventory::GrantItem command);
+  void submit(ScriptQuestCommand command);
   void set_state(ScriptStateKey key, ScriptStateValue value);
   [[nodiscard]] const ScriptStateValue* state(const ScriptStateKey& key) const;
 
@@ -141,6 +148,9 @@ public:
   [[nodiscard]] const std::vector<inventory::GrantItem>& inventory_commands() const noexcept {
     return inventory_commands_;
   }
+  [[nodiscard]] const std::vector<ScriptQuestCommand>& quest_commands() const noexcept {
+    return quest_commands_;
+  }
 
 private:
   const ScriptModule* module_;
@@ -150,6 +160,7 @@ private:
   std::vector<ScriptStateWrite> state_writes_;
   std::vector<ScriptModeCommand> mode_commands_;
   std::vector<inventory::GrantItem> inventory_commands_;
+  std::vector<ScriptQuestCommand> quest_commands_;
 };
 
 struct ScriptCallbackError {
@@ -196,6 +207,7 @@ struct ScriptRuleResult {
   std::vector<PlaceEntityEnvelope> deferred_commands;
   std::vector<ScriptModeCommand> deferred_mode_commands;
   std::vector<inventory::GrantItem> deferred_inventory_commands;
+  std::vector<ScriptQuestCommand> deferred_quest_commands;
   std::optional<ScriptCallbackError> fault;
 };
 
@@ -203,6 +215,7 @@ struct ScriptEventResult {
   std::vector<PlaceEntityEnvelope> deferred_commands;
   std::vector<ScriptModeCommand> deferred_mode_commands;
   std::vector<inventory::GrantItem> deferred_inventory_commands;
+  std::vector<ScriptQuestCommand> deferred_quest_commands;
   std::optional<ScriptCallbackError> fault;
 };
 

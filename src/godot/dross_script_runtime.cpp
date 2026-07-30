@@ -139,11 +139,55 @@ bool DrossCommandApi::grant_item(const std::int64_t owner_lineage,
   return true;
 }
 
+bool DrossCommandApi::start_quest(const godot::String& quest, const godot::String& stage) {
+  auto parsed_quest = ContentId::parse(utf8(quest));
+  auto parsed_stage = ContentId::parse(utf8(stage));
+  if (!transaction_ || !parsed_quest || !parsed_stage) {
+    return false;
+  }
+  transaction_->submit(
+      quest::StartQuest{.quest = *std::move(parsed_quest), .stage = *std::move(parsed_stage)});
+  return true;
+}
+
+bool DrossCommandApi::advance_quest(const godot::String& quest, const godot::String& expected_stage,
+                                    const godot::String& next_stage) {
+  auto parsed_quest = ContentId::parse(utf8(quest));
+  auto parsed_expected = ContentId::parse(utf8(expected_stage));
+  auto parsed_next = ContentId::parse(utf8(next_stage));
+  if (!transaction_ || !parsed_quest || !parsed_expected || !parsed_next) {
+    return false;
+  }
+  transaction_->submit(quest::AdvanceQuest{.quest = *std::move(parsed_quest),
+                                           .expected_stage = *std::move(parsed_expected),
+                                           .next_stage = *std::move(parsed_next)});
+  return true;
+}
+
+bool DrossCommandApi::complete_quest(const godot::String& quest,
+                                     const godot::String& expected_stage) {
+  auto parsed_quest = ContentId::parse(utf8(quest));
+  auto parsed_expected = ContentId::parse(utf8(expected_stage));
+  if (!transaction_ || !parsed_quest || !parsed_expected) {
+    return false;
+  }
+  transaction_->submit(quest::CompleteQuest{.quest = *std::move(parsed_quest),
+                                            .expected_stage = *std::move(parsed_expected)});
+  return true;
+}
+
 void DrossCommandApi::_bind_methods() {
   godot::ClassDB::bind_method(godot::D_METHOD("request_combat"), &DrossCommandApi::request_combat);
   godot::ClassDB::bind_method(
       godot::D_METHOD("grant_item", "owner_lineage", "owner_sequence", "item", "count"),
       &DrossCommandApi::grant_item);
+  godot::ClassDB::bind_method(godot::D_METHOD("start_quest", "quest", "stage"),
+                              &DrossCommandApi::start_quest);
+  godot::ClassDB::bind_method(
+      godot::D_METHOD("advance_quest", "quest", "expected_stage", "next_stage"),
+      &DrossCommandApi::advance_quest);
+  godot::ClassDB::bind_method(godot::D_METHOD("complete_quest", "quest", "expected_stage"),
+                              &DrossCommandApi::complete_quest);
 }
 
 bool DrossQueryApi::is_owner(const std::int64_t lineage, const std::int64_t sequence) const {
