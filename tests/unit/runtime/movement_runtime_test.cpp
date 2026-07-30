@@ -262,6 +262,31 @@ TEST_CASE("movement facts follow authoritative cell commits") {
   CHECK(events.calls == std::vector<std::string>{"started", "entered", "entered", "completed"});
 }
 
+TEST_CASE("typed movement commands validate actor identity before changing state") {
+  auto map = line_map();
+  dross::OccupancyIndex occupancy;
+  dross::WeightedAStarPathPlanner planner;
+  auto footprint = single_footprint();
+  REQUIRE(occupancy.place(actor().id(), {cell(0, 0)}));
+  dross::MovementRuntime movement{
+      map, occupancy, planner, footprint, actor(), pose(0, 0), {.ticks_per_transition = 2}};
+  const dross::EntityRef stranger{dross::WorldInstanceId{1}, dross::EntityId{7, 2}};
+
+  const auto rejected =
+      movement.handle(dross::movement::MoveTo{.entity = stranger, .destination = pose(2, 0)});
+  REQUIRE_FALSE(rejected);
+  CHECK(rejected.error() == dross::MovementCommandRejection::wrong_entity);
+  CHECK(movement.state() == dross::MovementLifecycleState::idle);
+  CHECK(movement.pose() == pose(0, 0));
+
+  REQUIRE(movement.handle(dross::movement::MoveTo{.entity = actor(), .destination = pose(2, 0)}));
+  const auto wrong_cancel = movement.handle(dross::movement::CancelMovement{.entity = stranger});
+  REQUIRE_FALSE(wrong_cancel);
+  CHECK(wrong_cancel.error() == dross::MovementCommandRejection::wrong_entity);
+  CHECK(movement.state() == dross::MovementLifecycleState::traversing);
+  REQUIRE(movement.handle(dross::movement::CancelMovement{.entity = actor()}));
+}
+
 TEST_CASE("combat movement previews against AP and spends only at committed boundaries") {
   auto map = line_map();
   dross::OccupancyIndex occupancy;

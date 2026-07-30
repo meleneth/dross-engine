@@ -2,6 +2,8 @@
 
 #include <dross/foundation/quantities.hpp>
 #include <dross/generated/actor_entered_cell.hpp>
+#include <dross/generated/cancel_movement.hpp>
+#include <dross/generated/move_to.hpp>
 #include <dross/generated/movement_completed.hpp>
 #include <dross/generated/movement_started.hpp>
 #include <dross/hex/path_planner.hpp>
@@ -40,6 +42,11 @@ struct MovementPreview {
   MovementCost cost;
   std::uint64_t duration_ticks;
   std::uint64_t occupancy_revision;
+};
+
+enum class MovementCommandRejection : std::uint8_t {
+  wrong_entity,
+  rejected,
 };
 
 class MovementEventSink {
@@ -101,6 +108,9 @@ public:
                   MovementCostAccount* costs = nullptr);
 
   [[nodiscard]] MovementPreview preview(const HexPose& goal) const;
+  [[nodiscard]] Result<void, MovementCommandRejection> handle(const movement::MoveTo& command);
+  [[nodiscard]] Result<void, MovementCommandRejection>
+  handle(const movement::CancelMovement& command);
   [[nodiscard]] bool move_to(const HexPose& goal);
   [[nodiscard]] bool cancel();
   void request_combat_stop();

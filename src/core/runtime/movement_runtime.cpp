@@ -199,6 +199,27 @@ MovementPreview MovementRuntime::preview(const HexPose& goal) const {
   };
 }
 
+Result<void, MovementCommandRejection> MovementRuntime::handle(const movement::MoveTo& command) {
+  if (command.entity != entity_) {
+    return tl::unexpected{MovementCommandRejection::wrong_entity};
+  }
+  if (!move_to(command.destination)) {
+    return tl::unexpected{MovementCommandRejection::rejected};
+  }
+  return {};
+}
+
+Result<void, MovementCommandRejection>
+MovementRuntime::handle(const movement::CancelMovement& command) {
+  if (command.entity != entity_) {
+    return tl::unexpected{MovementCommandRejection::wrong_entity};
+  }
+  if (!cancel()) {
+    return tl::unexpected{MovementCommandRejection::rejected};
+  }
+  return {};
+}
+
 bool MovementRuntime::move_to(const HexPose& goal) {
   if (combat_stop_requested_ || lifecycle_.state() != MovementLifecycleState::idle ||
       config_.ticks_per_transition == 0) {

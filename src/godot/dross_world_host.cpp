@@ -545,11 +545,18 @@ DrossWorldHost::preview_movement(const std::int64_t destination_q) const {
 
 bool DrossWorldHost::move_to(const std::int64_t destination_q) {
   return movement_state_ && destination_q >= 0 && destination_q <= 3 &&
-         movement_state_->movement.move_to(movement_pose(static_cast<std::int32_t>(destination_q)));
+         movement_state_->movement
+             .handle(movement::MoveTo{
+                 .entity = movement_state_->entity,
+                 .destination = movement_pose(static_cast<std::int32_t>(destination_q)),
+             })
+             .has_value();
 }
 
 bool DrossWorldHost::cancel_movement() {
-  return movement_state_ && movement_state_->movement.cancel();
+  return movement_state_ && movement_state_->movement
+                                .handle(movement::CancelMovement{.entity = movement_state_->entity})
+                                .has_value();
 }
 
 bool DrossWorldHost::request_movement_combat() {
