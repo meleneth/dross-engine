@@ -604,6 +604,17 @@ godot::String DrossWorldHost::get_quest_status(const godot::String& quest) const
   return {};
 }
 
+godot::String DrossWorldHost::get_quest_stage(const godot::String& quest) const {
+  const auto text = quest.utf8();
+  const auto parsed =
+      ContentId::parse(std::string_view{text.get_data(), static_cast<std::size_t>(text.length())});
+  if (!script_state_ || !parsed) {
+    return {};
+  }
+  const auto stage = script_state_->quests.stage(*parsed);
+  return stage ? godot::String{stage->canonical().data()} : godot::String{};
+}
+
 godot::PackedByteArray DrossWorldHost::save_script_state() const {
   godot::PackedByteArray output;
   if (!script_state_) {
@@ -1158,6 +1169,8 @@ void DrossWorldHost::_bind_methods() {
                               &DrossWorldHost::accept_mouse_quest_dialogue);
   godot::ClassDB::bind_method(godot::D_METHOD("get_quest_status", "quest"),
                               &DrossWorldHost::get_quest_status);
+  godot::ClassDB::bind_method(godot::D_METHOD("get_quest_stage", "quest"),
+                              &DrossWorldHost::get_quest_stage);
   godot::ClassDB::bind_method(godot::D_METHOD("save_script_state"),
                               &DrossWorldHost::save_script_state);
   godot::ClassDB::bind_method(godot::D_METHOD("restore_script_state", "bytes"),

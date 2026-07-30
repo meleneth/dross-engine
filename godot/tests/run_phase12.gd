@@ -39,7 +39,14 @@ func _initialize() -> void:
 	caretaker_module.entity_sequence = 3
 	caretaker_module.state_schema_version = 1
 	caretaker_module.script = load("res://thump_demo/scripts/caretaker_dialogue.gd")
-	var modules: Array[DrossScriptModuleDefinition] = [mouse_module, caretaker_module]
+	var quest_module := DrossScriptModuleDefinition.new()
+	quest_module.module_id = "thump_demo:mouse_quest"
+	quest_module.scope_kind = 0
+	quest_module.state_schema_version = 1
+	quest_module.script = load("res://thump_demo/scripts/mouse_quest.gd")
+	var modules: Array[DrossScriptModuleDefinition] = [
+		mouse_module, caretaker_module, quest_module
+	]
 	check(host.start_script_scenario(modules, 12345), "ThumpDemo scripts failed to install")
 	check(host.accept_mouse_quest_dialogue(), "caretaker dialogue choice was rejected")
 	check(host.get_script_state_bool(
@@ -69,6 +76,10 @@ func _initialize() -> void:
 			"field mouse quest query did not observe the active lifecycle")
 	check(host.get_inventory_count(1, "thump_demo:mouse_tail") == 1,
 			"deferred mouse-tail reward did not commit")
+	check(host.get_script_state_bool("thump_demo:mouse_quest", 0, "return_stage_submitted"),
+			"mouse quest script did not submit its typed stage advance")
+	check(host.get_quest_stage("thump_demo:mouse_quest") == "thump_demo:return_tail",
+			"mouse quest stage advance did not commit")
 	check(host.get_script_state_int("thump_demo:field_mouse", 2, "reaction_roll") >= 0,
 			"field mouse reaction did not use deterministic RandomHub access")
 	host.queue_free()

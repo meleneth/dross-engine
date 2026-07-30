@@ -51,6 +51,7 @@ public:
                                                  const godot::String& item) const;
   [[nodiscard]] bool accept_mouse_quest_dialogue();
   [[nodiscard]] godot::String get_quest_status(const godot::String& quest) const;
+  [[nodiscard]] godot::String get_quest_stage(const godot::String& quest) const;
   [[nodiscard]] godot::PackedByteArray save_script_state() const;
   [[nodiscard]] bool restore_script_state(const godot::PackedByteArray& bytes);
   [[nodiscard]] bool start_movement_scenario();
