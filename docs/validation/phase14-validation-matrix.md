@@ -1,6 +1,6 @@
 # Phase 14 Validation Matrix
 
-Recorded 2026-07-29 through commit `45f4cbe`.
+Recorded 2026-07-29 through commit `5517810`.
 
 ## Results
 
@@ -15,7 +15,7 @@ Recorded 2026-07-29 through commit `45f4cbe`.
 | Godot 4.7.1 Linux release boundary | Pass | 8 of 8 integration scripts |
 | Deterministic replay | Pass | 2 checkpoints and 6 events verified |
 | Repeated replay recording | Pass | Byte-identical SHA-256 `0e3aad2bb199ad005749e7614aaafae51e1679ca5ff4adcb391808606ef64bb6` |
-| Linux x86_64 package | Pass | Fresh release package exported and smoke-launched outside the repository |
+| Linux x86_64 package | Pass | Fresh release package exported after sanitizer artifact isolation, checksum-verified, and smoke-launched outside the repository |
 | Windows | Unverified | No Windows host, runner, or export template is available |
 | Steam Deck device | Unverified | No device is available; compatibility is inferred only from the Linux x86_64 package |
 
