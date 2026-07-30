@@ -187,6 +187,87 @@ CheckpointHash canonical_capability_hash(const Tick tick,
   return hash_bytes(writer.bytes());
 }
 
+namespace {
+
+using CheckpointSections = std::map<CheckpointSection, CheckpointHash>;
+using CheckpointDetails = std::map<CheckpointSection, std::map<std::string, CheckpointHash>>;
+
+void encode_occupancy_section(const OccupancyIndex& occupancy, CheckpointSections& sections) {
+  ByteWriter occupied;
+  const auto entries = occupancy.entries();
+  occupied.write_u64(entries.size());
+  for (const auto& entry : entries) {
+    write_cell(occupied, entry.cell);
+    occupied.write(entry.entity);
+  }
+  sections.emplace(CheckpointSection::occupancy, hash_bytes(occupied.bytes()));
+}
+
+void encode_capability_section(const CanonicalCapabilitySnapshot& capabilities,
+                               CheckpointSections& sections, CheckpointDetails& details) {
+  ByteWriter capability_state;
+  const auto add_capability = [&](const std::string& name, const std::span<const std::byte> bytes,
+                                  const bool add_summary_detail = true) {
+    const auto hash = hash_bytes(bytes);
+    capability_state.write_string(name);
+    write_hash(capability_state, hash);
+    if (add_summary_detail) {
+      details[CheckpointSection::capabilities].emplace(name, hash);
+    }
+  };
+  if (capabilities.movement) {
+    ByteWriter movement;
+    encode_movement_snapshot(movement, *capabilities.movement);
+    add_capability("movement", movement.bytes());
+  }
+  if (capabilities.combat) {
+    ByteWriter combat;
+    encode_combat_session_snapshot(combat, *capabilities.combat);
+    add_capability("combat/session", combat.bytes());
+  }
+  if (capabilities.combat_actors) {
+    ByteWriter actors;
+    encode_ability_resolver_snapshot(actors, *capabilities.combat_actors);
+    add_capability("combat/actors", actors.bytes(), false);
+    for (const auto& actor : capabilities.combat_actors->actors) {
+      ByteWriter actor_state;
+      encode_ability_resolver_snapshot(actor_state, AbilityResolverSnapshot{.actors = {actor}});
+      details[CheckpointSection::capabilities].emplace(
+          "combat/actors/" + std::to_string(actor.entity.lineage()) + "/" +
+              std::to_string(actor.entity.sequence()),
+          hash_bytes(actor_state.bytes()));
+    }
+  }
+  if (capabilities.door) {
+    ByteWriter door;
+    encode_door_snapshot(door, *capabilities.door);
+    add_capability("door", door.bytes());
+  }
+  if (capabilities.script) {
+    const auto script = encode_script_state(*capabilities.script);
+    add_capability("script/state", script, false);
+    for (const auto& [address, value] : capabilities.script->values()) {
+      ScriptStateBag single_value;
+      single_value.apply({ScriptStateWrite{.address = address, .value = value}});
+      std::string scope = address.scope.kind == ScriptScopeKind::region ? "region/" : "entity/";
+      scope += address.scope.region.canonical();
+      if (address.scope.entity) {
+        scope += "/" + std::to_string(address.scope.entity->lineage()) + "/" +
+                 std::to_string(address.scope.entity->sequence());
+      }
+      details[CheckpointSection::capabilities].emplace(
+          "script/state/" + std::string{address.module_id.canonical()} + "/" + scope + "/" +
+              address.key.value(),
+          hash_bytes(encode_script_state(single_value)));
+    }
+  }
+  if (!capability_state.bytes().empty()) {
+    sections.emplace(CheckpointSection::capabilities, hash_bytes(capability_state.bytes()));
+  }
+}
+
+} // namespace
+
 CanonicalCheckpoint
 canonical_checkpoint(const Tick tick, const WorldStorage& world, const OccupancyIndex& occupancy,
                      const RandomHubSnapshot& random, const WorldLifecycleSnapshot lifecycle,
@@ -257,14 +338,7 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
   }
   sections.emplace(CheckpointSection::components, hash_bytes(components.bytes()));
 
-  ByteWriter occupied;
-  const auto entries = occupancy.entries();
-  occupied.write_u64(entries.size());
-  for (const auto& entry : entries) {
-    write_cell(occupied, entry.cell);
-    occupied.write(entry.entity);
-  }
-  sections.emplace(CheckpointSection::occupancy, hash_bytes(occupied.bytes()));
+  encode_occupancy_section(occupancy, sections);
 
   ByteWriter random_state;
   random_state.write_u64(random.master_seed.value());
@@ -324,65 +398,7 @@ canonical_checkpoint(const Tick tick, const WorldStorage& world, const Occupancy
   }
   sections.emplace(CheckpointSection::pending_commands, hash_bytes(pending.bytes()));
 
-  ByteWriter capability_state;
-  const auto add_capability = [&](const std::string& name, const std::span<const std::byte> bytes,
-                                  const bool add_summary_detail = true) {
-    const auto hash = hash_bytes(bytes);
-    capability_state.write_string(name);
-    write_hash(capability_state, hash);
-    if (add_summary_detail) {
-      details[CheckpointSection::capabilities].emplace(name, hash);
-    }
-  };
-  if (capabilities.movement) {
-    ByteWriter movement;
-    encode_movement_snapshot(movement, *capabilities.movement);
-    add_capability("movement", movement.bytes());
-  }
-  if (capabilities.combat) {
-    ByteWriter combat;
-    encode_combat_session_snapshot(combat, *capabilities.combat);
-    add_capability("combat/session", combat.bytes());
-  }
-  if (capabilities.combat_actors) {
-    ByteWriter actors;
-    encode_ability_resolver_snapshot(actors, *capabilities.combat_actors);
-    add_capability("combat/actors", actors.bytes(), false);
-    for (const auto& actor : capabilities.combat_actors->actors) {
-      ByteWriter actor_state;
-      encode_ability_resolver_snapshot(actor_state, AbilityResolverSnapshot{.actors = {actor}});
-      details[CheckpointSection::capabilities].emplace(
-          "combat/actors/" + std::to_string(actor.entity.lineage()) + "/" +
-              std::to_string(actor.entity.sequence()),
-          hash_bytes(actor_state.bytes()));
-    }
-  }
-  if (capabilities.door) {
-    ByteWriter door;
-    encode_door_snapshot(door, *capabilities.door);
-    add_capability("door", door.bytes());
-  }
-  if (capabilities.script) {
-    const auto script = encode_script_state(*capabilities.script);
-    add_capability("script/state", script, false);
-    for (const auto& [address, value] : capabilities.script->values()) {
-      ScriptStateBag single_value;
-      single_value.apply({ScriptStateWrite{.address = address, .value = value}});
-      std::string scope = address.scope.kind == ScriptScopeKind::region ? "region/" : "entity/";
-      scope += address.scope.region.canonical();
-      if (address.scope.entity) {
-        scope += "/" + std::to_string(address.scope.entity->lineage()) + "/" +
-                 std::to_string(address.scope.entity->sequence());
-      }
-      details[CheckpointSection::capabilities].emplace(
-          "script/state/" + std::string{address.module_id.canonical()} + "/" + scope + "/" +
-              address.key.value(),
-          hash_bytes(encode_script_state(single_value)));
-    }
-  }
-  if (!capability_state.bytes().empty()) {
-    sections.emplace(CheckpointSection::capabilities, hash_bytes(capability_state.bytes()));
-  }
+  encode_capability_section(capabilities, sections, details);
 
   ByteWriter combined;
   for (const auto& [section, hash] : sections) {
