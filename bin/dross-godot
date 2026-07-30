@@ -1,0 +1,101 @@
+#!/usr/bin/env sh
+set -eu
+
+project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+required_version=4.7.1
+build_enabled=1
+
+usage() {
+  cat <<EOF
+Usage: ./bin/dross-godot [launcher options] [Godot options]
+
+Launch the Dross Godot project with the required Godot ${required_version}.
+The native extension is rebuilt incrementally before launch.
+
+Launcher options:
+  --no-build     Skip the incremental native-extension build
+  --print-godot  Print the selected Godot executable and exit
+  -h, --help     Show this help
+
+Examples:
+  ./bin/dross-godot --editor
+  ./bin/dross-godot
+  GODOT_BIN=/path/to/Godot_v4.7.1-stable_linux.x86_64 ./bin/dross-godot --editor
+EOF
+}
+
+case "${1:-}" in
+  --no-build)
+    build_enabled=0
+    shift
+    ;;
+  --print-godot)
+    print_godot=1
+    shift
+    ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
+
+version_is_supported() {
+  "$1" --version 2>/dev/null | grep -Eq "^${required_version}([.-]|$)"
+}
+
+godot_bin=${GODOT_BIN:-}
+if [ -n "$godot_bin" ]; then
+  if [ ! -x "$godot_bin" ]; then
+    echo "GODOT_BIN is not executable: $godot_bin" >&2
+    exit 2
+  fi
+  if ! version_is_supported "$godot_bin"; then
+    echo "GODOT_BIN must be Godot ${required_version}: $godot_bin" >&2
+    exit 2
+  fi
+else
+  godot_bin=
+  for candidate in \
+    "$project_root/.tools/godot/Godot_v${required_version}-stable_linux.x86_64" \
+    "${XDG_CACHE_HOME:-${HOME}/.cache}/dross-engine/godot-${required_version}/Godot_v${required_version}-stable_linux.x86_64" \
+    "/tmp/dross-godot-${required_version}/bin/Godot_v${required_version}-stable_linux.x86_64"
+  do
+    if [ -x "$candidate" ] && version_is_supported "$candidate"; then
+      godot_bin=$candidate
+      break
+    fi
+  done
+
+  if [ -z "$godot_bin" ]; then
+    for command_name in godot4 godot; do
+      candidate=$(command -v "$command_name" 2>/dev/null || true)
+      if [ -n "$candidate" ] && version_is_supported "$candidate"; then
+        godot_bin=$candidate
+        break
+      fi
+    done
+  fi
+fi
+
+if [ -z "$godot_bin" ]; then
+  cat >&2 <<EOF
+Godot ${required_version} was not found.
+Set GODOT_BIN to the official executable, for example:
+  GODOT_BIN=/path/to/Godot_v${required_version}-stable_linux.x86_64 ./bin/dross-godot --editor
+EOF
+  exit 2
+fi
+
+if [ "${print_godot:-0}" -eq 1 ]; then
+  printf '%s\n' "$godot_bin"
+  exit 0
+fi
+
+if [ "$build_enabled" -eq 1 ]; then
+  if [ ! -f "$project_root/build/linux-debug/CMakeCache.txt" ]; then
+    cmake --preset linux-debug
+  fi
+  cmake --build --preset linux-debug --target dross_godot
+fi
+
+exec "$godot_bin" --path "$project_root/godot" "$@"

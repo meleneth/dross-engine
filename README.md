@@ -60,6 +60,18 @@ The supported local baseline is CMake 3.25 or newer, Ninja, a C++20 compiler,
 Python 3.11 or newer, and Godot 4.7.1. Dependencies are pinned and acquired
 through CPM.
 
+For normal ThumpDemo development, launch the editor from the repository root:
+
+```sh
+./bin/dross-godot --editor
+```
+
+The launcher finds and verifies Godot 4.7.1, incrementally rebuilds the native
+extension, and opens the `godot/` project. Run the demo directly by omitting
+`--editor`. If Godot is installed somewhere nonstandard, set `GODOT_BIN` to
+its executable. Use `--no-build` only when intentionally skipping the native
+extension build.
+
 On Linux with GCC:
 
 ```sh
