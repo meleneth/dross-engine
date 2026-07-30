@@ -16,10 +16,41 @@ bool valid_profile(const HexBakeProfile& profile) {
          profile.maximum_height_variance_mm >= 0 && profile.required_sample_count >= 4;
 }
 
-std::int64_t quantize(const std::int64_t value, const std::int64_t quantum) {
+struct QuantizationQuantum {
+  std::int64_t value;
+};
+
+std::int64_t quantize(const std::int64_t value, const QuantizationQuantum quantum) {
   const auto magnitude = std::abs(value);
-  const auto rounded = ((magnitude + quantum / 2) / quantum) * quantum;
+  const auto rounded = ((magnitude + quantum.value / 2) / quantum.value) * quantum.value;
   return value < 0 ? -rounded : rounded;
+}
+
+BakeReason classify_reason(const bool uneven, const bool standing_clearance) {
+  if (uneven) {
+    return BakeReason::height_variance;
+  }
+  if (!standing_clearance) {
+    return BakeReason::insufficient_clearance;
+  }
+  return BakeReason::automatic_traversable;
+}
+
+Result<std::map<HexCellId, CellTraversabilityOverride>, GridCompileError>
+canonicalize_overrides(const GridOverrides& overrides,
+                       const std::map<HexCellId, ClassifiedBakeCell>& classified) {
+  std::map<HexCellId, CellTraversabilityOverride> canonical;
+  for (const auto& [cell, override_value] : overrides.cells) {
+    if (!classified.contains(cell)) {
+      return tl::unexpected{
+          GridCompileError{.reason = GridCompileErrorReason::orphan_override, .cell = cell}};
+    }
+    if (!canonical.emplace(cell, override_value).second) {
+      return tl::unexpected{
+          GridCompileError{.reason = GridCompileErrorReason::duplicate_override, .cell = cell}};
+    }
+  }
+  return canonical;
 }
 
 } // namespace
@@ -36,11 +67,10 @@ Result<ClassifiedBakeCell, BakeClassifyError> classify_bake_cell(const CellBakeE
   const auto sum = std::accumulate(evidence.surface_samples_mm.begin(),
                                    evidence.surface_samples_mm.end(), std::int64_t{0});
   const auto mean = sum / static_cast<std::int64_t>(evidence.surface_samples_mm.size());
-  const auto height = Millimeters{quantize(mean, profile.quantization_mm)};
+  const auto height =
+      Millimeters{quantize(mean, QuantizationQuantum{.value = profile.quantization_mm})};
   const auto uneven = *maximum - *minimum > profile.maximum_height_variance_mm;
-  const auto reason = uneven                         ? BakeReason::height_variance
-                      : !evidence.standing_clearance ? BakeReason::insufficient_clearance
-                                                     : BakeReason::automatic_traversable;
+  const auto reason = classify_reason(uneven, evidence.standing_clearance);
   const auto clearance = evidence.standing_clearance ? Clearance::open : Clearance::blocked;
   const auto traversable = !uneven && evidence.standing_clearance;
   return ClassifiedBakeCell{
@@ -91,25 +121,18 @@ Result<CompiledGridBake, GridCompileError> compile_grid_bake(const GridBake& bak
     classified.emplace(evidence.id, std::move(*cell));
   }
 
-  std::map<HexCellId, CellTraversabilityOverride> canonical_overrides;
-  for (const auto& [cell, override_value] : overrides.cells) {
-    if (!classified.contains(cell)) {
-      return tl::unexpected{
-          GridCompileError{.reason = GridCompileErrorReason::orphan_override, .cell = cell}};
-    }
-    if (!canonical_overrides.emplace(cell, override_value).second) {
-      return tl::unexpected{
-          GridCompileError{.reason = GridCompileErrorReason::duplicate_override, .cell = cell}};
-    }
+  auto canonical_overrides = canonicalize_overrides(overrides, classified);
+  if (!canonical_overrides) {
+    return tl::unexpected{canonical_overrides.error()};
   }
 
   CompiledHexMapBuilder builder;
   std::map<HexCellId, CellProvenance> provenance;
   std::map<HexCellId, BakeReason> reasons;
   for (auto& [cell_id, cell] : classified) {
-    const auto found = canonical_overrides.find(cell_id);
+    const auto found = canonical_overrides->find(cell_id);
     const auto override_value =
-        found == canonical_overrides.end() ? CellTraversabilityOverride::automatic : found->second;
+        found == canonical_overrides->end() ? CellTraversabilityOverride::automatic : found->second;
     switch (override_value) {
     case CellTraversabilityOverride::automatic:
       provenance.emplace(cell_id, CellProvenance::automatic);
