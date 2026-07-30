@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://thump_demo/scenes/phase14_vertical_slice.gd" id="1_script"]
 
 [sub_resource type="PlaneMesh" id="FloorMesh"]
-size = Vector2(12, 7)
+size = Vector2(12, 9)
 
 [sub_resource type="StandardMaterial3D" id="PlayerMaterial"]
 albedo_color = Color(0.15, 0.45, 0.95, 1)
@@ -75,9 +75,9 @@ shadow_enabled = true
 
 [node name="Camera3D" type="Camera3D" parent="."]
 projection = 1
-size = 9.0
-position = Vector3(2.6, 7.5, 8.5)
-rotation_degrees = Vector3(-42, 0, 0)
+size = 10.0
+position = Vector3(9.95, 6, 7.35)
+rotation_degrees = Vector3(-30, 45, 0)
 current = true
 
 [node name="UI" type="CanvasLayer" parent="."]

@@ -15,6 +15,12 @@ func _initialize() -> void:
 	await process_frame
 
 	var overlay: DrossHexGridOverlay3D = demo.get_node("GridOverlay")
+	var camera: Camera3D = demo.get_node("Camera3D")
+	check(camera.projection == Camera3D.PROJECTION_ORTHOGONAL,
+			"playable demo camera is not orthographic")
+	check(is_equal_approx(camera.rotation_degrees.x, -30.0) and
+			is_equal_approx(camera.rotation_degrees.y, 45.0),
+			"playable demo camera lost its classic diagonal dimetric framing")
 	var compiled_map: DrossCompiledHexMap = demo.get_node(
 			"DrossWorldHost").get_movement_compiled_map()
 	check(compiled_map.get_cell_count() == 12,
