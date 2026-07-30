@@ -22,13 +22,16 @@ struct Fail {};
 template <QuestStatus Status> struct Restore {};
 
 struct QuestLogger {
-  template <class Machine, class Event> void log_process_event(const Event&) {}
+  template <class Machine, class Event>
+  void log_process_event([[maybe_unused]] const Event& event) {}
   template <class Machine, class Guard, class Event>
-  void log_guard(const Guard&, const Event&, bool) {}
+  void log_guard([[maybe_unused]] const Guard& guard, [[maybe_unused]] const Event& event,
+                 [[maybe_unused]] bool accepted) {}
   template <class Machine, class Action, class Event>
-  void log_action(const Action&, const Event&) {}
+  void log_action([[maybe_unused]] const Action& action, [[maybe_unused]] const Event& event) {}
   template <class Machine, class Source, class Destination>
-  void log_state_change(const Source&, const Destination&) {}
+  void log_state_change([[maybe_unused]] const Source& source,
+                        [[maybe_unused]] const Destination& destination) {}
 };
 
 struct QuestDefinition {

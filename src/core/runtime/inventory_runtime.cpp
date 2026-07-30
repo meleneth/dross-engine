@@ -147,8 +147,8 @@ std::uint32_t InventoryRuntime::count(const EntityRef& owner, const ContentId& i
 }
 
 bool InventoryRuntime::has(const EntityRef& owner, const ContentId& item,
-                           const std::uint32_t required) const {
-  return required != 0 && count(owner, item) >= required;
+                           const std::uint32_t count) const {
+  return count != 0 && this->count(owner, item) >= count;
 }
 
 InventorySnapshot InventoryRuntime::snapshot() const {
