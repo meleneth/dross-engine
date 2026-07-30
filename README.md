@@ -19,7 +19,7 @@ The first proving game slice is intentionally tiny:
 - one visible logical hex grid;
 - one player actor;
 - one field mouse;
-- one door that is not on the required route to combat;
+- one door installed in the dividing wall on the required route to combat;
 - real-time exploration;
 - turn-based combat;
 - one ability named `Thump`;
@@ -34,6 +34,9 @@ The small surface is not permission to build disposable internals. Every impleme
 `godot/thump_demo/` is the small proving game: its scenes, authored content,
 UI, and behavior scripts are game code rather than generic Dross
 infrastructure. Godot boundary fixtures remain under `godot/tests/`.
+`godot/thump_demo/ui/thump_hud.tscn` is the reusable game HUD composition: its
+bottom bar reserves the player log/chat region and a combat-only turn-action
+region. The playable scene feeds that log from committed game outcomes.
 
 New ThumpDemo content uses the `thump_demo:` ContentId namespace. Generic
 engine identities use `dross:`. Test fixtures may use a test-owned namespace,
@@ -44,6 +47,12 @@ ThumpDemo uses the 42-color
 [LoSpec500 palette](https://lospec.com/palette-list/lospec500). Scene
 materials, environment colors, UI styles, grid lines, paths, and interaction
 feedback must select exact colors from that palette.
+
+The playground also carries complete, publishable CC0 editions of Kenney's
+Furniture Kit and Nature Kit under
+`godot/assets/third_party/kenney/`. Each collection has its own source,
+checksum, license, and inclusion notes; only its Godot-ready GLB models are
+retained.
 
 ## Build and test
 

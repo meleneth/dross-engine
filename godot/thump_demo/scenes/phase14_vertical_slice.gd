@@ -4,6 +4,30 @@ const TICK_SECONDS := 1.0 / 30.0
 const MAX_CATCH_UP_TICKS := 4
 const DEMO_SEED := 12345
 const DOOR_ANIMATION_SECONDS := 0.25
+const LOSPEC500_COLORS: Array[Color] = [
+	Color8(16, 18, 28),
+	Color8(30, 64, 68),
+	Color8(44, 30, 49),
+	Color8(51, 136, 222),
+	Color8(61, 59, 101),
+	Color8(77, 53, 51),
+	Color8(94, 91, 140),
+	Color8(107, 38, 67),
+	Color8(128, 73, 58),
+	Color8(140, 120, 165),
+	Color8(148, 73, 58),
+	Color8(162, 136, 121),
+	Color8(176, 109, 70),
+	Color8(206, 146, 72),
+	Color8(222, 158, 65),
+	Color8(226, 211, 170),
+	Color8(242, 213, 101),
+	Color8(242, 187, 114),
+	Color8(242, 137, 127),
+	Color8(38, 133, 76),
+	Color8(72, 171, 89),
+	Color8(124, 204, 108),
+]
 
 @onready var host: DrossWorldHost = $DrossWorldHost
 @onready var grid_overlay: DrossHexGridOverlay3D = $GridOverlay
@@ -16,10 +40,7 @@ const DOOR_ANIMATION_SECONDS := 0.25
 @onready var status: Label = $UI/Status
 @onready var quest_status: Label = $UI/QuestStatus
 @onready var inventory_status: Label = $UI/InventoryStatus
-@onready var combat_panel: PanelContainer = $UI/CombatPanel
-@onready var turn_status: Label = $UI/CombatPanel/Content/TurnStatus
-@onready var thump_button: Button = $UI/CombatPanel/Content/Actions/Thump
-@onready var end_turn_button: Button = $UI/CombatPanel/Content/Actions/EndTurn
+@onready var hud = $UI/HUD
 
 var _accumulator := 0.0
 var _destination_q := 0
@@ -33,6 +54,7 @@ var _saved_state := PackedByteArray()
 
 
 func _ready() -> void:
+	_apply_lospec500_to_room_assets()
 	if not host.start_movement_scenario():
 		_fail_startup("movement scenario")
 		return
@@ -64,19 +86,60 @@ func _ready() -> void:
 
 	var door := DrossDoorDefinition.new()
 	door.door_id = "thump_demo:side_door"
-	door.region_id = "thump_demo:room"
-	door.from_q = 0
+	door.region_id = "dross:phase11"
+	door.from_q = 1
 	door.from_r = 0
-	door.to_q = 1
+	door.to_q = 2
 	door.to_r = 0
 	if not host.start_door_scenario(door):
 		_fail_startup("side door definition")
 		return
 
-	thump_button.pressed.connect(perform_thump_action)
-	end_turn_button.pressed.connect(end_combat_turn)
+	hud.thump_requested.connect(perform_thump_action)
+	hud.end_turn_requested.connect(end_combat_turn)
+	hud.add_log("You entered the caretaker's room.")
 	preview_destination(3, 0)
 	_refresh_views()
+
+
+func _apply_lospec500_to_room_assets() -> void:
+	for path in [
+		"Room/Carpet",
+		"Room/Plants",
+		"Room/Furnishings",
+		"Room/NatureProps",
+	]:
+		_remap_asset_tree_to_lospec500(get_node(path))
+
+
+func _remap_asset_tree_to_lospec500(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		for surface in range(mesh_instance.get_surface_override_material_count()):
+			var source := mesh_instance.get_active_material(surface) as StandardMaterial3D
+			if source == null:
+				continue
+			var remapped := source.duplicate() as StandardMaterial3D
+			remapped.albedo_color = _nearest_lospec500_color(source.albedo_color)
+			remapped.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			mesh_instance.set_surface_override_material(surface, remapped)
+	for child in node.get_children():
+		_remap_asset_tree_to_lospec500(child)
+
+
+func _nearest_lospec500_color(source: Color) -> Color:
+	var nearest := LOSPEC500_COLORS[0]
+	var nearest_distance := INF
+	for candidate in LOSPEC500_COLORS:
+		var delta := Vector3(
+			source.r - candidate.r,
+			source.g - candidate.g,
+			source.b - candidate.b)
+		var distance := delta.length_squared()
+		if distance < nearest_distance:
+			nearest = candidate
+			nearest_distance = distance
+	return nearest
 
 
 func _process(delta: float) -> void:
@@ -207,6 +270,7 @@ func perform_thump_action() -> bool:
 	var accepted := host.perform_thump()
 	if accepted:
 		_last_event = "Thump committed before presentation"
+		hud.add_log("You use Thump. The field mouse is defeated.")
 		mouse_view.visible = not host.is_mouse_killed()
 		status.text = "THUMP — mouse HP %d; cue %s" % [
 			host.get_mouse_health(), host.get_last_presentation_cue()
@@ -221,6 +285,8 @@ func end_combat_turn() -> bool:
 	_last_command = "EndTurn"
 	var accepted := host.end_player_turn()
 	_last_event = "player turn ended; mouse passed" if accepted else "End Turn rejected"
+	if accepted:
+		hud.add_log("You end your turn. The field mouse hesitates, then passes.")
 	_refresh_diagnostics()
 	return accepted
 
@@ -232,6 +298,8 @@ func talk_to_caretaker() -> bool:
 	if quest_state == "inactive":
 		accepted = host.accept_mouse_quest_dialogue()
 		_last_event = "mouse quest accepted" if accepted else "quest offer rejected"
+		if accepted:
+			hud.add_log("Caretaker: Please deal with that field mouse.")
 	elif (
 			quest_state == "active"
 			and host.get_quest_stage("thump_demo:mouse_quest") == "thump_demo:return_tail"
@@ -239,6 +307,8 @@ func talk_to_caretaker() -> bool:
 	):
 		accepted = host.hand_in_mouse_tail_dialogue()
 		_last_event = "mouse quest completed" if accepted else "tail hand-in rejected"
+		if accepted:
+			hud.add_log("Caretaker: That settles the mouse problem. Thank you.")
 	else:
 		_last_event = "caretaker has no available option"
 	_refresh_diagnostics()
@@ -257,6 +327,7 @@ func _ensure_combat_started() -> bool:
 	if not host.start_thump_scenario(thump):
 		return false
 	_combat_started = true
+	hud.add_log("Combat starts. It is your turn.")
 	_refresh_diagnostics()
 	return true
 
@@ -271,6 +342,8 @@ func toggle_door() -> bool:
 	if not committed:
 		_last_event = "door command rejected"
 		return false
+	hud.add_log(
+		"You open the side door." if host.is_door_open() else "You close the side door.")
 	var target_degrees := 90.0 if host.is_door_open() else 0.0
 	var acknowledgement_id := host.get_door_presentation_acknowledgement_id()
 	_door_tween = create_tween()
@@ -343,6 +416,7 @@ func _refresh_views() -> void:
 		if host.request_movement_combat():
 			_last_command = "RequestCombatStart"
 			_last_event = "combat pending until safe boundary"
+			hud.add_log("The field mouse notices you. Combat is about to begin.")
 	_refresh_diagnostics()
 
 
@@ -356,14 +430,16 @@ func _refresh_diagnostics() -> void:
 	inventory_status.text = "Inventory: mouse tail ×%d" % host.get_inventory_count(
 		1, "thump_demo:mouse_tail"
 	)
-	combat_panel.visible = _combat_started
 	if _combat_started:
 		if host.is_mouse_killed():
-			turn_status.text = "Combat won — field mouse defeated"
+			hud.set_combat_state(true, "Combat won — field mouse defeated", false)
 		else:
-			turn_status.text = "Your turn — %d AP" % host.get_player_action_points()
-		thump_button.disabled = not host.is_player_turn()
-		end_turn_button.disabled = not host.is_player_turn()
+			hud.set_combat_state(
+				true,
+				"Your turn — %d AP" % host.get_player_action_points(),
+				host.is_player_turn())
+	else:
+		hud.set_combat_state(false, "", false)
 	diagnostics.text = "\n".join([
 		"tick: %d" % host.get_movement_tick(),
 		"mode: %s" % host.get_movement_mode(),

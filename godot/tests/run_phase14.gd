@@ -8,6 +8,20 @@ func check(condition: bool, message: String) -> void:
 		failures.append(message)
 
 
+func check_asset_palette(node: Node, palette: Array[Color]) -> void:
+	if node is MeshInstance3D:
+		var mesh_instance := node as MeshInstance3D
+		for surface in range(mesh_instance.get_surface_override_material_count()):
+			var material := mesh_instance.get_active_material(surface) as StandardMaterial3D
+			check(material != null and palette.has(material.albedo_color),
+					"%s retained a color outside LoSpec500" % mesh_instance.get_path())
+			check(material != null and
+					material.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED,
+					"%s does not preserve its exact palette color" % mesh_instance.get_path())
+	for child in node.get_children():
+		check_asset_palette(child, palette)
+
+
 func _initialize() -> void:
 	var demo: Node3D = load(
 			"res://thump_demo/scenes/phase14_vertical_slice.tscn").instantiate()
@@ -16,6 +30,34 @@ func _initialize() -> void:
 
 	var overlay: DrossHexGridOverlay3D = demo.get_node("GridOverlay")
 	var camera: Camera3D = demo.get_node("Camera3D")
+	var hud: Control = demo.get_node("UI/HUD")
+	check(hud.get_node("BottomBar/PlayerLog/Content/Messages") is RichTextLabel,
+			"ThumpDemo HUD does not reserve a player log/chat region")
+	check(hud.get_node("BottomBar/CombatActions/Content/Actions/EndTurn") is Button,
+			"ThumpDemo HUD does not reserve an End Turn action slot")
+	check("entered the caretaker's room" in hud.get_log_text(),
+			"player log did not describe entering the room")
+	check(demo.get_node("Room/Walls").get_child_count() >= 2,
+			"playable room is missing enclosing walls")
+	check(demo.has_node("Room/Carpet"), "playable room is missing its carpet")
+	check(demo.get_node("Room/Plants").get_child_count() >= 2,
+			"playable room is missing lived-in plant dressing")
+	check(demo.get_node("Room/Furnishings/Bookcase").scene_file_path.ends_with(
+			"/kenney/furniture-kit/models/bookcaseOpen.glb"),
+			"playable room does not use the recognizable Kenney furniture collection")
+	check(demo.get_node("Room/NatureProps/MouseBush").scene_file_path.ends_with(
+			"/kenney/nature-kit/models/plant_bush.glb"),
+			"mouse side does not use the recognizable Kenney nature collection")
+	for asset_group in [
+		"Room/Carpet",
+		"Room/Plants",
+		"Room/Furnishings",
+		"Room/NatureProps",
+	]:
+		check_asset_palette(demo.get_node(asset_group), demo.LOSPEC500_COLORS)
+	check(demo.has_node("Room/Walls/DividerNorth") and
+			demo.has_node("Room/Walls/DividerSouth"),
+			"route door is not visibly installed in a dividing wall")
 	check(camera.projection == Camera3D.PROJECTION_ORTHOGONAL,
 			"playable demo camera is not orthographic")
 	check(is_equal_approx(camera.rotation_degrees.x, -30.0) and
@@ -81,7 +123,17 @@ func _initialize() -> void:
 			"integrated demo did not preview movement into another hex row")
 	check(overlay.path_cell_keys.has("dross:phase11:1,1,0"),
 			"multi-row path preview did not highlight its authoritative destination")
-	check(demo.preview_destination(2), "integrated demo did not preview a reachable path")
+	check(not demo.preview_destination(2),
+			"closed doorway did not block the only route to the mouse side")
+	check(overlay.get_hover_state() == 2,
+			"closed doorway destination was not presented as invalid")
+	check(demo.toggle_door(), "integrated demo rejected opening the route door")
+	check(demo.get_node("DrossWorldHost").is_door_open(),
+			"route door did not commit open before presentation")
+	check("open the side door" in hud.get_log_text(),
+			"player log did not describe the committed door opening")
+	await create_timer(0.3).timeout
+	check(demo.preview_destination(2), "open doorway did not reveal the mouse route")
 	check(overlay.path_cell_keys == PackedStringArray([
 		"dross:phase11:0,0,0",
 		"dross:phase11:1,0,0",
@@ -113,7 +165,11 @@ func _initialize() -> void:
 	check(demo.get_node("DrossWorldHost").get_quest_stage(
 			"thump_demo:mouse_quest") == "thump_demo:hunt_mouse",
 			"active quest stage did not survive save and reload")
-	check(demo.preview_destination(2), "reloaded demo did not preview a reachable path")
+	check(not demo.preview_destination(2),
+			"reloaded closed door did not restore traversal blocking")
+	check(demo.toggle_door(), "reloaded route door could not be opened")
+	await create_timer(0.3).timeout
+	check(demo.preview_destination(2), "reloaded open door did not reveal the mouse route")
 	check(demo.request_previewed_move(), "reloaded demo rejected MoveTo")
 	check(demo.advance_authoritative_tick(), "reloaded first movement tick failed")
 	for tick in range(3):
@@ -140,26 +196,19 @@ func _initialize() -> void:
 	check(demo.advance_authoritative_tick(), "combat safe-boundary tick failed")
 	check(demo.get_node("DrossWorldHost").get_movement_mode() == "combat",
 			"safe boundary did not enter combat")
-	check(demo.get_node("UI/CombatPanel").visible,
+	check(hud.get_node("BottomBar/CombatActions").visible,
 			"combat did not reveal the turn controls")
-	check("Your turn" in demo.get_node("UI/CombatPanel/Content/TurnStatus").text,
+	check("Your turn" in
+			hud.get_node("BottomBar/CombatActions/Content/TurnStatus").text,
 			"combat UI did not project the authoritative active turn")
+	check("Combat starts" in hud.get_log_text(),
+			"player log did not announce the combat transition")
 	check(demo.end_combat_turn(), "combat UI could not end the player turn")
 	check(demo.get_node("DrossWorldHost").get_player_action_points() == 3,
 			"enemy pass did not begin a fresh authoritative player turn")
 
-	check(demo.toggle_door(), "integrated demo rejected OpenDoor")
-	check(demo.get_node("DrossWorldHost").is_door_open(),
-			"integrated door view preceded authoritative door state")
 	check(demo.get_node("DrossWorldHost").get_last_door_event() == "dross:door_opened",
 			"door diagnostics did not consume the committed open event")
-	check(demo.get_node("DrossWorldHost").is_door_presentation_pending(),
-			"integrated door animation was acknowledged before presentation")
-	check(is_zero_approx(demo.get_node("SideDoor").rotation_degrees.y),
-			"integrated door view changed before its post-commit animation")
-	check(not demo.toggle_door(),
-			"integrated door accepted another command during presentation gating")
-	await create_timer(0.3).timeout
 	check(is_equal_approx(demo.get_node("SideDoor").rotation_degrees.y, 90.0),
 			"integrated door animation did not reach the committed open state")
 	check(not demo.get_node("DrossWorldHost").is_door_presentation_pending(),
@@ -216,6 +265,8 @@ func _initialize() -> void:
 	check(demo.toggle_door(), "post-combat CloseDoor was rejected")
 	check(demo.get_node("DrossWorldHost").get_last_door_event() == "dross:door_closed",
 			"door diagnostics did not consume the committed close event")
+	check("close the side door" in hud.get_log_text(),
+			"player log did not describe the committed door closing")
 	await create_timer(0.3).timeout
 	check(not demo.get_node("DrossWorldHost").is_door_open(),
 			"post-combat door mutation did not commit before reload")

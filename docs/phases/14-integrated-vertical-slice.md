@@ -29,8 +29,8 @@ A player launches the demo and can:
 2. reveal or use the visible hex grid;
 3. hover cells and preview a path;
 4. move in real-time exploration;
-5. inspect and optionally open or close a side door;
-6. approach the field mouse without using the door;
+5. inspect and open the door installed in the dividing wall;
+6. cross the doorway to approach the field mouse;
 7. enter turn-based combat;
 8. move and spend AP;
 9. use Thump;

@@ -1,0 +1,120 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://thump_demo/ui/thump_hud.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="HudPanel"]
+bg_color = Color(0.172549, 0.117647, 0.192157, 0.96)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.54902, 0.470588, 0.647059, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="ButtonNormal"]
+bg_color = Color(0.243137, 0.231373, 0.396078, 1)
+
+[sub_resource type="StyleBoxFlat" id="ButtonHover"]
+bg_color = Color(0.368627, 0.356863, 0.54902, 1)
+
+[sub_resource type="StyleBoxFlat" id="ButtonPressed"]
+bg_color = Color(0.219608, 0.34902, 0.701961, 1)
+
+[sub_resource type="StyleBoxFlat" id="ButtonDisabled"]
+bg_color = Color(0.301961, 0.207843, 0.2, 1)
+
+[node name="ThumpHud" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="BottomBar" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 12
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -190.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_constants/separation = 14
+
+[node name="PlayerLog" type="PanelContainer" parent="BottomBar"]
+custom_minimum_size = Vector2(540, 166)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("HudPanel")
+
+[node name="Content" type="VBoxContainer" parent="BottomBar/PlayerLog"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="Label" parent="BottomBar/PlayerLog/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.823529, 0.509804, 1)
+theme_override_font_sizes/font_size = 14
+text = "PLAYER LOG / CHAT"
+
+[node name="Messages" type="RichTextLabel" parent="BottomBar/PlayerLog/Content"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 1
+theme_override_colors/default_color = Color(0.964706, 0.909804, 0.878431, 1)
+theme_override_font_sizes/normal_font_size = 15
+scroll_active = true
+scroll_following = true
+
+[node name="CombatActions" type="PanelContainer" parent="BottomBar"]
+visible = false
+custom_minimum_size = Vector2(340, 166)
+layout_mode = 2
+theme_override_styles/panel = SubResource("HudPanel")
+
+[node name="Content" type="VBoxContainer" parent="BottomBar/CombatActions"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="Label" parent="BottomBar/CombatActions/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.909804, 0.823529, 0.509804, 1)
+theme_override_font_sizes/font_size = 14
+text = "TURN ACTIONS"
+
+[node name="TurnStatus" type="Label" parent="BottomBar/CombatActions/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Your turn"
+
+[node name="Actions" type="HBoxContainer" parent="BottomBar/CombatActions/Content"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Thump" type="Button" parent="BottomBar/CombatActions/Content/Actions"]
+custom_minimum_size = Vector2(140, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.964706, 0.909804, 0.878431, 1)
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/disabled = SubResource("ButtonDisabled")
+text = "Thump (2 AP)"
+
+[node name="EndTurn" type="Button" parent="BottomBar/CombatActions/Content/Actions"]
+custom_minimum_size = Vector2(140, 44)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.964706, 0.909804, 0.878431, 1)
+theme_override_styles/normal = SubResource("ButtonNormal")
+theme_override_styles/hover = SubResource("ButtonHover")
+theme_override_styles/pressed = SubResource("ButtonPressed")
+theme_override_styles/disabled = SubResource("ButtonDisabled")
+text = "End Turn"

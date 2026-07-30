@@ -1,6 +1,14 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://thump_demo/scenes/phase14_vertical_slice.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://thump_demo/ui/thump_hud.tscn" id="2_hud"]
+[ext_resource type="PackedScene" path="res://assets/third_party/kenney/furniture-kit/models/rugRectangle.glb" id="3_rug"]
+[ext_resource type="PackedScene" path="res://assets/third_party/kenney/furniture-kit/models/pottedPlant.glb" id="4_potted_plant"]
+[ext_resource type="PackedScene" path="res://assets/third_party/kenney/furniture-kit/models/bookcaseOpen.glb" id="5_bookcase"]
+[ext_resource type="PackedScene" path="res://assets/third_party/kenney/furniture-kit/models/loungeSofa.glb" id="6_sofa"]
+[ext_resource type="PackedScene" path="res://assets/third_party/kenney/furniture-kit/models/tableCoffee.glb" id="7_table"]
+[ext_resource type="PackedScene" path="res://assets/third_party/kenney/nature-kit/models/plant_bush.glb" id="8_bush"]
+[ext_resource type="PackedScene" path="res://assets/third_party/kenney/nature-kit/models/rock_smallA.glb" id="9_rock"]
 
 [sub_resource type="StandardMaterial3D" id="FloorMaterial"]
 shading_mode = 0
@@ -43,29 +51,21 @@ ambient_light_source = 3
 ambient_light_color = Color(0.690196, 0.654902, 0.721569, 1)
 ambient_light_energy = 0.7
 
-[sub_resource type="StyleBoxFlat" id="CombatPanelStyle"]
-bg_color = Color(0.172549, 0.117647, 0.192157, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.54902, 0.470588, 0.647059, 1)
-corner_radius_top_left = 4
-corner_radius_top_right = 4
-corner_radius_bottom_right = 4
-corner_radius_bottom_left = 4
+[sub_resource type="StandardMaterial3D" id="WallMaterial"]
+shading_mode = 0
+albedo_color = Color(0.301961, 0.207843, 0.2, 1)
 
-[sub_resource type="StyleBoxFlat" id="ButtonNormalStyle"]
-bg_color = Color(0.243137, 0.231373, 0.396078, 1)
+[sub_resource type="BoxMesh" id="BackWallMesh"]
+material = SubResource("WallMaterial")
+size = Vector3(12, 2.6, 0.25)
 
-[sub_resource type="StyleBoxFlat" id="ButtonHoverStyle"]
-bg_color = Color(0.368627, 0.356863, 0.54902, 1)
+[sub_resource type="BoxMesh" id="SideWallMesh"]
+material = SubResource("WallMaterial")
+size = Vector3(0.25, 2.6, 7)
 
-[sub_resource type="StyleBoxFlat" id="ButtonPressedStyle"]
-bg_color = Color(0.219608, 0.34902, 0.701961, 1)
-
-[sub_resource type="StyleBoxFlat" id="ButtonDisabledStyle"]
-bg_color = Color(0.301961, 0.207843, 0.2, 1)
+[sub_resource type="BoxMesh" id="DividerWallMesh"]
+material = SubResource("WallMaterial")
+size = Vector3(0.25, 1.15, 2.35)
 
 [node name="ThumpOnFieldMouse" type="Node3D"]
 script = ExtResource("1_script")
@@ -78,6 +78,61 @@ environment = SubResource("Environment")
 [node name="Floor" type="MeshInstance3D" parent="."]
 position = Vector3(2.6, 0, 0)
 mesh = SubResource("FloorMesh")
+
+[node name="Room" type="Node3D" parent="."]
+
+[node name="Walls" type="Node3D" parent="Room"]
+
+[node name="BackWall" type="MeshInstance3D" parent="Room/Walls"]
+position = Vector3(2.6, 1.3, -3.2)
+mesh = SubResource("BackWallMesh")
+
+[node name="LeftWall" type="MeshInstance3D" parent="Room/Walls"]
+position = Vector3(-2, 1.3, 0.2)
+mesh = SubResource("SideWallMesh")
+
+[node name="DividerNorth" type="MeshInstance3D" parent="Room/Walls"]
+position = Vector3(2.59808, 0.575, -2.025)
+mesh = SubResource("DividerWallMesh")
+
+[node name="DividerSouth" type="MeshInstance3D" parent="Room/Walls"]
+position = Vector3(2.59808, 0.575, 2.025)
+mesh = SubResource("DividerWallMesh")
+
+[node name="Carpet" parent="Room" instance=ExtResource("3_rug")]
+position = Vector3(0.35, 0.045, 1.8)
+scale = Vector3(2.2, 1, 1.65)
+
+[node name="Plants" type="Node3D" parent="Room"]
+
+[node name="WestPlant" parent="Room/Plants" instance=ExtResource("4_potted_plant")]
+position = Vector3(-1.25, 0, -2.35)
+
+[node name="EastPlant" parent="Room/Plants" instance=ExtResource("4_potted_plant")]
+position = Vector3(7.35, 0, -2.35)
+
+[node name="Furnishings" type="Node3D" parent="Room"]
+
+[node name="Bookcase" parent="Room/Furnishings" instance=ExtResource("5_bookcase")]
+position = Vector3(-0.75, 0, -2.95)
+
+[node name="Sofa" parent="Room/Furnishings" instance=ExtResource("6_sofa")]
+position = Vector3(-0.55, 0, 1.85)
+rotation_degrees = Vector3(0, 180, 0)
+
+[node name="CoffeeTable" parent="Room/Furnishings" instance=ExtResource("7_table")]
+position = Vector3(0.9, 0, 1.85)
+
+[node name="NatureProps" type="Node3D" parent="Room"]
+
+[node name="MouseBush" parent="Room/NatureProps" instance=ExtResource("8_bush")]
+position = Vector3(6.75, 0, 1.9)
+scale = Vector3(1.35, 1.35, 1.35)
+
+[node name="MouseRock" parent="Room/NatureProps" instance=ExtResource("9_rock")]
+position = Vector3(7.45, 0, 2.55)
+rotation_degrees = Vector3(0, 35, 0)
+scale = Vector3(1.5, 1.5, 1.5)
 
 [node name="GridOverlay" type="DrossHexGridOverlay3D" parent="."]
 position = Vector3(0, 0.04, 0)
@@ -95,7 +150,7 @@ position = Vector3(5.19615, 0.42, 0)
 mesh = SubResource("MouseMesh")
 
 [node name="SideDoor" type="Node3D" parent="."]
-position = Vector3(4, 0, -2)
+position = Vector3(2.59808, 0, -0.7)
 
 [node name="Panel" type="MeshInstance3D" parent="SideDoor"]
 position = Vector3(0, 1.1, 0.7)
@@ -158,53 +213,4 @@ offset_right = 800.0
 offset_bottom = 182.0
 theme_override_font_sizes/font_size = 16
 
-[node name="CombatPanel" type="PanelContainer" parent="UI"]
-visible = false
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -380.0
-offset_top = 20.0
-offset_right = -24.0
-offset_bottom = 132.0
-grow_horizontal = 0
-theme_override_styles/panel = SubResource("CombatPanelStyle")
-
-[node name="Content" type="VBoxContainer" parent="UI/CombatPanel"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="TurnStatus" type="Label" parent="UI/CombatPanel/Content"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 18
-text = "Your turn"
-
-[node name="Actions" type="HBoxContainer" parent="UI/CombatPanel/Content"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Thump" type="Button" parent="UI/CombatPanel/Content/Actions"]
-custom_minimum_size = Vector2(140, 42)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.964706, 0.909804, 0.878431, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_colors/font_pressed_color = Color(0.827451, 0.933333, 0.827451, 1)
-theme_override_colors/font_disabled_color = Color(0.690196, 0.654902, 0.721569, 1)
-theme_override_styles/normal = SubResource("ButtonNormalStyle")
-theme_override_styles/hover = SubResource("ButtonHoverStyle")
-theme_override_styles/pressed = SubResource("ButtonPressedStyle")
-theme_override_styles/disabled = SubResource("ButtonDisabledStyle")
-text = "Thump (2 AP)"
-
-[node name="EndTurn" type="Button" parent="UI/CombatPanel/Content/Actions"]
-custom_minimum_size = Vector2(140, 42)
-layout_mode = 2
-theme_override_colors/font_color = Color(0.964706, 0.909804, 0.878431, 1)
-theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-theme_override_colors/font_pressed_color = Color(0.827451, 0.933333, 0.827451, 1)
-theme_override_colors/font_disabled_color = Color(0.690196, 0.654902, 0.721569, 1)
-theme_override_styles/normal = SubResource("ButtonNormalStyle")
-theme_override_styles/hover = SubResource("ButtonHoverStyle")
-theme_override_styles/pressed = SubResource("ButtonPressedStyle")
-theme_override_styles/disabled = SubResource("ButtonDisabledStyle")
-text = "End Turn"
+[node name="HUD" parent="UI" instance=ExtResource("2_hud")]

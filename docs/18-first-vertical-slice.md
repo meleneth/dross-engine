@@ -10,8 +10,8 @@ One arbitrary 3D room contains:
 
 - a player actor;
 - a field mouse actor;
-- one optional side door attached to a hex edge;
-- an unobstructed route from the player to the mouse that does not require opening or crossing the door;
+- one door installed in a dividing wall and attached to a hex edge;
+- one route from the player to the mouse that requires opening and crossing the door;
 - geometry that produces at least one automatically blocked cell;
 - one manually overridden blocked or traversable cell;
 - visible hex overlay support.
@@ -27,8 +27,8 @@ The player can:
 3. submit `MoveTo`;
 4. watch the actor interpolate between authoritative cell transitions;
 5. cancel or replace movement at a safe boundary;
-6. optionally interact with the side door;
-7. approach the field mouse without using the door.
+6. open the route door;
+7. cross its authoritative edge to approach the field mouse.
 
 Exploration is real time in presentation but fixed-tick and hex-discrete in the core.
 
@@ -71,7 +71,7 @@ A minimal example could make a tagged sacred mouse reject Thump, while the ordin
 
 ## Door
 
-The side door demonstrates:
+The route door demonstrates:
 
 - edge footprint;
 - stable entity identity;
@@ -81,7 +81,8 @@ The side door demonstrates:
 - typed events;
 - Godot animation triggered after domain commit;
 - save and reload;
-- no dependence on the door for combat reachability.
+- closed-door rejection of movement preview and movement commit;
+- required traversal through the open doorway before combat becomes reachable.
 
 ## Presentation
 
@@ -114,7 +115,7 @@ Reload reconstructs the authoritative world and views. It does not serialize God
 Record a command stream that:
 
 1. moves the player;
-2. optionally opens or closes the side door;
+2. opens and crosses the route door;
 3. triggers combat;
 4. moves in combat if needed;
 5. performs Thump;
