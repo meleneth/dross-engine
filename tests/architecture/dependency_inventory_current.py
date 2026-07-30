@@ -34,6 +34,9 @@ def table_rows(text: str) -> dict[str, str]:
 def main() -> int:
     root = Path(sys.argv[1])
     dependencies = (root / "cmake" / "Dependencies.cmake").read_text(encoding="utf-8")
+    license_text = (root / "LICENSE").read_text(encoding="utf-8")
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    normalized_readme = " ".join(readme.split())
     lock_rows = table_rows((root / "docs" / "dependency-lock.md").read_text(encoding="utf-8"))
     notice_rows = table_rows((root / "THIRD_PARTY_NOTICES.md").read_text(encoding="utf-8"))
     configured = dict(CPM_PACKAGE.findall(dependencies))
@@ -63,6 +66,28 @@ def main() -> int:
             )
         if not build_only and display_name not in notice_rows:
             failures.append(f"{display_name} is missing from THIRD_PARTY_NOTICES.md")
+
+    for required_license_text in (
+        "MIT License",
+        "Copyright (c) 2026 Dross Engine contributors",
+        "Permission is hereby granted, free of charge",
+        'THE SOFTWARE IS PROVIDED "AS IS"',
+    ):
+        if required_license_text not in license_text:
+            failures.append(f"LICENSE is missing MIT term: {required_license_text}")
+
+    for required_readme_text in (
+        "Dross Engine is available under the permissive [MIT License](LICENSE).",
+        "Games and applications built with it may use their own license, including proprietary",
+    ):
+        if required_readme_text not in normalized_readme:
+            failures.append(f"README license policy drifted: {required_readme_text}")
+
+    for package_script in ("package-linux", "package-windows"):
+        script = (root / "bin" / package_script).read_text(encoding="utf-8")
+        for required_file in ("LICENSE", "THIRD_PARTY_NOTICES.md", "SHA256SUMS"):
+            if required_file not in script:
+                failures.append(f"{package_script} does not distribute {required_file}")
 
     if failures:
         print("\n".join(failures))

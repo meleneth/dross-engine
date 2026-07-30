@@ -36,6 +36,9 @@ The source-registration check covers implementation files in both directions
 and rejects private adapter or tool headers without an include consumer.
 The package-configuration check locks the production resource filters and
 platform GDExtension library mappings for both prototype targets.
+The dependency-inventory check also locks Dross's MIT grant, the independent
+game-license policy, and inclusion of both notice files in each package
+workflow.
 
 The configured clang-tidy target also passes all 34 project translation units
 with project warnings treated as errors:
