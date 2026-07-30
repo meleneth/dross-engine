@@ -3,6 +3,7 @@ namespace: dross.placement
 name: EntityPlaced
 version: 1
 id: dross:entity_placed
+script_api: true
 fields:
   - name: entity
     type: entity_ref

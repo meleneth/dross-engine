@@ -1,7 +1,7 @@
 // {{ notice }}
 #pragma once
 
-{% for schema in catalog if schema.kind == "event" %}
+{% for schema in catalog if schema.kind == "event" and schema.script_api %}
 #include <dross/generated/{{ schema.name | snake_case }}.hpp>
 {% endfor %}
 #include <dross/identity/content_id.hpp>
@@ -15,7 +15,7 @@
 
 namespace dross::generated::godot_api {
 
-{% for schema in catalog if schema.kind == "event" %}
+{% for schema in catalog if schema.kind == "event" and schema.script_api %}
 class Dross{{ schema.name }}Event final : public godot::RefCounted {
   GDCLASS(Dross{{ schema.name }}Event, godot::RefCounted)
 
@@ -66,7 +66,7 @@ private:
 };
 
 {% endfor %}
-{% for schema in catalog if schema.kind == "rule" %}
+{% for schema in catalog if schema.kind == "rule" and schema.script_api %}
 class Dross{{ schema.name }}Query final : public godot::RefCounted {
   GDCLASS(Dross{{ schema.name }}Query, godot::RefCounted)
 

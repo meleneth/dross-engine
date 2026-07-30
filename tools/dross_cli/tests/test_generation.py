@@ -33,11 +33,27 @@ namespace: dross.placement
 name: EntityPlaced
 version: 1
 id: dross:entity_placed
+script_api: true
 fields:
   - name: entity
     type: entity_ref
   - name: pose
     type: hex_pose
+""".lstrip(),
+    )
+    write_schema(
+        root,
+        "events",
+        "movement_started.yaml",
+        """
+kind: event
+namespace: dross.movement
+name: MovementStarted
+version: 1
+id: dross:movement_started
+fields:
+  - name: entity
+    type: entity_ref
 """.lstrip(),
     )
     write_schema(
@@ -50,6 +66,7 @@ namespace: dross.placement
 name: PlacementRule
 version: 1
 id: dross:placement_rule
+script_api: true
 fields:
   - name: entity
     type: entity_ref
@@ -90,6 +107,7 @@ def test_generation_is_idempotent_sorted_and_uses_lf(tmp_path: Path) -> None:
     godot_header = first["include/dross/generated/godot_api.hpp"].decode()
     assert "class DrossEntityPlacedEvent final" in godot_header
     assert "class DrossPlacementRuleQuery final" in godot_header
+    assert godot_header.count("Event final") == 1
     compile_fixture = first["tests/generated_schema_compile.cpp"].decode()
     assert "PlacementRule" not in compile_fixture
     assert "domain_events.hpp" not in first

@@ -9,7 +9,7 @@
 
 namespace dross::generated::godot_api {
 
-{% for schema in catalog if schema.kind == "event" %}
+{% for schema in catalog if schema.kind == "event" and schema.script_api %}
 godot::Ref<Dross{{ schema.name }}Event>
 Dross{{ schema.name }}Event::from_core(
     const {{ schema.namespace | cpp_namespace }}::{{ schema.name }}& value) {
@@ -113,7 +113,7 @@ void Dross{{ schema.name }}Event::_bind_methods() {
 }
 
 {% endfor %}
-{% for schema in catalog if schema.kind == "rule" %}
+{% for schema in catalog if schema.kind == "rule" and schema.script_api %}
 void Dross{{ schema.name }}Query::reject(const godot::String& reason) {
   const auto utf8 = reason.utf8();
   auto parsed = ContentId::parse(
@@ -139,10 +139,10 @@ void Dross{{ schema.name }}Query::_bind_methods() {
 
 {% endfor %}
 void register_generated_godot_types() {
-{% for schema in catalog if schema.kind == "event" %}
+{% for schema in catalog if schema.kind == "event" and schema.script_api %}
   godot::ClassDB::register_class<Dross{{ schema.name }}Event>();
 {% endfor %}
-{% for schema in catalog if schema.kind == "rule" %}
+{% for schema in catalog if schema.kind == "rule" and schema.script_api %}
   godot::ClassDB::register_class<Dross{{ schema.name }}Query>();
 {% endfor %}
 }

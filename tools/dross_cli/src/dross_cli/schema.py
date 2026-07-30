@@ -4,7 +4,14 @@ from pathlib import Path
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 import yaml
 
 
@@ -39,6 +46,7 @@ class ApiSchema(BaseModel):
     name: str
     version: int = Field(ge=1)
     stable_id: str = Field(alias="id")
+    script_api: bool = False
     fields: list[FieldSchema]
 
     @field_validator("namespace")
@@ -61,6 +69,12 @@ class ApiSchema(BaseModel):
         if not STABLE_ID_PATTERN.fullmatch(value):
             raise ValueError("id must be a canonical stable ID")
         return value
+
+    @model_validator(mode="after")
+    def validate_script_api(self) -> "ApiSchema":
+        if self.script_api and self.kind == "command":
+            raise ValueError("commands cannot be exposed as script callbacks")
+        return self
 
 
 def load_catalog(project_root: Path) -> list[ApiSchema]:

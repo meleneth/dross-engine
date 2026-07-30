@@ -3,6 +3,7 @@ namespace: dross.combat
 name: DamageApplied
 version: 1
 id: dross:damage_applied
+script_api: true
 fields:
   - name: source
     type: entity_ref

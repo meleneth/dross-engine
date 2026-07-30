@@ -3,6 +3,7 @@ namespace: dross.combat
 name: ActorKilled
 version: 1
 id: dross:actor_killed
+script_api: true
 fields:
   - name: killer
     type: entity_ref

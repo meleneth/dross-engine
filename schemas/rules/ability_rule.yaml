@@ -3,6 +3,7 @@ namespace: dross.combat
 name: AbilityRule
 version: 1
 id: dross:ability_rule
+script_api: true
 fields:
   - name: actor
     type: entity_ref
