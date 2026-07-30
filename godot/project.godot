@@ -5,8 +5,8 @@ config_version=5
 
 [application]
 
-config/name="Dross Engine — Thump on Field Mouse"
-run/main_scene="res://demo/phase14_vertical_slice.tscn"
+config/name="ThumpDemo — powered by Dross Engine"
+run/main_scene="res://thump_demo/scenes/phase14_vertical_slice.tscn"
 
 [editor_plugins]
 

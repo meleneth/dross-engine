@@ -10,7 +10,7 @@ func check(condition: bool, message: String) -> void:
 
 func _initialize() -> void:
 	check(ClassDB.class_exists("DrossHexGridRegion3D"), "grid region is not registered")
-	var room: Node3D = load("res://demo/phase10_room.tscn").instantiate()
+	var room: Node3D = load("res://thump_demo/scenes/phase10_room.tscn").instantiate()
 	get_root().add_child(room)
 	var region: DrossHexGridRegion3D = room.get_node("GridRegion")
 	check(region.optional_door_edge == "demo:room:0,0,0|demo:room:1,0,0",

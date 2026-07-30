@@ -9,7 +9,8 @@ func check(condition: bool, message: String) -> void:
 
 
 func _initialize() -> void:
-	var demo: Node3D = load("res://demo/phase14_vertical_slice.tscn").instantiate()
+	var demo: Node3D = load(
+			"res://thump_demo/scenes/phase14_vertical_slice.tscn").instantiate()
 	get_root().add_child(demo)
 	await process_frame
 

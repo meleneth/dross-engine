@@ -32,7 +32,7 @@ func _initialize() -> void:
 	mouse_module.scope_kind = 1
 	mouse_module.entity_sequence = 2
 	mouse_module.state_schema_version = 1
-	mouse_module.script = load("res://scripts/phase12_field_mouse.gd")
+	mouse_module.script = load("res://thump_demo/scripts/field_mouse.gd")
 	var mouse_modules: Array[DrossScriptModuleDefinition] = [mouse_module]
 	check(host.start_script_scenario(mouse_modules, 12345), "field mouse script failed to install")
 	check(host.start_thump_scenario(thump), "Godot combat host rejected typed Thump")
@@ -82,7 +82,7 @@ func _initialize() -> void:
 	check(not door_host.is_door_edge_traversable(), "closed door lost traversal contribution")
 	door_host.queue_free()
 
-	var demo: Node3D = load("res://demo/phase12_thump.tscn").instantiate()
+	var demo: Node3D = load("res://thump_demo/scenes/phase12_thump.tscn").instantiate()
 	get_root().add_child(demo)
 	await process_frame
 	check(demo.get_node("FieldMouse").visible, "field mouse view did not start visible")

@@ -2,7 +2,7 @@
 
 Use Godot 4.7.1 stable and open the `godot/` project.
 
-1. Open `res://demo/phase10_room.tscn`.
+1. Open `res://thump_demo/scenes/phase10_room.tscn`.
 2. Select `GridRegion` and confirm the Dross Hex Grid gizmo is visible.
 3. In the Dross Grid dock, click **Bake Geometry** and confirm two cells are reported.
 4. Select axial cell `(0, 0)` in the dock and click **Force Traversable**.

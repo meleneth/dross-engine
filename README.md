@@ -28,6 +28,17 @@ The first proving game slice is intentionally tiny:
 
 The small surface is not permission to build disposable internals. Every implemented path must establish the architecture that later content will use.
 
+## Dross and ThumpDemo
+
+`godot/dross/` contains reusable engine-facing GDScript bases.
+`godot/thump_demo/` is the small proving game: its scenes, authored content,
+UI, and behavior scripts are game code rather than generic Dross
+infrastructure. Godot boundary fixtures remain under `godot/tests/`.
+
+New ThumpDemo content uses the `thump_demo:` ContentId namespace. Phase 15 is
+migrating the earlier mixed demo namespaces as the affected save and replay
+fixtures receive explicit replacements.
+
 ## Build and test
 
 The supported local baseline is CMake 3.25 or newer, Ninja, a C++20 compiler,
@@ -91,7 +102,8 @@ godot --editor --path godot
 ```
 
 The main project scene is
-`godot/demo/phase14_vertical_slice.tscn`. Run all Godot boundary tests with:
+`godot/thump_demo/scenes/phase14_vertical_slice.tscn`. Run all Godot boundary
+tests with:
 
 ```sh
 godot --headless --path godot --script res://tests/run_all.gd
@@ -131,7 +143,7 @@ The live editor workflow is:
 6. Compile the region; runtime movement and the visible overlay consume that
    same compiled map.
 
-The runnable fixture is `godot/demo/phase10_room.tscn`; the editor smoke
+The runnable fixture is `godot/thump_demo/scenes/phase10_room.tscn`; the editor smoke
 procedure is in
 [phase10-editor-smoke.md](docs/validation/phase10-editor-smoke.md).
 
@@ -140,7 +152,8 @@ Stable content uses typed Godot `Resource` classes such as
 `DrossAbilityDefinition`, and `DrossDoorDefinition`. Set their typed Inspector
 properties and call their validation or compilation boundary before starting a
 world. The live ability construction in
-`godot/demo/phase14_vertical_slice.gd` is the smallest copyable example.
+`godot/thump_demo/scenes/phase14_vertical_slice.gd` is the smallest copyable
+example.
 `Dictionary` payloads are not part of established command, event, or definition
 APIs.
 
@@ -151,7 +164,7 @@ mutate ECS components. Durable values belong in `context.state`, and
 authoritative randomness comes from `context.random`.
 
 The live, tested example is
-`godot/scripts/phase12_field_mouse.gd`. It contributes an ability rule, reacts
+`godot/thump_demo/scripts/field_mouse.gd`. It contributes an ability rule, reacts
 to `DrossDamageAppliedEvent` and `DrossActorKilledEvent`, writes durable state,
 and uses a deterministic named random stream. Its boundary assertions are in
 `godot/tests/run_phase12.gd` and `godot/tests/run_phase14.gd`.
@@ -173,7 +186,7 @@ outside a supported save boundary.
 installing it and returns `false` on failure. Read
 `get_last_load_error()` for the diagnostic; a rejected load leaves the current
 authoritative state unchanged. The production usage is in
-`godot/demo/phase14_vertical_slice.gd`.
+`godot/thump_demo/scenes/phase14_vertical_slice.gd`.
 
 ## Add an authoritative capability
 

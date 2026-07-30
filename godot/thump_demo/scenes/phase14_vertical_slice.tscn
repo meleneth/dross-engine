@@ -1,6 +1,6 @@
 [gd_scene load_steps=10 format=3]
 
-[ext_resource type="Script" path="res://demo/phase14_vertical_slice.gd" id="1_script"]
+[ext_resource type="Script" path="res://thump_demo/scenes/phase14_vertical_slice.gd" id="1_script"]
 
 [sub_resource type="PlaneMesh" id="FloorMesh"]
 size = Vector2(12, 7)
@@ -87,7 +87,7 @@ offset_top = 20.0
 offset_right = 620.0
 offset_bottom = 52.0
 theme_override_font_sizes/font_size = 24
-text = "Dross Engine — Thump on Field Mouse"
+text = "ThumpDemo — powered by Dross Engine"
 
 [node name="Status" type="Label" parent="UI"]
 offset_left = 24.0

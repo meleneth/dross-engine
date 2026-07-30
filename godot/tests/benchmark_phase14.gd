@@ -85,7 +85,8 @@ func _initialize() -> void:
 		script_samples.append(float(Time.get_ticks_usec() - script_started) / 10.0)
 	report("script_callback_event", script_samples)
 
-	var demo: Node3D = load("res://demo/phase14_vertical_slice.tscn").instantiate()
+	var demo: Node3D = load(
+			"res://thump_demo/scenes/phase14_vertical_slice.tscn").instantiate()
 	get_root().add_child(demo)
 	await process_frame
 	var integrated_host: DrossWorldHost = demo.get_node("DrossWorldHost")
@@ -105,7 +106,7 @@ func _initialize() -> void:
 	report("integrated_load", load_samples)
 	print("integrated_save bytes=%d" % saved.size())
 
-	var room: Node3D = load("res://demo/phase10_room.tscn").instantiate()
+	var room: Node3D = load("res://thump_demo/scenes/phase10_room.tscn").instantiate()
 	get_root().add_child(room)
 	await physics_frame
 	await physics_frame

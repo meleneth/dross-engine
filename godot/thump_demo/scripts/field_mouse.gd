@@ -1,4 +1,4 @@
-extends RefCounted
+extends DrossEntityScript
 
 
 func contribute_ability_rules(

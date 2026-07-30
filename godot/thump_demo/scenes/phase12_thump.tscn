@@ -1,6 +1,6 @@
 [gd_scene load_steps=10 format=3]
 
-[ext_resource type="Script" path="res://demo/phase12_thump.gd" id="1_script"]
+[ext_resource type="Script" path="res://thump_demo/scenes/phase12_thump.gd" id="1_script"]
 
 [sub_resource type="PlaneMesh" id="FloorMesh"]
 size = Vector2(10, 7)
@@ -78,7 +78,7 @@ offset_top = 20.0
 offset_right = 420.0
 offset_bottom = 52.0
 theme_override_font_sizes/font_size = 24
-text = "Dross Phase 12 — Thump"
+text = "ThumpDemo — Thump boundary fixture"
 
 [node name="Status" type="Label" parent="UI"]
 offset_left = 24.0

@@ -36,7 +36,7 @@ func _ready() -> void:
 	mouse_module.scope_kind = 1
 	mouse_module.entity_sequence = 2
 	mouse_module.state_schema_version = 1
-	mouse_module.script = load("res://scripts/phase12_field_mouse.gd")
+	mouse_module.script = load("res://thump_demo/scripts/field_mouse.gd")
 	var mouse_modules: Array[DrossScriptModuleDefinition] = [mouse_module]
 	if not host.start_script_scenario(mouse_modules, DEMO_SEED):
 		_fail_startup("field mouse script")

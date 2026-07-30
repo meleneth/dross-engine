@@ -8,8 +8,8 @@ import sys
 EXPECTED_EXCLUDES = {
     "addons/*",
     "tests/*",
-    "demo/phase10_*",
-    "demo/phase12_*",
+    "thump_demo/scenes/phase10_*",
+    "thump_demo/scenes/phase12_*",
     "scripts/phase09_*",
 }
 
