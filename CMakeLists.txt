@@ -247,7 +247,7 @@ set_tests_properties(
   PROPERTIES
     FIXTURES_SETUP thump_save_checkpoints
     PASS_REGULAR_EXPRESSION
-      "^thump-on-field-mouse seed=12345 .* checkpoints=3 exploration_resumed=match combat_resumed=match")
+      "^thump-on-field-mouse seed=12345 .* caretaker=settled contact=automatic checkpoints=3 exploration_resumed=match combat_resumed=match")
 add_test(
   NAME headless.inspect_thump_exploration_save
   COMMAND dross_headless inspect-save

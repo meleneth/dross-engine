@@ -13,6 +13,7 @@
 #include <dross/runtime/simulation_mode.hpp>
 #include <dross/runtime/world_lifecycle.hpp>
 #include <dross/world/world_storage.hpp>
+#include <thump_demo/fsm/caretaker_machine.hpp>
 
 #include <filesystem>
 #include <fstream>
@@ -110,6 +111,8 @@ class CanonicalCombatEvents final : public dross::CombatSession::EventSink,
                                     public dross::QuestRuntime::EventSink,
                                     public dross::DialogueRuntime::EventSink {
 public:
+  explicit CanonicalCombatEvents(thump_demo::CaretakerMachine& caretaker) : caretaker_{caretaker} {}
+
   void publish(const dross::combat::CombatStarted& event) override {
     trace_.push_back("combat_started/" + entity_text(event.active_actor.id()));
   }
@@ -161,10 +164,18 @@ public:
     trace_.push_back("quest_advanced/" + std::string{event.quest.canonical()} + "/" +
                      std::string{event.previous_stage.canonical()} + "/" +
                      std::string{event.current_stage.canonical()});
+    if (event.quest == content_id("thump_demo:mouse_quest") &&
+        event.current_stage == content_id("thump_demo:return_tail") &&
+        !caretaker_.observe_mouse_tail()) {
+      caretaker_transition_fault_ = true;
+    }
   }
 
   void publish(const dross::quest::QuestCompleted& event) override {
     trace_.push_back("quest_completed/" + std::string{event.quest.canonical()});
+    if (event.quest == content_id("thump_demo:mouse_quest") && !caretaker_.hand_in_tail()) {
+      caretaker_transition_fault_ = true;
+    }
   }
 
   void publish(const dross::quest::QuestFailed& event) override {
@@ -185,6 +196,9 @@ public:
   }
 
   [[nodiscard]] const std::vector<std::string>& trace() const noexcept { return trace_; }
+  [[nodiscard]] bool caretaker_transition_fault() const noexcept {
+    return caretaker_transition_fault_;
+  }
 
 private:
   static std::string entity_text(const dross::EntityId entity) {
@@ -192,6 +206,8 @@ private:
   }
 
   std::vector<std::string> trace_;
+  thump_demo::CaretakerMachine& caretaker_;
+  bool caretaker_transition_fault_{false};
 };
 
 struct SaveCheckpoint {
@@ -209,6 +225,7 @@ struct ScenarioResult {
   dross::InventorySnapshot inventory;
   dross::QuestSnapshot quest;
   dross::DialogueSnapshot dialogue;
+  thump_demo::CaretakerSnapshot caretaker;
   std::vector<std::string> events;
 };
 
@@ -269,7 +286,29 @@ struct ExplorationProgressionTarget {
   dross::QuestRuntime& quests;
   dross::MachineTraceSink& trace;
   CanonicalCombatEvents& events;
+  thump_demo::CaretakerMachine& caretaker_machine;
 };
+
+bool restore_caretaker_from_quest(thump_demo::CaretakerMachine& caretaker,
+                                  const dross::QuestRuntime& quests) {
+  const auto quest = content_id("thump_demo:mouse_quest");
+  auto state = thump_demo::CaretakerState::waiting_for_mouse_contact;
+  switch (quests.status(quest)) {
+  case dross::QuestStatus::inactive:
+    break;
+  case dross::QuestStatus::active:
+    state = quests.stage(quest) == content_id("thump_demo:return_tail")
+                ? thump_demo::CaretakerState::waiting_for_tail
+                : thump_demo::CaretakerState::hunt_assigned;
+    break;
+  case dross::QuestStatus::completed:
+    state = thump_demo::CaretakerState::settled;
+    break;
+  case dross::QuestStatus::failed:
+    return false;
+  }
+  return caretaker.restore({.state = state});
+}
 
 void maybe_resume_exploration(const ResumeBoundary boundary, const dross::SaveContainer& save,
                               ExplorationProgressionTarget target) {
@@ -288,6 +327,9 @@ void maybe_resume_exploration(const ResumeBoundary boundary, const dross::SaveCo
   if (saved_quest == nullptr || !target.quests.restore(*saved_quest)) {
     throw std::logic_error{"Thump exploration-boundary quest restore failed"};
   }
+  if (!restore_caretaker_from_quest(target.caretaker_machine, target.quests)) {
+    throw std::logic_error{"Thump exploration-boundary caretaker restore failed"};
+  }
   target.dialogue = std::make_unique<dross::DialogueRuntime>(
       target.world.instance, std::vector{target.world.player.id(), target.world.caretaker.id()},
       target.trace, &target.events);
@@ -302,25 +344,19 @@ struct ThumpQuestContent {
   dross::ContentId return_tail{content_id("thump_demo:return_tail")};
   dross::ContentId tail{content_id("thump_demo:mouse_tail")};
   dross::ContentId dialogue{content_id("thump_demo:caretaker_dialogue")};
-  dross::ContentId accept{content_id("thump_demo:accept_mouse_quest")};
   dross::ContentId hand_over{content_id("thump_demo:hand_over_mouse_tail")};
   dross::ContentId leave{content_id("thump_demo:leave")};
 };
 
-void accept_mouse_quest(dross::DialogueRuntime& dialogue, dross::QuestRuntime& quests,
-                        const dross::EntityRef& player, const dross::EntityRef& caretaker,
-                        const ThumpQuestContent& content) {
-  if (!dialogue.handle(dross::dialogue::BeginDialogue{
-          .initiator = player, .partner = caretaker, .dialogue = content.dialogue}) ||
-      !dialogue.offer_options({content.leave, content.accept}) ||
-      !dialogue.handle(dross::dialogue::ChooseDialogueOption{.initiator = player,
-                                                             .partner = caretaker,
-                                                             .dialogue = content.dialogue,
-                                                             .option = content.accept}) ||
-      !quests.handle(dross::quest::StartQuest{.quest = content.quest, .stage = content.hunt}) ||
-      !dialogue.handle(dross::dialogue::EndDialogue{
-          .initiator = player, .partner = caretaker, .dialogue = content.dialogue})) {
-    throw std::logic_error{"ThumpDemo caretaker quest acceptance failed"};
+void contact_mouse(thump_demo::CaretakerMachine& caretaker, dross::QuestRuntime& quests,
+                   const ThumpQuestContent& content) {
+  const auto caretaker_before = caretaker.snapshot();
+  const auto quests_before = quests.snapshot();
+  if (!caretaker.contact_mouse() ||
+      !quests.handle(dross::quest::StartQuest{.quest = content.quest, .stage = content.hunt})) {
+    static_cast<void>(caretaker.restore(caretaker_before));
+    static_cast<void>(quests.restore(quests_before));
+    throw std::logic_error{"ThumpDemo automatic mouse-contact quest start failed"};
   }
 }
 
@@ -361,6 +397,7 @@ struct CombatResumeTarget {
   dross::InventoryRuntime& inventory;
   dross::QuestRuntime& quests;
   dross::DialogueRuntime& dialogue;
+  thump_demo::CaretakerMachine& caretaker_machine;
 };
 
 void maybe_resume_combat(const ResumeBoundary boundary, const dross::SaveContainer& save,
@@ -404,6 +441,9 @@ void maybe_resume_combat(const ResumeBoundary boundary, const dross::SaveContain
   if (saved_quest == nullptr || !target.quests.restore(*saved_quest)) {
     throw std::logic_error{"Thump combat-boundary quest restore failed"};
   }
+  if (!restore_caretaker_from_quest(target.caretaker_machine, target.quests)) {
+    throw std::logic_error{"Thump combat-boundary caretaker restore failed"};
+  }
   if (saved_dialogue == nullptr || !target.dialogue.restore(*saved_dialogue)) {
     throw std::logic_error{"Thump combat-boundary dialogue restore failed"};
   }
@@ -420,7 +460,8 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   world->write().commit_pose(mouse, pose(1));
 
   dross::NullMachineTrace trace;
-  CanonicalCombatEvents events;
+  thump_demo::CaretakerMachine caretaker_machine;
+  CanonicalCombatEvents events{caretaker_machine};
   dross::WorldLifecycle lifecycle{trace};
   dross::SimulationMode mode{trace};
   if (!lifecycle.begin_load() || !lifecycle.load_succeeded() || !lifecycle.begin_run()) {
@@ -433,7 +474,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       instance, std::vector{player.id(), caretaker.id()}, trace, &events);
   dross::QuestRuntime quests{trace, &events};
   const ThumpQuestContent quest_content;
-  accept_mouse_quest(*dialogue, quests, player, caretaker, quest_content);
+  contact_mouse(caretaker_machine, quests, quest_content);
   std::unique_ptr<dross::CombatSession> combat;
   dross::RandomStream* damage_random = nullptr;
   std::unique_ptr<dross::AbilityResolver> resolver;
@@ -492,7 +533,8 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
                             .dialogue = dialogue,
                             .quests = quests,
                             .trace = trace,
-                            .events = events});
+                            .events = events,
+                            .caretaker_machine = caretaker_machine});
 
   if (!mode.request_combat() || !mode.reach_safe_boundary()) {
     throw std::logic_error{"Thump scenario combat-mode setup failed"};
@@ -540,7 +582,8 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
                        .resolver = resolver,
                        .inventory = *inventory,
                        .quests = quests,
-                       .dialogue = *dialogue});
+                       .dialogue = *dialogue,
+                       .caretaker_machine = caretaker_machine});
   const auto result = resolver->perform(thump, player.id(), mouse.id());
   if (!result.accepted || !result.killed ||
       combat->state() != dross::CombatSessionState::completed) {
@@ -574,6 +617,10 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
   save_checkpoints.push_back(
       SaveCheckpoint{.name = "tail-held-tick-1", .save = save_checkpoint(dross::Tick{1}, true)});
   hand_in_mouse_tail(*dialogue, *inventory, quests, player, caretaker, quest_content);
+  if (events.caretaker_transition_fault() ||
+      caretaker_machine.state() != thump_demo::CaretakerState::settled) {
+    throw std::logic_error{"ThumpDemo caretaker event transition failed"};
+  }
   checkpoints.push_back(dross::canonical_checkpoint(
       dross::Tick{2}, *world, occupancy, random->snapshot(), lifecycle.snapshot(), mode.snapshot(),
       std::span<const dross::PlaceEntityEnvelope>{},
@@ -612,6 +659,7 @@ ScenarioResult execute(const std::uint64_t seed, const ResumeBoundary resume_bou
       .inventory = inventory->snapshot(),
       .quest = quests.snapshot(),
       .dialogue = dialogue->snapshot(),
+      .caretaker = caretaker_machine.snapshot(),
       .events = events.trace(),
   };
 }
@@ -660,7 +708,8 @@ int run_thump_scenario(const std::uint64_t seed, const std::string& record_path,
              uninterrupted.killed == resumed.killed && uninterrupted.combat == resumed.combat &&
              uninterrupted.actors == resumed.actors &&
              uninterrupted.inventory == resumed.inventory && uninterrupted.quest == resumed.quest &&
-             uninterrupted.dialogue == resumed.dialogue && uninterrupted.events == resumed.events;
+             uninterrupted.dialogue == resumed.dialogue &&
+             uninterrupted.caretaker == resumed.caretaker && uninterrupted.events == resumed.events;
     };
     if (exploration_divergence || combat_divergence || !matches(exploration_resumed) ||
         !matches(combat_resumed)) {
@@ -679,6 +728,7 @@ int run_thump_scenario(const std::uint64_t seed, const std::string& record_path,
               << " mouse_health=" << uninterrupted.mouse_health.value()
               << " killed=" << (uninterrupted.killed ? "yes" : "no")
               << " mouse_tails=" << uninterrupted.inventory.entries.size() << " quest=completed"
+              << " caretaker=settled contact=automatic"
               << " checkpoints=" << uninterrupted.replay.checkpoints.size()
               << " exploration_resumed=match combat_resumed=match\n";
     return 0;
